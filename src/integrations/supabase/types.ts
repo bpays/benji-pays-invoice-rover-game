@@ -91,7 +91,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      scores_public: {
+        Row: {
+          best_combo: number | null
+          city_flag: string | null
+          city_reached: string | null
+          created_at: string | null
+          event_tag: string | null
+          flagged: boolean | null
+          id: string | null
+          player_name: string | null
+          score: number | null
+        }
+        Insert: {
+          best_combo?: number | null
+          city_flag?: string | null
+          city_reached?: string | null
+          created_at?: string | null
+          event_tag?: string | null
+          flagged?: boolean | null
+          id?: string | null
+          player_name?: string | null
+          score?: number | null
+        }
+        Update: {
+          best_combo?: number | null
+          city_flag?: string | null
+          city_reached?: string | null
+          created_at?: string | null
+          event_tag?: string | null
+          flagged?: boolean | null
+          id?: string | null
+          player_name?: string | null
+          score?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
