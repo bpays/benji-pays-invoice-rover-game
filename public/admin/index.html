@@ -28,7 +28,7 @@ html,body{width:100%;min-height:100%;background:var(--charcoal);font-family:'Bar
 .badge-green{background:rgba(77,201,122,.15);color:var(--good);border:1px solid rgba(77,201,122,.3);}
 .badge-cooper{background:rgba(204,125,81,.15);color:var(--cooper);border:1px solid rgba(204,125,81,.3);}
 .logout-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--muted);font-family:'Barlow',sans-serif;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;}
-.main{padding:20px 24px;max-width:1400px;margin:0 auto;}
+.main{padding:20px 24px;max-width:1400px;margin:0 auto;padding-bottom:120px;}
 .section-label{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
 .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
 .stat-card{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px;}
@@ -39,6 +39,7 @@ html,body{width:100%;min-height:100%;background:var(--charcoal);font-family:'Bar
 .section{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px;margin-bottom:16px;}
 .section-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;text-transform:uppercase;color:var(--cooper);margin-bottom:14px;}
 .timer-grid{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;}
+@media(max-width:600px){.timer-grid{grid-template-columns:1fr;}}
 .current-timer{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;color:var(--white);line-height:1;margin-bottom:4px;}
 .current-lbl{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
 .reset-at{font-size:11px;color:rgba(255,255,255,.3);margin-top:6px;}
