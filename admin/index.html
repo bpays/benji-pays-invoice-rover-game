@@ -84,9 +84,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
   <div class="login-box">
     <div class="login-logo">🐕 INVOICE ROVER</div>
     <div class="login-sub">Admin Panel · Benji Pays</div>
-    <input type="password" id="pwInput" placeholder="Admin password" />
-    <button onclick="tryLogin()">Enter Admin →</button>
-    <div class="login-err" id="loginErr">Incorrect password</div>
+    <input type="email" id="emailInput" placeholder="Admin email" />
+    <input type="password" id="pwInput" placeholder="Password" style="margin-top:0;" />
+    <button onclick="tryLogin()">Sign In →</button>
+    <div class="login-err" id="loginErr"></div>
   </div>
 </div>
 <div id="adminApp">
