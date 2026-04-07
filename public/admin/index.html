@@ -206,11 +206,13 @@ async function tryLogin(){
   }
 
   // Check MFA status
+  console.log('Login success, checking MFA...');
   await handleMfaFlow();
 }
 
 async function handleMfaFlow(){
   const {data,error}=await supaClient.auth.mfa.listFactors();
+  console.log('MFA factors:', JSON.stringify(data), 'error:', error);
   if(error){console.error('MFA list error',error);enterAdmin();return;}
 
   const totpFactors=(data.totp||[]).filter(f=>f.status==='verified');
