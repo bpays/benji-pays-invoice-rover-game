@@ -129,7 +129,7 @@ const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
 
 async function fetchScores(){
-  const res=await fetch(`${SUPA_URL}/rest/v1/scores?select=player_name,score,city_reached,city_flag,best_combo,created_at&flagged=eq.false&event_tag=eq.nable-empower-2026&order=score.desc&limit=10`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`}});
+  const res=await fetch(`${SUPA_URL}/rest/v1/rpc/get_leaderboard`,{method:'POST',headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({p_event_tag:'nable-empower-2026',p_limit:10})});
   return res.ok?await res.json():[];
 }
 
@@ -139,10 +139,8 @@ async function fetchSettings(){
 }
 
 async function fetchCount(){
-  const today=new Date();today.setHours(0,0,0,0);
-  const res=await fetch(`${SUPA_URL}/rest/v1/scores?select=id&created_at=gte.${today.toISOString()}&flagged=eq.false&event_tag=eq.nable-empower-2026`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Prefer':'count=exact','Range':'0-0'}});
-  const count=res.headers.get('content-range')?.split('/')?.[1]||'0';
-  return parseInt(count);
+  const res=await fetch(`${SUPA_URL}/rest/v1/rpc/get_today_run_count`,{method:'POST',headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({p_event_tag:'nable-empower-2026'})});
+  return res.ok?await res.json():0;
 }
 
 const medals=['🥇','🥈','🥉'];
