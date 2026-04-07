@@ -174,20 +174,19 @@
 const SUPA_URL = 'https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
 
-async function supaInsert(table, data) {
+async function submitScore(data) {
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
+    const res = await fetch(`${SUPA_URL}/functions/v1/submit-score`, {
       method: 'POST',
       headers: {
         'apikey': SUPA_KEY,
         'Authorization': `Bearer ${SUPA_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
     });
     return res.ok;
-  } catch(e) { console.warn('Supabase insert failed:', e); return false; }
+  } catch(e) { console.warn('Score submit failed:', e); return false; }
 }
 
 async function supaSelect(table, params='') {
