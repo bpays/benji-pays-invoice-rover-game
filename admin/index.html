@@ -84,9 +84,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
   <div class="login-box">
     <div class="login-logo">🐕 INVOICE ROVER</div>
     <div class="login-sub">Admin Panel · Benji Pays</div>
-    <input type="password" id="pwInput" placeholder="Admin password" />
-    <button onclick="tryLogin()">Enter Admin →</button>
-    <div class="login-err" id="loginErr">Incorrect password</div>
+    <input type="email" id="emailInput" placeholder="Admin email" />
+    <input type="password" id="pwInput" placeholder="Password" style="margin-top:0;" />
+    <button onclick="tryLogin()">Sign In →</button>
+    <div class="login-err" id="loginErr"></div>
   </div>
 </div>
 <div id="adminApp">
@@ -170,25 +171,66 @@ tr:hover td{background:rgba(255,255,255,.02);}
   </div>
 </div>
 <div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
-const ADMIN_PW='InvoiceRover2026!';
+const supaClient = supabase.createClient(SUPA_URL, SUPA_KEY);
 const PAGE_SIZE=25;
 const EVENTS={'all':{label:'All Events',tag:null},'nable-empower-2026':{label:'N-able Empower 2026',tag:'nable-empower-2026'}};
 let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026';
+let accessToken=null;
+
+async function tryLogin(){
+  const email=document.getElementById('emailInput').value.trim();
+  const pw=document.getElementById('pwInput').value;
+  const errEl=document.getElementById('loginErr');
+  errEl.style.display='none';
+  if(!email||!pw){errEl.textContent='Email and password required';errEl.style.display='block';return;}
+  const {data,error}=await supaClient.auth.signInWithPassword({email,password:pw});
+  if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
+  accessToken=data.session.access_token;
+  // Check admin role
+  const {data:roles,error:roleErr}=await supaClient.from('user_roles').select('role').eq('user_id',data.user.id).eq('role','admin');
+  if(roleErr||!roles||roles.length===0){
+    errEl.textContent='Access denied — admin role required';errEl.style.display='block';
+    await supaClient.auth.signOut();accessToken=null;return;
+  }
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('adminApp').style.display='block';
+  init();
+}
+document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
+document.getElementById('emailInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwInput').focus();});
+
+// Check for existing session on load
+(async()=>{
+  const {data:{session}}=await supaClient.auth.getSession();
+  if(session){
+    accessToken=session.access_token;
+    const {data:roles}=await supaClient.from('user_roles').select('role').eq('user_id',session.user.id).eq('role','admin');
+    if(roles&&roles.length>0){
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('adminApp').style.display='block';
+      init();
+    } else {
+      await supaClient.auth.signOut();accessToken=null;
+    }
+  }
+})();
+
+async function logout(){await supaClient.auth.signOut();location.reload();}
 
 async function api(method,table,body,params=''){
+  const {data:{session}}=await supaClient.auth.getSession();
+  const token=session?.access_token||SUPA_KEY;
   const res=await fetch(`${SUPA_URL}/rest/v1/${table}?${params}`,{method,
-    headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Content-Type':'application/json','Prefer':'return=representation'},
+    headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Prefer':'return=representation'},
     body:body?JSON.stringify(body):undefined});
   if(method==='DELETE')return res.ok;
   return res.ok?await res.json():null;
 }
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>t.className='',2500);}
-function tryLogin(){if(document.getElementById('pwInput').value===ADMIN_PW){document.getElementById('loginScreen').style.display='none';document.getElementById('adminApp').style.display='block';init();}else document.getElementById('loginErr').style.display='block';}
-document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
-function logout(){location.reload();}
 async function init(){await loadAll();await loadTimerSetting();startTimer();}
 async function loadAll(){await Promise.all([loadScores(),loadStats()]);}
 function onEventChange(){
