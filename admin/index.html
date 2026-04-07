@@ -232,7 +232,7 @@ async function api(method,table,body,params=''){
   return res.ok?await res.json():null;
 }
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>t.className='',2500);}
-async function init(){await loadAll();await loadTimerSetting();startTimer();loadAdminList();}
+async function init(){await loadAll();await loadTimerSetting();startTimer();}
 async function loadAll(){await Promise.all([loadScores(),loadStats()]);}
 function onEventChange(){
   currentEventKey=document.getElementById('eventSelector').value;
