@@ -4,93 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice Rover — Admin</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap');
-:root{--cerulean:#004777;--charcoal:#002843;--cooper:#CC7D51;--white:#F8F8F8;--good:#4DC97A;--bad:#E84040;--muted:#7ba3be;--mid:#0d2033;--card:#0a1c2e;}
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:100%;min-height:100%;background:var(--charcoal);font-family:'Barlow',sans-serif;color:var(--white);}
-#loginScreen{position:fixed;inset:0;background:var(--charcoal);display:flex;align-items:center;justify-content:center;z-index:100;}
-.login-box{background:var(--mid);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:40px;width:100%;max-width:360px;text-align:center;}
-.login-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:26px;color:var(--white);margin-bottom:4px;}
-.login-sub{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:28px;}
-.login-box input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:var(--white);font-family:'Barlow',sans-serif;font-size:15px;padding:13px 15px;outline:none;margin-bottom:12px;transition:border-color .2s;}
-.login-box input:focus{border-color:var(--cooper);}
-.login-box button{width:100%;background:var(--cooper);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:10px;padding:14px;cursor:pointer;}
-.login-err{color:var(--bad);font-size:12px;margin-top:8px;display:none;}
-#adminApp{display:none;}
-.topbar{background:var(--mid);border-bottom:1px solid rgba(255,255,255,.07);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
-.topbar-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;color:var(--white);}
-.topbar-logo span{color:var(--cooper);}
-.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.event-selector{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:12px;padding:6px 10px;outline:none;cursor:pointer;}
-.event-selector option{background:var(--charcoal);}
-.badge{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:20px;}
-.badge-green{background:rgba(77,201,122,.15);color:var(--good);border:1px solid rgba(77,201,122,.3);}
-.badge-cooper{background:rgba(204,125,81,.15);color:var(--cooper);border:1px solid rgba(204,125,81,.3);}
-.logout-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--muted);font-family:'Barlow',sans-serif;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;}
-.main{padding:20px 24px;max-width:1400px;margin:0 auto;padding-bottom:120px;}
-.section-label{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
-.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
-.stat-card{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px;}
-.stat-val{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--white);line-height:1;}
-.stat-val.cooper{color:var(--cooper);}.stat-val.green{color:var(--good);}.stat-val.blue{color:#4488ff;}.stat-val.yellow{color:#f5c842;}
-.stat-lbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:4px;}
-.stat-sub{font-size:10px;color:rgba(255,255,255,.25);margin-top:2px;}
-.section{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px;margin-bottom:16px;}
-.section-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;text-transform:uppercase;color:var(--cooper);margin-bottom:14px;}
-.timer-grid{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;}
-@media(max-width:600px){.timer-grid{grid-template-columns:1fr;}}
-.current-timer{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;color:var(--white);line-height:1;margin-bottom:4px;}
-.current-lbl{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
-.reset-at{font-size:11px;color:rgba(255,255,255,.3);margin-top:6px;}
-.field label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;}
-.field input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:13px;padding:9px 12px;outline:none;margin-bottom:10px;}
-.field input:focus{border-color:var(--cooper);}
-.btn-row{display:flex;gap:8px;flex-wrap:wrap;}
-.btn{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;letter-spacing:1px;text-transform:uppercase;border:none;border-radius:8px;padding:9px 16px;cursor:pointer;transition:opacity .15s;}
-.btn:hover{opacity:.85;}.btn:active{transform:scale(.97);}
-.btn-primary{background:var(--cooper);color:var(--white);}
-.btn-danger{background:var(--bad);color:var(--white);}
-.btn-ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.15);}
-.btn-green{background:var(--good);color:#071a0e;}
-.btn-sm{font-size:11px;padding:6px 12px;}
-.table-controls{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
-.search-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:13px;padding:7px 12px;outline:none;width:200px;}
-.search-input::placeholder{color:var(--muted);}
-.table-wrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:12px;}
-th{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:9px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.07);white-space:nowrap;}
-td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
-tr:hover td{background:rgba(255,255,255,.02);}
-.score-val{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;}
-.flagged-row td{opacity:.35;}
-.flagged-badge{font-size:9px;font-weight:700;background:rgba(232,64,64,.15);color:var(--bad);border:1px solid rgba(232,64,64,.3);border-radius:4px;padding:2px 5px;margin-left:4px;}
-.event-tag-badge{font-size:9px;font-weight:700;background:rgba(0,71,119,.25);color:var(--muted);border-radius:4px;padding:2px 6px;}
-.action-btns{display:flex;gap:5px;}
-.pagination{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:11px;color:var(--muted);}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:none;align-items:center;justify-content:center;}
-.modal-overlay.show{display:flex;}
-.modal{background:var(--mid);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:26px;width:100%;max-width:400px;}
-.modal-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;margin-bottom:14px;}
-.modal-field{margin-bottom:12px;}
-.modal-field label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;}
-.modal-field input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:14px;padding:9px 12px;outline:none;}
-.modal-btns{display:flex;gap:10px;margin-top:18px;}
-#toast{position:fixed;bottom:20px;right:20px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;letter-spacing:1px;padding:11px 18px;border-radius:10px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
-#toast.show{opacity:1;}#toast.ok{background:var(--good);color:#071a0e;}#toast.err{background:var(--bad);color:#fff;}
-</style>
+<link rel="stylesheet" href="admin-styles.css">
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-logo">🐕 INVOICE ROVER</div>
     <div class="login-sub">Admin Panel · Benji Pays</div>
-    <input type="email" id="emailInput" placeholder="Admin email" />
-    <input type="password" id="pwInput" placeholder="Password" style="margin-top:0;" />
+    <div class="login-domain-note">@benjipays.com accounts only</div>
+    <input type="email" id="emailInput" placeholder="Admin email (@benjipays.com)" />
+    <input type="password" id="pwInput" placeholder="Password" />
     <button onclick="tryLogin()">Sign In →</button>
     <div class="login-err" id="loginErr"></div>
   </div>
 </div>
+
+<!-- MFA ENROLLMENT SCREEN -->
+<div id="mfaEnrollScreen" class="mfa-screen">
+  <div class="login-box" style="max-width:420px;">
+    <div class="login-logo">🔐 Set Up MFA</div>
+    <div class="login-sub">Scan the QR code with your authenticator app</div>
+    <div id="mfaQrWrap" class="mfa-qr-wrap"></div>
+    <div class="mfa-secret-wrap">
+      <div class="mfa-secret-label">Or enter this code manually:</div>
+      <div class="mfa-secret" id="mfaSecret">—</div>
+    </div>
+    <input type="text" id="mfaEnrollCode" placeholder="Enter 6-digit code to verify" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" />
+    <button onclick="verifyEnrollment()">Verify & Enable MFA →</button>
+    <div class="login-err" id="mfaEnrollErr"></div>
+  </div>
+</div>
+
+<!-- MFA VERIFY SCREEN -->
+<div id="mfaVerifyScreen" class="mfa-screen">
+  <div class="login-box">
+    <div class="login-logo">🔐 Two-Factor Auth</div>
+    <div class="login-sub">Enter the code from your authenticator app</div>
+    <input type="text" id="mfaVerifyCode" placeholder="6-digit code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" />
+    <button onclick="verifyMfa()">Verify →</button>
+    <div class="login-err" id="mfaVerifyErr"></div>
+  </div>
+</div>
+
+<!-- ADMIN APP -->
 <div id="adminApp">
   <div class="topbar">
     <div class="topbar-logo">BENJI PAYS: <span>INVOICE ROVER</span> — ADMIN</div>
@@ -141,18 +99,18 @@ tr:hover td{background:rgba(255,255,255,.02);}
         <input class="search-input" type="text" id="searchInput" placeholder="Search name or email..." oninput="filterScores()" />
         <button class="btn btn-ghost btn-sm" onclick="loadAll()">↻ Refresh</button>
         <button class="btn btn-green btn-sm" onclick="exportCSV()">↓ CSV</button>
-        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;"><input type="checkbox" id="showFlagged" onchange="filterScores()" style="accent-color:var(--cooper);" /> Show flagged</label>
-        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;"><input type="checkbox" id="hideZero" checked onchange="filterScores()" style="accent-color:var(--cooper);" /> Hide 0-score</label>
+        <label class="table-check"><input type="checkbox" id="showFlagged" onchange="filterScores()" /> Show flagged</label>
+        <label class="table-check"><input type="checkbox" id="hideZero" checked onchange="filterScores()" /> Hide 0-score</label>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>#</th><th>Player</th><th>Email</th><th>Score</th><th>City</th><th>Combo</th><th>Event</th><th>Date</th><th>Actions</th></tr></thead>
-          <tbody id="scoresBody"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);">Loading...</td></tr></tbody>
+          <tbody id="scoresBody"><tr><td colspan="9" style="text-align:center;padding:30px;">Loading...</td></tr></tbody>
         </table>
       </div>
       <div class="pagination">
         <span id="pageInfo">—</span>
-        <div style="display:flex;gap:8px;">
+        <div class="pagination-btns">
           <button class="btn btn-ghost btn-sm" onclick="changePage(-1)">← Prev</button>
           <button class="btn btn-ghost btn-sm" onclick="changePage(1)">Next →</button>
         </div>
@@ -160,7 +118,8 @@ tr:hover td{background:rgba(255,255,255,.02);}
     </div>
   </div>
 </div>
-</div>
+
+<!-- EDIT MODAL -->
 <div class="modal-overlay" id="editModal">
   <div class="modal">
     <div class="modal-title">Edit Score</div>
@@ -172,49 +131,180 @@ tr:hover td{background:rgba(255,255,255,.02);}
     </div>
   </div>
 </div>
+
 <div id="toast"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
+const ALLOWED_DOMAIN='benjipays.com';
 const supaClient = supabase.createClient(SUPA_URL, SUPA_KEY);
 const PAGE_SIZE=25;
 const EVENTS={'all':{label:'All Events',tag:null},'nable-empower-2026':{label:'N-able Empower 2026',tag:'nable-empower-2026'}};
 let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026';
 let accessToken=null;
+let mfaFactorId=null;
+
+function showScreen(id){
+  ['loginScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
+    document.getElementById(s).style.display=(s===id)?'':'none';
+  });
+}
+showScreen('loginScreen');
+
+function validateDomain(email){
+  const domain=email.split('@')[1]?.toLowerCase();
+  return domain===ALLOWED_DOMAIN;
+}
 
 async function tryLogin(){
-  const email=document.getElementById('emailInput').value.trim();
+  const email=document.getElementById('emailInput').value.trim().toLowerCase();
   const pw=document.getElementById('pwInput').value;
   const errEl=document.getElementById('loginErr');
   errEl.style.display='none';
+
   if(!email||!pw){errEl.textContent='Email and password required';errEl.style.display='block';return;}
+
+  // Domain check
+  if(!validateDomain(email)){
+    errEl.textContent='Access restricted to @'+ALLOWED_DOMAIN+' accounts only';
+    errEl.style.display='block';return;
+  }
+
   const {data,error}=await supaClient.auth.signInWithPassword({email,password:pw});
   if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
   accessToken=data.session.access_token;
+
   // Check admin role
   const {data:roles,error:roleErr}=await supaClient.from('user_roles').select('role').eq('user_id',data.user.id).eq('role','admin');
   if(roleErr||!roles||roles.length===0){
     errEl.textContent='Access denied — admin role required';errEl.style.display='block';
     await supaClient.auth.signOut();accessToken=null;return;
   }
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('adminApp').style.display='block';
+
+  // Check MFA status
+  await handleMfaFlow();
+}
+
+async function handleMfaFlow(){
+  const {data,error}=await supaClient.auth.mfa.listFactors();
+  if(error){console.error('MFA list error',error);enterAdmin();return;}
+
+  const totpFactors=(data.totp||[]).filter(f=>f.status==='verified');
+  const unverifiedFactors=(data.totp||[]).filter(f=>f.status==='unverified');
+
+  if(totpFactors.length>0){
+    // User has MFA enrolled — need verification
+    mfaFactorId=totpFactors[0].id;
+    showScreen('mfaVerifyScreen');
+    document.getElementById('mfaVerifyCode').value='';
+    document.getElementById('mfaVerifyCode').focus();
+  } else {
+    // No MFA enrolled — force enrollment
+    // Clean up any unverified factors first
+    for(const f of unverifiedFactors){
+      await supaClient.auth.mfa.unenroll({factorId:f.id});
+    }
+    await startMfaEnrollment();
+  }
+}
+
+async function startMfaEnrollment(){
+  const {data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:'Authenticator App'});
+  if(error){
+    console.error('MFA enroll error',error);
+    document.getElementById('mfaEnrollErr').textContent='Failed to set up MFA: '+error.message;
+    document.getElementById('mfaEnrollErr').style.display='block';
+    return;
+  }
+
+  mfaFactorId=data.id;
+  // Show QR code
+  const qrWrap=document.getElementById('mfaQrWrap');
+  qrWrap.innerHTML=`<img src="${data.totp.qr_code}" alt="MFA QR Code" class="mfa-qr-img" />`;
+  document.getElementById('mfaSecret').textContent=data.totp.secret;
+  showScreen('mfaEnrollScreen');
+  document.getElementById('mfaEnrollCode').value='';
+  document.getElementById('mfaEnrollCode').focus();
+}
+
+async function verifyEnrollment(){
+  const code=document.getElementById('mfaEnrollCode').value.trim();
+  const errEl=document.getElementById('mfaEnrollErr');
+  errEl.style.display='none';
+
+  if(!code||code.length!==6||!/^\d{6}$/.test(code)){
+    errEl.textContent='Enter a valid 6-digit code';errEl.style.display='block';return;
+  }
+
+  const {data:challengeData,error:challengeErr}=await supaClient.auth.mfa.challenge({factorId:mfaFactorId});
+  if(challengeErr){errEl.textContent='Challenge failed: '+challengeErr.message;errEl.style.display='block';return;}
+
+  const {data:verifyData,error:verifyErr}=await supaClient.auth.mfa.verify({factorId:mfaFactorId,challengeId:challengeData.id,code});
+  if(verifyErr){errEl.textContent='Verification failed — check the code and try again';errEl.style.display='block';return;}
+
+  toast('MFA enabled successfully ✓');
+  enterAdmin();
+}
+
+async function verifyMfa(){
+  const code=document.getElementById('mfaVerifyCode').value.trim();
+  const errEl=document.getElementById('mfaVerifyErr');
+  errEl.style.display='none';
+
+  if(!code||code.length!==6||!/^\d{6}$/.test(code)){
+    errEl.textContent='Enter a valid 6-digit code';errEl.style.display='block';return;
+  }
+
+  const {data:challengeData,error:challengeErr}=await supaClient.auth.mfa.challenge({factorId:mfaFactorId});
+  if(challengeErr){errEl.textContent='Challenge failed: '+challengeErr.message;errEl.style.display='block';return;}
+
+  const {data:verifyData,error:verifyErr}=await supaClient.auth.mfa.verify({factorId:mfaFactorId,challengeId:challengeData.id,code});
+  if(verifyErr){errEl.textContent='Invalid code — try again';errEl.style.display='block';return;}
+
+  enterAdmin();
+}
+
+function enterAdmin(){
+  showScreen('adminApp');
   init();
 }
+
+// Enter key handlers
 document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
 document.getElementById('emailInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwInput').focus();});
+document.getElementById('mfaEnrollCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyEnrollment();});
+document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyMfa();});
 
 // Check for existing session on load
 (async()=>{
   const {data:{session}}=await supaClient.auth.getSession();
   if(session){
     accessToken=session.access_token;
+    // Domain check on existing session
+    if(!validateDomain(session.user.email||'')){
+      await supaClient.auth.signOut();accessToken=null;return;
+    }
     const {data:roles}=await supaClient.from('user_roles').select('role').eq('user_id',session.user.id).eq('role','admin');
     if(roles&&roles.length>0){
-      document.getElementById('loginScreen').style.display='none';
-      document.getElementById('adminApp').style.display='block';
-      init();
+      // Check MFA — if AAL is aal1 and factors exist, require verification
+      const {data:aalData}=await supaClient.auth.mfa.getAuthenticatorAssuranceLevel();
+      if(aalData&&aalData.currentLevel==='aal1'&&aalData.nextLevel==='aal2'){
+        // Need MFA verification
+        const {data:factors}=await supaClient.auth.mfa.listFactors();
+        const verified=(factors?.totp||[]).filter(f=>f.status==='verified');
+        if(verified.length>0){
+          mfaFactorId=verified[0].id;
+          showScreen('mfaVerifyScreen');
+          document.getElementById('mfaVerifyCode').focus();
+          return;
+        }
+      } else if(aalData&&aalData.currentLevel==='aal2'){
+        enterAdmin();return;
+      }
+      // If no MFA factors, still require enrollment
+      await handleMfaFlow();
     } else {
       await supaClient.auth.signOut();accessToken=null;
     }
@@ -287,19 +377,19 @@ function filterScores(){
 function renderPage(){
   const start=currentPage*PAGE_SIZE,end=start+PAGE_SIZE,page=filteredScores.slice(start,end);
   const tbody=document.getElementById('scoresBody');
-  if(!page.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);">No scores found</td></tr>';return;}
+  if(!page.length){tbody.innerHTML='<tr><td colspan="9" class="empty-cell">No scores found</td></tr>';return;}
   tbody.innerHTML=page.map((s,i)=>`<tr class="${s.flagged?'flagged-row':''}">
-    <td style="color:var(--muted);font-size:11px;">${start+i+1}</td>
+    <td class="muted-cell">${start+i+1}</td>
     <td><strong>${s.player_name||'—'}</strong>${s.flagged?'<span class="flagged-badge">FLAGGED</span>':''}</td>
-    <td style="color:var(--muted);font-size:11px;">${s.email||'—'}</td>
+    <td class="muted-cell">${s.email||'—'}</td>
     <td><span class="score-val">${(s.score||0).toLocaleString()}</span></td>
-    <td style="font-size:11px;">${s.city_flag||''} ${s.city_reached||'—'}</td>
-    <td style="color:var(--muted);">${s.best_combo||0}×</td>
+    <td class="city-cell">${s.city_flag||''} ${s.city_reached||'—'}</td>
+    <td class="muted-cell">${s.best_combo||0}×</td>
     <td><span class="event-tag-badge">${s.event_tag||'—'}</span></td>
-    <td style="color:var(--muted);font-size:10px;">${new Date(s.created_at).toLocaleString()}</td>
+    <td class="date-cell">${new Date(s.created_at).toLocaleString()}</td>
     <td><div class="action-btns">
       <button class="btn btn-ghost btn-sm" onclick="openEdit('${s.id}','${(s.player_name||'').replace(/'/g,"\\'")}',${s.score})">Edit</button>
-      <button class="btn btn-sm" style="background:rgba(${s.flagged?'77,201,122':'232,64,64'},.15);color:var(--${s.flagged?'good':'bad'});border:1px solid rgba(${s.flagged?'77,201,122':'232,64,64'},.3);" onclick="toggleFlag('${s.id}',${s.flagged})">${s.flagged?'Unflag':'Flag'}</button>
+      <button class="btn btn-sm flag-btn ${s.flagged?'unflag':'flag'}" onclick="toggleFlag('${s.id}',${s.flagged})">${s.flagged?'Unflag':'Flag'}</button>
       <button class="btn btn-danger btn-sm" onclick="deleteScore('${s.id}')">Del</button>
     </div></td>
   </tr>`).join('');
@@ -353,7 +443,6 @@ async function resetNow(){
   if(res){resetSeconds=0;document.getElementById('resetAtDisplay').textContent='Reset just now';toast('Leaderboard reset ✓');}else toast('Reset failed','err');
 }
 setInterval(()=>{if(document.getElementById('adminApp').style.display!=='none')loadStats();},60000);
-
 </script>
 </body>
 </html>

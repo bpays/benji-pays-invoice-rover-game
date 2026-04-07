@@ -1,5 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+
+const ALLOWED_DOMAIN = "benjipays.com";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -31,6 +33,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Verify caller's domain
+    const callerDomain = caller.email?.split("@")[1]?.toLowerCase();
+    if (callerDomain !== ALLOWED_DOMAIN) {
+      return new Response(JSON.stringify({ error: "Access restricted to @" + ALLOWED_DOMAIN }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check caller has admin role
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: callerRoles } = await adminClient
@@ -57,7 +68,15 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create user via admin API
+      // Validate invited user's domain
+      const invitedDomain = email.split("@")[1]?.toLowerCase();
+      if (invitedDomain !== ALLOWED_DOMAIN) {
+        return new Response(JSON.stringify({ error: "Can only invite @" + ALLOWED_DOMAIN + " emails" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
         email,
         password,
@@ -71,7 +90,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Assign role
       const { error: roleErr } = await adminClient
         .from("user_roles")
         .insert({ user_id: newUser.user.id, role });
@@ -101,7 +119,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get user emails for each role
       const userIds = [...new Set(roles.map((r: any) => r.user_id))];
       const admins = [];
       for (const uid of userIds) {
@@ -131,7 +148,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Prevent removing yourself
       if (user_id === caller.id) {
         return new Response(JSON.stringify({ error: "Cannot remove your own admin role" }), {
           status: 400,
