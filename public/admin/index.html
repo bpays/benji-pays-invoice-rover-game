@@ -185,6 +185,14 @@ function validateDomain(email){
   return domain===ALLOWED_DOMAIN;
 }
 
+function getTotpFactors(factorData){
+  const direct=Array.isArray(factorData?.totp)?factorData.totp:[];
+  const fromAll=(Array.isArray(factorData?.all)?factorData.all:[]).filter(f=>f.factor_type==='totp');
+  const merged=[...direct];
+  fromAll.forEach(f=>{if(!merged.some(existing=>existing.id===f.id))merged.push(f);});
+  return merged;
+}
+
 async function tryLogin(){
   const email=document.getElementById('emailInput').value.trim().toLowerCase();
   const pw=document.getElementById('pwInput').value;
@@ -193,7 +201,6 @@ async function tryLogin(){
 
   if(!email||!pw){errEl.textContent='Email and password required';errEl.style.display='block';return;}
 
-  // Domain check
   if(!validateDomain(email)){
     errEl.textContent='Access restricted to @'+ALLOWED_DOMAIN+' accounts only';
     errEl.style.display='block';return;
@@ -203,14 +210,12 @@ async function tryLogin(){
   if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
   accessToken=data.session.access_token;
 
-  // Check admin role
   const {data:roles,error:roleErr}=await supaClient.from('user_roles').select('role').eq('user_id',data.user.id).eq('role','admin');
   if(roleErr||!roles||roles.length===0){
     errEl.textContent='Access denied — admin role required';errEl.style.display='block';
     await supaClient.auth.signOut();accessToken=null;return;
   }
 
-  // Check MFA status
   console.log('Login success, checking MFA...');
   await handleMfaFlow();
 }
@@ -218,34 +223,29 @@ async function tryLogin(){
 async function handleMfaFlow(){
   const {data,error}=await supaClient.auth.mfa.listFactors();
   console.log('MFA factors:', JSON.stringify(data), 'error:', error);
-  if(error){console.error('MFA list error',error);enterAdmin();return;}
+  if(error){console.error('MFA list error',error);await enterAdmin();return;}
 
-  const totpFactors=(data.totp||[]).filter(f=>f.status==='verified');
-  const unverifiedFactors=(data.totp||[]).filter(f=>f.status==='unverified');
+  const totpFactors=getTotpFactors(data);
+  const verifiedFactors=totpFactors.filter(f=>f.status==='verified');
+  const unverifiedFactors=totpFactors.filter(f=>f.status==='unverified');
 
-  if(totpFactors.length>0){
-    // User has MFA enrolled — need verification
-    mfaFactorId=totpFactors[0].id;
+  if(verifiedFactors.length>0){
+    mfaFactorId=verifiedFactors[0].id;
     showScreen('mfaVerifyScreen');
+    document.getElementById('mfaVerifyErr').style.display='none';
     document.getElementById('mfaVerifyCode').value='';
     document.getElementById('mfaVerifyCode').focus();
-  } else if(unverifiedFactors.length>0){
-    // Has unverified factor — try to unenroll all, then re-enroll fresh
-    let unenrolledAll=true;
+    return;
+  }
+
+  if(unverifiedFactors.length>0){
     for(const f of unverifiedFactors){
       const {error:ueErr}=await supaClient.auth.mfa.unenroll({factorId:f.id});
-      if(ueErr){console.warn('Unenroll failed for',f.id,ueErr);unenrolledAll=false;}
+      if(ueErr)console.warn('Unenroll failed for',f.id,ueErr);
     }
-    if(unenrolledAll){
-      await startMfaEnrollment();
-    } else {
-      // Can't unenroll — use the existing unverified factor directly
-      // Re-fetch to get the QR/secret via a new enroll with unique name
-      await startMfaEnrollment();
-    }
-  } else {
-    await startMfaEnrollment();
   }
+
+  await startMfaEnrollment();
 }
 
 async function startMfaEnrollment(){
@@ -254,7 +254,6 @@ async function startMfaEnrollment(){
   const {data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname});
   if(error){
     console.error('MFA enroll error',error);
-    // Show the enroll screen first so the error is visible
     showScreen('mfaEnrollScreen');
     document.getElementById('mfaEnrollErr').textContent='Failed to set up MFA: '+error.message;
     document.getElementById('mfaEnrollErr').style.display='block';
@@ -262,7 +261,6 @@ async function startMfaEnrollment(){
   }
 
   mfaFactorId=data.id;
-  // Show QR code
   const qrWrap=document.getElementById('mfaQrWrap');
   qrWrap.textContent='';
   const img=document.createElement('img');
@@ -271,6 +269,7 @@ async function startMfaEnrollment(){
   img.className='mfa-qr-img';
   qrWrap.appendChild(img);
   document.getElementById('mfaSecret').textContent=data.totp.secret;
+  document.getElementById('mfaEnrollErr').style.display='none';
   showScreen('mfaEnrollScreen');
   document.getElementById('mfaEnrollCode').value='';
   document.getElementById('mfaEnrollCode').focus();
@@ -281,18 +280,22 @@ async function verifyEnrollment(){
   const errEl=document.getElementById('mfaEnrollErr');
   errEl.style.display='none';
 
-  if(!code||code.length!==6||!/^\d{6}$/.test(code)){
+  if(!code||code.length!==6||!/^[0-9]{6}$/.test(code)){
     errEl.textContent='Enter a valid 6-digit code';errEl.style.display='block';return;
+  }
+
+  if(!mfaFactorId){
+    errEl.textContent='MFA setup expired — please sign in again';errEl.style.display='block';return;
   }
 
   const {data:challengeData,error:challengeErr}=await supaClient.auth.mfa.challenge({factorId:mfaFactorId});
   if(challengeErr){errEl.textContent='Challenge failed: '+challengeErr.message;errEl.style.display='block';return;}
 
-  const {data:verifyData,error:verifyErr}=await supaClient.auth.mfa.verify({factorId:mfaFactorId,challengeId:challengeData.id,code});
+  const {error:verifyErr}=await supaClient.auth.mfa.verify({factorId:mfaFactorId,challengeId:challengeData.id,code});
   if(verifyErr){errEl.textContent='Verification failed — check the code and try again';errEl.style.display='block';return;}
 
   toast('MFA enabled successfully ✓');
-  enterAdmin();
+  await enterAdmin();
 }
 
 async function verifyMfa(){
@@ -300,22 +303,31 @@ async function verifyMfa(){
   const errEl=document.getElementById('mfaVerifyErr');
   errEl.style.display='none';
 
-  if(!code||code.length!==6||!/^\d{6}$/.test(code)){
+  if(!code||code.length!==6||!/^[0-9]{6}$/.test(code)){
     errEl.textContent='Enter a valid 6-digit code';errEl.style.display='block';return;
+  }
+
+  if(!mfaFactorId){
+    errEl.textContent='MFA session expired — please sign in again';errEl.style.display='block';return;
   }
 
   const {data:challengeData,error:challengeErr}=await supaClient.auth.mfa.challenge({factorId:mfaFactorId});
   if(challengeErr){errEl.textContent='Challenge failed: '+challengeErr.message;errEl.style.display='block';return;}
 
-  const {data:verifyData,error:verifyErr}=await supaClient.auth.mfa.verify({factorId:mfaFactorId,challengeId:challengeData.id,code});
+  const {error:verifyErr}=await supaClient.auth.mfa.verify({factorId:mfaFactorId,challengeId:challengeData.id,code});
   if(verifyErr){errEl.textContent='Invalid code — try again';errEl.style.display='block';return;}
 
-  enterAdmin();
+  await enterAdmin();
 }
 
-function enterAdmin(){
+async function enterAdmin(){
   showScreen('adminApp');
-  init();
+  try{
+    await init();
+  }catch(err){
+    console.error('Admin init failed after MFA',err);
+    toast('Signed in, but dashboard data failed to load','err');
+  }
 }
 
 // Enter key handlers
@@ -330,33 +342,33 @@ document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key
     const {data:{session}}=await supaClient.auth.getSession();
     if(session){
       accessToken=session.access_token;
-      // Domain check on existing session
       if(!validateDomain(session.user.email||'')){
         await supaClient.auth.signOut();accessToken=null;return;
       }
       const {data:roles}=await supaClient.from('user_roles').select('role').eq('user_id',session.user.id).eq('role','admin');
       if(roles&&roles.length>0){
-        // Check MFA — if AAL is aal1 and factors exist, require verification
         const {data:aalData}=await supaClient.auth.mfa.getAuthenticatorAssuranceLevel();
         if(aalData&&aalData.currentLevel==='aal1'&&aalData.nextLevel==='aal2'){
           const {data:factors}=await supaClient.auth.mfa.listFactors();
-          const verified=(factors?.totp||[]).filter(f=>f.status==='verified');
+          const verified=getTotpFactors(factors).filter(f=>f.status==='verified');
           if(verified.length>0){
             mfaFactorId=verified[0].id;
             showScreen('mfaVerifyScreen');
+            document.getElementById('mfaVerifyErr').style.display='none';
+            document.getElementById('mfaVerifyCode').value='';
             document.getElementById('mfaVerifyCode').focus();
             return;
           }
         } else if(aalData&&aalData.currentLevel==='aal2'){
-          enterAdmin();return;
+          await enterAdmin();return;
         }
-        // No verified MFA — show login screen so user can re-authenticate cleanly
         await supaClient.auth.signOut();accessToken=null;
         showScreen('loginScreen');
       } else {
         await supaClient.auth.signOut();accessToken=null;
+        showScreen('loginScreen');
+      }
     }
-  }
   }catch(e){
     console.error('Session restore error',e);
     showScreen('loginScreen');
