@@ -14,7 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      scores: {
+        Row: {
+          best_combo: number | null
+          city_flag: string | null
+          city_reached: string | null
+          created_at: string | null
+          email: string | null
+          event_tag: string | null
+          flagged: boolean | null
+          id: string
+          player_name: string
+          score: number
+        }
+        Insert: {
+          best_combo?: number | null
+          city_flag?: string | null
+          city_reached?: string | null
+          created_at?: string | null
+          email?: string | null
+          event_tag?: string | null
+          flagged?: boolean | null
+          id?: string
+          player_name: string
+          score?: number
+        }
+        Update: {
+          best_combo?: number | null
+          city_flag?: string | null
+          city_reached?: string | null
+          created_at?: string | null
+          email?: string | null
+          event_tag?: string | null
+          flagged?: boolean | null
+          id?: string
+          player_name?: string
+          score?: number
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
