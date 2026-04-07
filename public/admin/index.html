@@ -172,7 +172,7 @@ function showScreen(id){
   ['loginScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
     const el=document.getElementById(s);
     if(s===id){
-      el.style.display=(s==='adminApp')?'':'flex';
+      el.style.display=(s==='adminApp')?'block':'flex';
     } else {
       el.style.display='none';
     }
