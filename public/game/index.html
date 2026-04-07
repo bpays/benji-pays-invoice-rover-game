@@ -152,7 +152,7 @@
       <button class="btn-retry" id="retryBtn">Run Again</button>
       <button class="btn-share" id="shareBtn">Share 🔗</button>
     </div>
-    <a href="#" onclick="try{window.parent.location='/leaderboard'}catch(e){window.location='/leaderboard'}return false;" id="lbBtn" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;width:88%;max-width:320px;padding:11px;border-radius:12px;background:rgba(0,71,119,0.15);border:1px solid rgba(0,71,119,0.35);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;transition:border-color .2s,color .2s;">🏆 &nbsp;View Leaderboard</a>
+    <a href="#" onclick="window.parent.postMessage({type:'navigate',path:'/leaderboard'},'*');return false;" id="lbBtn" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;width:88%;max-width:320px;padding:11px;border-radius:12px;background:rgba(0,71,119,0.15);border:1px solid rgba(0,71,119,0.35);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;transition:border-color .2s,color .2s;">🏆 &nbsp;View Leaderboard</a>
   </div>
 
   <!-- CTA SCREEN -->
