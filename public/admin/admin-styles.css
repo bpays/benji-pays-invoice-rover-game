@@ -571,3 +571,91 @@ tr:hover td { background: rgba(255,255,255,.02); }
 #toast.show { opacity: 1; }
 #toast.ok { background: var(--good); color: #071a0e; }
 #toast.err { background: var(--bad); color: #fff; }
+
+/* ── Admin management ── */
+.admin-mgmt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .admin-mgmt-grid { grid-template-columns: 1fr; }
+}
+
+.admin-invite-form {
+  padding-right: 20px;
+  border-right: 1px solid rgba(255,255,255,.06);
+}
+
+@media (max-width: 700px) {
+  .admin-invite-form { padding-right: 0; border-right: none; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,.06); }
+}
+
+.invite-success {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(77,201,122,.1);
+  border: 1px solid rgba(77,201,122,.3);
+  color: var(--good);
+  font-size: 12px;
+}
+
+.invite-success.show { display: block; }
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+.admin-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-card-email {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-card-meta {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.admin-card-role {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(204,125,81,.15);
+  color: var(--cooper);
+  border: 1px solid rgba(204,125,81,.3);
+}
+
+.admin-card-you {
+  font-size: 9px;
+  color: var(--muted);
+  font-style: italic;
+}
