@@ -12,7 +12,7 @@
   #app{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
   #gameWrap{position:relative;width:min(420px,100vw);height:min(780px,100vh);overflow:hidden;background:var(--charcoal);}
   #gameCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
-  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;transition:opacity .35s ease;}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;transition:opacity .35s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:max(24px,env(safe-area-inset-bottom,24px));}
   .screen.hidden{opacity:0;pointer-events:none;}
   #startScreen{background:linear-gradient(168deg,var(--charcoal) 0%,var(--cerulean) 55%,var(--charcoal) 100%);overflow:hidden;}
   #startScreen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(204,125,81,.12) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(0,71,119,.2) 0%,transparent 50%);pointer-events:none;}
