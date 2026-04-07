@@ -116,7 +116,29 @@
         </div>
       </div>
     </div>
+    <!-- ADMIN MANAGEMENT -->
+    <div class="section">
+      <div class="section-title">👥 Admin Management</div>
+      <div class="admin-mgmt-grid">
+        <div class="admin-invite-form">
+          <div class="section-label" style="margin-bottom:10px;">Invite New Admin</div>
+          <div class="field"><label>Email (@benjipays.com)</label><input type="email" id="inviteEmail" placeholder="name@benjipays.com" /></div>
+          <div class="field"><label>Temporary Password</label><input type="text" id="invitePw" placeholder="Min 8 characters" /></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="inviteAdmin()">Send Invite</button>
+            <button class="btn btn-ghost" onclick="generatePw()">Generate Password</button>
+          </div>
+          <div class="login-err" id="inviteErr" style="text-align:left;"></div>
+          <div class="invite-success" id="inviteSuccess"></div>
+        </div>
+        <div>
+          <div class="section-label" style="margin-bottom:10px;">Current Admins</div>
+          <div id="adminList" class="admin-list">Loading...</div>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
 </div>
 
 <!-- EDIT MODAL -->
@@ -443,6 +465,83 @@ async function resetNow(){
   if(res){resetSeconds=0;document.getElementById('resetAtDisplay').textContent='Reset just now';toast('Leaderboard reset ✓');}else toast('Reset failed','err');
 }
 setInterval(()=>{if(document.getElementById('adminApp').style.display!=='none')loadStats();},60000);
+
+// ── Admin Management ──
+async function inviteEdgeFn(body){
+  const {data:{session}}=await supaClient.auth.getSession();
+  const res=await fetch(`${SUPA_URL}/functions/v1/admin-invite`,{
+    method:'POST',
+    headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${session.access_token}`,'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  return res.json();
+}
+
+function generatePw(){
+  const chars='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let pw='';for(let i=0;i<14;i++)pw+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('invitePw').value=pw;
+}
+
+async function inviteAdmin(){
+  const email=document.getElementById('inviteEmail').value.trim().toLowerCase();
+  const pw=document.getElementById('invitePw').value;
+  const errEl=document.getElementById('inviteErr');
+  const successEl=document.getElementById('inviteSuccess');
+  errEl.style.display='none';successEl.className='invite-success';
+
+  if(!email||!pw){errEl.textContent='Email and password required';errEl.style.display='block';return;}
+  if(!email.endsWith('@benjipays.com')){errEl.textContent='Only @benjipays.com emails allowed';errEl.style.display='block';return;}
+  if(pw.length<8){errEl.textContent='Password must be at least 8 characters';errEl.style.display='block';return;}
+
+  const res=await inviteEdgeFn({action:'invite',email,password:pw,role:'admin'});
+  if(res.error){errEl.textContent=res.error;errEl.style.display='block';return;}
+
+  successEl.innerHTML=`✓ Invited <strong>${email}</strong><br>Temp password: <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;">${pw}</code><br><span style="font-size:10px;color:var(--muted);">Share this securely — they'll set up MFA on first login.</span>`;
+  successEl.className='invite-success show';
+  document.getElementById('inviteEmail').value='';
+  document.getElementById('invitePw').value='';
+  toast('Admin invited ✓');
+  loadAdminList();
+}
+
+async function loadAdminList(){
+  const res=await inviteEdgeFn({action:'list'});
+  const list=document.getElementById('adminList');
+  if(res.error||!res.admins){list.textContent='Failed to load';return;}
+
+  const {data:{session}}=await supaClient.auth.getSession();
+  const {data:{user:me}}=await supaClient.auth.getUser();
+  const myId=me?.id;
+
+  if(!res.admins.length){list.innerHTML='<div style="color:var(--muted);font-size:12px;">No admins found</div>';return;}
+
+  list.innerHTML=res.admins.map(a=>{
+    const isMe=a.user_id===myId;
+    const roles=a.roles.map(r=>`<span class="admin-card-role">${r}</span>`).join(' ');
+    const removeBtn=isMe?'<span class="admin-card-you">You</span>':`<button class="btn btn-danger btn-sm" onclick="removeAdmin('${a.user_id}','admin')">Remove</button>`;
+    return `<div class="admin-card">
+      <div class="admin-card-info">
+        <div class="admin-card-email">${a.email}</div>
+        <div class="admin-card-meta">Added ${new Date(a.created_at).toLocaleDateString()}</div>
+      </div>
+      ${roles}
+      ${removeBtn}
+    </div>`;
+  }).join('');
+}
+
+async function removeAdmin(userId,role){
+  if(!confirm('Remove this admin? They will lose access immediately.'))return;
+  const res=await inviteEdgeFn({action:'remove',user_id:userId,role});
+  if(res.error){toast(res.error,'err');return;}
+  toast('Admin removed ✓');
+  loadAdminList();
+}
+
+// Load admin list on init
+const origInit=init;
+init=async function(){await origInit();await loadAdminList();};
 </script>
 </body>
 </html>
