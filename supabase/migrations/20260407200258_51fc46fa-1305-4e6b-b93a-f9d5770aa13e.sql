@@ -1,0 +1,1 @@
+DROP POLICY "Anyone can insert non-flagged scores" ON public.scores;

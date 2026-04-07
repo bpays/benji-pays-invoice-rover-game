@@ -174,20 +174,19 @@
 const SUPA_URL = 'https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
 
-async function supaInsert(table, data) {
+async function submitScore(data) {
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
+    const res = await fetch(`${SUPA_URL}/functions/v1/submit-score`, {
       method: 'POST',
       headers: {
         'apikey': SUPA_KEY,
         'Authorization': `Bearer ${SUPA_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
     });
     return res.ok;
-  } catch(e) { console.warn('Supabase insert failed:', e); return false; }
+  } catch(e) { console.warn('Score submit failed:', e); return false; }
 }
 
 async function supaSelect(table, params='') {
@@ -628,7 +627,7 @@ function endGame(){
   document.getElementById('shareCopy').textContent=n+' scored '+fs+' pts in Benji Pays: Invoice Rover! Reached '+currentCity.name+'. Can you beat me? 🐕💸 benjipays.com/run';
   document.getElementById('gameOverScreen').classList.remove('hidden');playCount++;if(soundOn){try{const ac=getAC();[220,196,174,155].forEach((f,i)=>{setTimeout(()=>{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.4);o.start();o.stop(ac.currentTime+0.4);},i*120);});}catch(e){}}stopMusic(800);
   // Submit score to Supabase
-  supaInsert('scores',{
+  submitScore({
     player_name: n,
     email: document.getElementById('playerEmail').value.trim()||null,
     score: fs,
@@ -663,7 +662,7 @@ function startGame(){
   // Lead capture — write to Supabase on first play
   if(!leadCaptured){
     leadCaptured=true;
-    supaInsert('scores',{player_name:playerName,email:email||null,score:0,city_reached:'Vancouver',city_flag:'🇨🇦',best_combo:0,event_tag:'nable-empower-2026'});
+    submitScore({player_name:playerName,email:email||null,score:0,city_reached:'Vancouver',city_flag:'🇨🇦',best_combo:0,event_tag:'nable-empower-2026'});
   }
   // Start game music — swapToDayMusic handles crossfade from title music
   if(soundOn) setTimeout(()=>swapToDayMusic('Vancouver'), 200);
