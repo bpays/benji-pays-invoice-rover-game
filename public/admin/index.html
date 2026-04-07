@@ -264,7 +264,12 @@ async function startMfaEnrollment(){
   mfaFactorId=data.id;
   // Show QR code
   const qrWrap=document.getElementById('mfaQrWrap');
-  qrWrap.innerHTML=`<img src="${data.totp.qr_code}" alt="MFA QR Code" class="mfa-qr-img" />`;
+  qrWrap.textContent='';
+  const img=document.createElement('img');
+  img.src=data.totp.qr_code;
+  img.alt='MFA QR Code';
+  img.className='mfa-qr-img';
+  qrWrap.appendChild(img);
   document.getElementById('mfaSecret').textContent=data.totp.secret;
   showScreen('mfaEnrollScreen');
   document.getElementById('mfaEnrollCode').value='';

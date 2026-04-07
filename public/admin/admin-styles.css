@@ -110,38 +110,44 @@ html, body {
 
 /* ── MFA screens ── */
 .mfa-qr-wrap {
-  margin: 16px auto;
+  margin: 24px auto;
   display: flex;
   justify-content: center;
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  width: fit-content;
 }
 
 .mfa-qr-img {
   width: 200px;
   height: 200px;
-  border-radius: 12px;
-  background: #fff;
-  padding: 8px;
+  display: block;
 }
 
 .mfa-secret-wrap {
-  margin-bottom: 16px;
+  margin: 20px 0 16px;
+  background: rgba(255,255,255,.04);
+  border-radius: 10px;
+  padding: 14px;
 }
 
 .mfa-secret-label {
   font-size: 10px;
   color: var(--muted);
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .mfa-secret {
-  font-family: 'Barlow Condensed', monospace;
-  font-size: 14px;
-  letter-spacing: 2px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  letter-spacing: 1.5px;
   color: var(--cooper);
   word-break: break-all;
   user-select: all;
+  line-height: 1.6;
 }
 
 /* ── Admin app ── */
