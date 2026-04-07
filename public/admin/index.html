@@ -242,13 +242,8 @@ async function handleMfaFlow(){
 }
 
 async function startMfaEnrollment(){
-  let fname='Authenticator App';
-  let {data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname});
-  // If name conflict, try with unique suffix
-  if(error && error.message.includes('already exists')){
-    fname='Authenticator App '+Date.now();
-    ({data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname}));
-  }
+  const fname='TOTP-'+Date.now();
+  const {data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname});
   if(error){
     console.error('MFA enroll error',error);
     document.getElementById('mfaEnrollErr').textContent='Failed to set up MFA: '+error.message;
