@@ -223,16 +223,17 @@ async function handleMfaFlow(){
     document.getElementById('mfaVerifyCode').value='';
     document.getElementById('mfaVerifyCode').focus();
   } else if(unverifiedFactors.length>0){
-    // Has unverified factor — use it for enrollment verification
-    mfaFactorId=unverifiedFactors[0].id;
-    // Try to re-enroll fresh, but if conflict just show verify screen for existing
-    try{
-      for(const f of unverifiedFactors){
-        await supaClient.auth.mfa.unenroll({factorId:f.id});
-      }
+    // Has unverified factor — try to unenroll all, then re-enroll fresh
+    let unenrolledAll=true;
+    for(const f of unverifiedFactors){
+      const {error:ueErr}=await supaClient.auth.mfa.unenroll({factorId:f.id});
+      if(ueErr){console.warn('Unenroll failed for',f.id,ueErr);unenrolledAll=false;}
+    }
+    if(unenrolledAll){
       await startMfaEnrollment();
-    }catch(e){
-      // If unenroll fails, just re-enroll with a unique name
+    } else {
+      // Can't unenroll — use the existing unverified factor directly
+      // Re-fetch to get the QR/secret via a new enroll with unique name
       await startMfaEnrollment();
     }
   } else {
@@ -241,13 +242,8 @@ async function handleMfaFlow(){
 }
 
 async function startMfaEnrollment(){
-  let fname='Authenticator App';
-  let {data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname});
-  // If name conflict, try with unique suffix
-  if(error && error.message.includes('already exists')){
-    fname='Authenticator App '+Date.now();
-    ({data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname}));
-  }
+  const fname='TOTP-'+Date.now();
+  const {data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname});
   if(error){
     console.error('MFA enroll error',error);
     document.getElementById('mfaEnrollErr').textContent='Failed to set up MFA: '+error.message;
