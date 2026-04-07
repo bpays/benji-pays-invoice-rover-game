@@ -222,12 +222,20 @@ async function handleMfaFlow(){
     showScreen('mfaVerifyScreen');
     document.getElementById('mfaVerifyCode').value='';
     document.getElementById('mfaVerifyCode').focus();
-  } else {
-    // No MFA enrolled — force enrollment
-    // Clean up any unverified factors first
-    for(const f of unverifiedFactors){
-      await supaClient.auth.mfa.unenroll({factorId:f.id});
+  } else if(unverifiedFactors.length>0){
+    // Has unverified factor — use it for enrollment verification
+    mfaFactorId=unverifiedFactors[0].id;
+    // Try to re-enroll fresh, but if conflict just show verify screen for existing
+    try{
+      for(const f of unverifiedFactors){
+        await supaClient.auth.mfa.unenroll({factorId:f.id});
+      }
+      await startMfaEnrollment();
+    }catch(e){
+      // If unenroll fails, just re-enroll with a unique name
+      await startMfaEnrollment();
     }
+  } else {
     await startMfaEnrollment();
   }
 }
