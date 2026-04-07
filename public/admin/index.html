@@ -116,7 +116,29 @@
         </div>
       </div>
     </div>
+    <!-- ADMIN MANAGEMENT -->
+    <div class="section">
+      <div class="section-title">👥 Admin Management</div>
+      <div class="admin-mgmt-grid">
+        <div class="admin-invite-form">
+          <div class="section-label" style="margin-bottom:10px;">Invite New Admin</div>
+          <div class="field"><label>Email (@benjipays.com)</label><input type="email" id="inviteEmail" placeholder="name@benjipays.com" /></div>
+          <div class="field"><label>Temporary Password</label><input type="text" id="invitePw" placeholder="Min 8 characters" /></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="inviteAdmin()">Send Invite</button>
+            <button class="btn btn-ghost" onclick="generatePw()">Generate Password</button>
+          </div>
+          <div class="login-err" id="inviteErr" style="text-align:left;"></div>
+          <div class="invite-success" id="inviteSuccess"></div>
+        </div>
+        <div>
+          <div class="section-label" style="margin-bottom:10px;">Current Admins</div>
+          <div id="adminList" class="admin-list">Loading...</div>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
 </div>
 
 <!-- EDIT MODAL -->
