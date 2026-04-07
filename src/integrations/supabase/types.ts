@@ -94,6 +94,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_leaderboard: {
+        Args: { p_event_tag?: string; p_limit?: number }
+        Returns: {
+          best_combo: number
+          city_flag: string
+          city_reached: string
+          created_at: string
+          event_tag: string
+          id: string
+          player_name: string
+          score: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
