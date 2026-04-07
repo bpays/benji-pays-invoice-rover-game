@@ -315,34 +315,35 @@ document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key
 
 // Check for existing session on load
 (async()=>{
-  const {data:{session}}=await supaClient.auth.getSession();
-  if(session){
-    accessToken=session.access_token;
-    // Domain check on existing session
-    if(!validateDomain(session.user.email||'')){
-      await supaClient.auth.signOut();accessToken=null;return;
-    }
-    const {data:roles}=await supaClient.from('user_roles').select('role').eq('user_id',session.user.id).eq('role','admin');
-    if(roles&&roles.length>0){
-      // Check MFA — if AAL is aal1 and factors exist, require verification
-      const {data:aalData}=await supaClient.auth.mfa.getAuthenticatorAssuranceLevel();
-      if(aalData&&aalData.currentLevel==='aal1'&&aalData.nextLevel==='aal2'){
-        // Need MFA verification
-        const {data:factors}=await supaClient.auth.mfa.listFactors();
-        const verified=(factors?.totp||[]).filter(f=>f.status==='verified');
-        if(verified.length>0){
-          mfaFactorId=verified[0].id;
-          showScreen('mfaVerifyScreen');
-          document.getElementById('mfaVerifyCode').focus();
-          return;
-        }
-      } else if(aalData&&aalData.currentLevel==='aal2'){
-        enterAdmin();return;
+  try{
+    const {data:{session}}=await supaClient.auth.getSession();
+    if(session){
+      accessToken=session.access_token;
+      // Domain check on existing session
+      if(!validateDomain(session.user.email||'')){
+        await supaClient.auth.signOut();accessToken=null;return;
       }
-      // If no MFA factors, still require enrollment
-      await handleMfaFlow();
-    } else {
-      await supaClient.auth.signOut();accessToken=null;
+      const {data:roles}=await supaClient.from('user_roles').select('role').eq('user_id',session.user.id).eq('role','admin');
+      if(roles&&roles.length>0){
+        // Check MFA — if AAL is aal1 and factors exist, require verification
+        const {data:aalData}=await supaClient.auth.mfa.getAuthenticatorAssuranceLevel();
+        if(aalData&&aalData.currentLevel==='aal1'&&aalData.nextLevel==='aal2'){
+          const {data:factors}=await supaClient.auth.mfa.listFactors();
+          const verified=(factors?.totp||[]).filter(f=>f.status==='verified');
+          if(verified.length>0){
+            mfaFactorId=verified[0].id;
+            showScreen('mfaVerifyScreen');
+            document.getElementById('mfaVerifyCode').focus();
+            return;
+          }
+        } else if(aalData&&aalData.currentLevel==='aal2'){
+          enterAdmin();return;
+        }
+        // No verified MFA — show login screen so user can re-authenticate cleanly
+        await supaClient.auth.signOut();accessToken=null;
+        showScreen('loginScreen');
+      } else {
+        await supaClient.auth.signOut();accessToken=null;
     }
   }
 })();
