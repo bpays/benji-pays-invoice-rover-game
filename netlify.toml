@@ -1,0 +1,33 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/"
+  to = "/game/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/game"
+  to = "/game/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/leaderboard"
+  to = "/leaderboard/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+
+[[redirects]]
+  from = "/strategy"
+  to = "/strategy/index.html"
+  status = 200

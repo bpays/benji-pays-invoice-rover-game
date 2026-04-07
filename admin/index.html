@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Rover — Admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap');
+:root{--cerulean:#004777;--charcoal:#002843;--cooper:#CC7D51;--white:#F8F8F8;--good:#4DC97A;--bad:#E84040;--muted:#7ba3be;--mid:#0d2033;--card:#0a1c2e;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;min-height:100%;background:var(--charcoal);font-family:'Barlow',sans-serif;color:var(--white);}
+#loginScreen{position:fixed;inset:0;background:var(--charcoal);display:flex;align-items:center;justify-content:center;z-index:100;}
+.login-box{background:var(--mid);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:40px;width:100%;max-width:360px;text-align:center;}
+.login-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:26px;color:var(--white);margin-bottom:4px;}
+.login-sub{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:28px;}
+.login-box input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:var(--white);font-family:'Barlow',sans-serif;font-size:15px;padding:13px 15px;outline:none;margin-bottom:12px;transition:border-color .2s;}
+.login-box input:focus{border-color:var(--cooper);}
+.login-box button{width:100%;background:var(--cooper);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:10px;padding:14px;cursor:pointer;}
+.login-err{color:var(--bad);font-size:12px;margin-top:8px;display:none;}
+#adminApp{display:none;}
+.topbar{background:var(--mid);border-bottom:1px solid rgba(255,255,255,.07);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.topbar-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;color:var(--white);}
+.topbar-logo span{color:var(--cooper);}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.event-selector{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:12px;padding:6px 10px;outline:none;cursor:pointer;}
+.event-selector option{background:var(--charcoal);}
+.badge{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:20px;}
+.badge-green{background:rgba(77,201,122,.15);color:var(--good);border:1px solid rgba(77,201,122,.3);}
+.badge-cooper{background:rgba(204,125,81,.15);color:var(--cooper);border:1px solid rgba(204,125,81,.3);}
+.logout-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--muted);font-family:'Barlow',sans-serif;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;}
+.main{padding:20px 24px;max-width:1400px;margin:0 auto;}
+.section-label{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px;}
+.stat-val{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:32px;color:var(--white);line-height:1;}
+.stat-val.cooper{color:var(--cooper);}.stat-val.green{color:var(--good);}.stat-val.blue{color:#4488ff;}.stat-val.yellow{color:#f5c842;}
+.stat-lbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+.stat-sub{font-size:10px;color:rgba(255,255,255,.25);margin-top:2px;}
+.section{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px;margin-bottom:16px;}
+.section-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;text-transform:uppercase;color:var(--cooper);margin-bottom:14px;}
+.timer-grid{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;}
+.current-timer{font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:900;color:var(--white);line-height:1;margin-bottom:4px;}
+.current-lbl{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.reset-at{font-size:11px;color:rgba(255,255,255,.3);margin-top:6px;}
+.field label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;}
+.field input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:13px;padding:9px 12px;outline:none;margin-bottom:10px;}
+.field input:focus{border-color:var(--cooper);}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;letter-spacing:1px;text-transform:uppercase;border:none;border-radius:8px;padding:9px 16px;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--cooper);color:var(--white);}
+.btn-danger{background:var(--bad);color:var(--white);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.15);}
+.btn-green{background:var(--good);color:#071a0e;}
+.btn-sm{font-size:11px;padding:6px 12px;}
+.table-controls{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.search-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:13px;padding:7px 12px;outline:none;width:200px;}
+.search-input::placeholder{color:var(--muted);}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:9px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.07);white-space:nowrap;}
+td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.score-val{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;}
+.flagged-row td{opacity:.35;}
+.flagged-badge{font-size:9px;font-weight:700;background:rgba(232,64,64,.15);color:var(--bad);border:1px solid rgba(232,64,64,.3);border-radius:4px;padding:2px 5px;margin-left:4px;}
+.event-tag-badge{font-size:9px;font-weight:700;background:rgba(0,71,119,.25);color:var(--muted);border-radius:4px;padding:2px 6px;}
+.action-btns{display:flex;gap:5px;}
+.pagination{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:11px;color:var(--muted);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--mid);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:26px;width:100%;max-width:400px;}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;margin-bottom:14px;}
+.modal-field{margin-bottom:12px;}
+.modal-field label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;}
+.modal-field input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:14px;padding:9px 12px;outline:none;}
+.modal-btns{display:flex;gap:10px;margin-top:18px;}
+#toast{position:fixed;bottom:20px;right:20px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;letter-spacing:1px;padding:11px 18px;border-radius:10px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
+#toast.show{opacity:1;}#toast.ok{background:var(--good);color:#071a0e;}#toast.err{background:var(--bad);color:#fff;}
+</style>
+</head>
+<body>
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🐕 INVOICE ROVER</div>
+    <div class="login-sub">Admin Panel · Benji Pays</div>
+    <input type="password" id="pwInput" placeholder="Admin password" />
+    <button onclick="tryLogin()">Enter Admin →</button>
+    <div class="login-err" id="loginErr">Incorrect password</div>
+  </div>
+</div>
+<div id="adminApp">
+  <div class="topbar">
+    <div class="topbar-logo">BENJI PAYS: <span>INVOICE ROVER</span> — ADMIN</div>
+    <div class="topbar-right">
+      <select class="event-selector" id="eventSelector" onchange="onEventChange()">
+        <option value="all">All Events</option>
+        <option value="nable-empower-2026" selected>N-able Empower 2026</option>
+      </select>
+      <div class="badge badge-cooper" id="eventNameBadge">N-ABLE EMPOWER 2026</div>
+      <div class="badge badge-green">● LIVE</div>
+      <button class="logout-btn" onclick="logout()">Log out</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="section-label">Event Stats — <span id="statsEventLabel">N-able Empower 2026</span></div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Total Runs</div><div class="stat-sub" id="statTotalSub">all time</div></div>
+      <div class="stat-card"><div class="stat-val green" id="statToday">—</div><div class="stat-lbl">Runs Today</div><div class="stat-sub" id="statTodaySub">since midnight</div></div>
+      <div class="stat-card"><div class="stat-val yellow" id="statActive">—</div><div class="stat-lbl">Active Now</div><div class="stat-sub">last 15 min</div></div>
+      <div class="stat-card"><div class="stat-val cooper" id="statLeads">—</div><div class="stat-lbl">Leads</div><div class="stat-sub">unique emails</div></div>
+      <div class="stat-card"><div class="stat-val blue" id="statAvg">—</div><div class="stat-lbl">Avg Score</div><div class="stat-sub">non-zero runs</div></div>
+      <div class="stat-card"><div class="stat-val" id="statTopScore">—</div><div class="stat-lbl">Top Score</div><div class="stat-sub" id="statTopName">—</div></div>
+      <div class="stat-card"><div class="stat-val" id="statTopCity">—</div><div class="stat-lbl">Top City</div><div class="stat-sub">most reached</div></div>
+    </div>
+    <div class="section">
+      <div class="section-title">⏱ Leaderboard Reset Timer</div>
+      <div class="timer-grid">
+        <div>
+          <div class="current-lbl">Countdown</div>
+          <div class="current-timer" id="adminTimer">--:--:--</div>
+          <div class="reset-at" id="resetAtDisplay">Loading...</div>
+        </div>
+        <div>
+          <div class="field"><label>Set Reset Date &amp; Time</label><input type="datetime-local" id="newResetAt" /></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="setTimer()">Set Timer</button>
+            <button class="btn btn-ghost" onclick="setTimerHours(24)">+24h</button>
+            <button class="btn btn-ghost" onclick="setTimerHours(8)">+8h</button>
+            <button class="btn btn-ghost" onclick="setTimerHours(4)">+4h</button>
+            <button class="btn btn-danger" onclick="resetNow()">Reset Now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">🏆 Scores — <span id="tableEventLabel">N-able Empower 2026</span></div>
+      <div class="table-controls">
+        <input class="search-input" type="text" id="searchInput" placeholder="Search name or email..." oninput="filterScores()" />
+        <button class="btn btn-ghost btn-sm" onclick="loadAll()">↻ Refresh</button>
+        <button class="btn btn-green btn-sm" onclick="exportCSV()">↓ CSV</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;"><input type="checkbox" id="showFlagged" onchange="filterScores()" style="accent-color:var(--cooper);" /> Show flagged</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;"><input type="checkbox" id="hideZero" checked onchange="filterScores()" style="accent-color:var(--cooper);" /> Hide 0-score</label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Player</th><th>Email</th><th>Score</th><th>City</th><th>Combo</th><th>Event</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="scoresBody"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="pageInfo">—</span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="changePage(-1)">← Prev</button>
+          <button class="btn btn-ghost btn-sm" onclick="changePage(1)">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">Edit Score</div>
+    <div class="modal-field"><label>Player Name</label><input type="text" id="editName" /></div>
+    <div class="modal-field"><label>Score</label><input type="number" id="editScore" /></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const SUPA_URL='https://cxnyfnudhsqrpknyfbft.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4bnlmbnVkaHNxcnBrbnlmYmZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDI4MDUsImV4cCI6MjA5MDcxODgwNX0.cMeJKKBsgfbRvjzNMpmBQ5R2fY67wL1E9kYOoGd0JZw';
+const ADMIN_PW='InvoiceRover2026!';
+const PAGE_SIZE=25;
+const EVENTS={'all':{label:'All Events',tag:null},'nable-empower-2026':{label:'N-able Empower 2026',tag:'nable-empower-2026'}};
+let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026';
+
+async function api(method,table,body,params=''){
+  const res=await fetch(`${SUPA_URL}/rest/v1/${table}?${params}`,{method,
+    headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Content-Type':'application/json','Prefer':'return=representation'},
+    body:body?JSON.stringify(body):undefined});
+  if(method==='DELETE')return res.ok;
+  return res.ok?await res.json():null;
+}
+function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>t.className='',2500);}
+function tryLogin(){if(document.getElementById('pwInput').value===ADMIN_PW){document.getElementById('loginScreen').style.display='none';document.getElementById('adminApp').style.display='block';init();}else document.getElementById('loginErr').style.display='block';}
+document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
+function logout(){location.reload();}
+async function init(){await loadAll();await loadTimerSetting();startTimer();}
+async function loadAll(){await Promise.all([loadScores(),loadStats()]);}
+function onEventChange(){
+  currentEventKey=document.getElementById('eventSelector').value;
+  const ev=EVENTS[currentEventKey];
+  document.getElementById('eventNameBadge').textContent=ev.label.toUpperCase();
+  document.getElementById('statsEventLabel').textContent=ev.label;
+  document.getElementById('tableEventLabel').textContent=ev.label;
+  loadAll();
+}
+function eventParams(){const ev=EVENTS[currentEventKey];return ev.tag?`event_tag=eq.${ev.tag}`:'';}
+async function loadStats(){
+  const ep=eventParams();
+  const data=await api('GET','scores',null,`select=id,score,email,city_reached,player_name,created_at,flagged${ep?'&'+ep:''}&order=score.desc`);
+  if(!data)return;
+  const now=new Date(),today=new Date(now);today.setHours(0,0,0,0);
+  const fifteenAgo=new Date(now.getTime()-15*60*1000);
+  const todayRuns=data.filter(s=>new Date(s.created_at)>=today).length;
+  const active=data.filter(s=>new Date(s.created_at)>=fifteenAgo).length;
+  const leads=new Set(data.filter(s=>s.email).map(s=>s.email)).size;
+  const nonZero=data.filter(s=>s.score>0);
+  const avg=nonZero.length?Math.round(nonZero.reduce((a,b)=>a+b.score,0)/nonZero.length):0;
+  const top=data[0]||{};
+  const cities={};data.forEach(s=>{if(s.city_reached&&s.score>0)cities[s.city_reached]=(cities[s.city_reached]||0)+1;});
+  const topCity=Object.entries(cities).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('statTotal').textContent=data.length.toLocaleString();
+  document.getElementById('statToday').textContent=todayRuns.toLocaleString();
+  document.getElementById('statActive').textContent=active.toLocaleString();
+  document.getElementById('statLeads').textContent=leads.toLocaleString();
+  document.getElementById('statAvg').textContent=avg.toLocaleString();
+  document.getElementById('statTopScore').textContent=(top.score||0).toLocaleString();
+  document.getElementById('statTopName').textContent=top.player_name||'—';
+  document.getElementById('statTopCity').textContent=topCity?topCity[0]:'—';
+}
+async function loadScores(){
+  const ep=eventParams();
+  const data=await api('GET','scores',null,`select=id,player_name,email,score,city_reached,city_flag,best_combo,flagged,event_tag,created_at${ep?'&'+ep:''}&order=score.desc`);
+  if(!data)return;allScores=data;filterScores();
+}
+function filterScores(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const showF=document.getElementById('showFlagged').checked;
+  const hideZ=document.getElementById('hideZero').checked;
+  filteredScores=allScores.filter(s=>{
+    if(!showF&&s.flagged)return false;
+    if(hideZ&&s.score===0)return false;
+    if(q&&!s.player_name?.toLowerCase().includes(q)&&!s.email?.toLowerCase().includes(q))return false;
+    return true;
+  });
+  currentPage=0;renderPage();
+}
+function renderPage(){
+  const start=currentPage*PAGE_SIZE,end=start+PAGE_SIZE,page=filteredScores.slice(start,end);
+  const tbody=document.getElementById('scoresBody');
+  if(!page.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);">No scores found</td></tr>';return;}
+  tbody.innerHTML=page.map((s,i)=>`<tr class="${s.flagged?'flagged-row':''}">
+    <td style="color:var(--muted);font-size:11px;">${start+i+1}</td>
+    <td><strong>${s.player_name||'—'}</strong>${s.flagged?'<span class="flagged-badge">FLAGGED</span>':''}</td>
+    <td style="color:var(--muted);font-size:11px;">${s.email||'—'}</td>
+    <td><span class="score-val">${(s.score||0).toLocaleString()}</span></td>
+    <td style="font-size:11px;">${s.city_flag||''} ${s.city_reached||'—'}</td>
+    <td style="color:var(--muted);">${s.best_combo||0}×</td>
+    <td><span class="event-tag-badge">${s.event_tag||'—'}</span></td>
+    <td style="color:var(--muted);font-size:10px;">${new Date(s.created_at).toLocaleString()}</td>
+    <td><div class="action-btns">
+      <button class="btn btn-ghost btn-sm" onclick="openEdit('${s.id}','${(s.player_name||'').replace(/'/g,"\\'")}',${s.score})">Edit</button>
+      <button class="btn btn-sm" style="background:rgba(${s.flagged?'77,201,122':'232,64,64'},.15);color:var(--${s.flagged?'good':'bad'});border:1px solid rgba(${s.flagged?'77,201,122':'232,64,64'},.3);" onclick="toggleFlag('${s.id}',${s.flagged})">${s.flagged?'Unflag':'Flag'}</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteScore('${s.id}')">Del</button>
+    </div></td>
+  </tr>`).join('');
+  const total=filteredScores.length;
+  document.getElementById('pageInfo').textContent=`${start+1}–${Math.min(end,total)} of ${total}`;
+}
+function changePage(dir){currentPage=Math.max(0,currentPage+dir);renderPage();}
+function openEdit(id,name,score){editingId=id;document.getElementById('editName').value=name;document.getElementById('editScore').value=score;document.getElementById('editModal').classList.add('show');}
+function closeModal(){document.getElementById('editModal').classList.remove('show');editingId=null;}
+async function saveEdit(){
+  const name=document.getElementById('editName').value.trim(),score=parseInt(document.getElementById('editScore').value);
+  if(!name||isNaN(score))return toast('Name and score required','err');
+  const res=await api('PATCH','scores',{player_name:name,score},`id=eq.${editingId}`);
+  if(res){toast('Score updated ✓');closeModal();await loadAll();}else toast('Update failed','err');
+}
+async function toggleFlag(id,flagged){
+  const res=await api('PATCH','scores',{flagged:!flagged},`id=eq.${id}`);
+  if(res){toast(flagged?'Score restored ✓':'Flagged — hidden from leaderboard ✓');await loadAll();}else toast('Failed','err');
+}
+async function deleteScore(id){
+  if(!confirm('Permanently delete? Cannot be undone.'))return;
+  const ok=await api('DELETE','scores',null,`id=eq.${id}`);
+  if(ok){toast('Deleted ✓');await loadAll();}else toast('Delete failed','err');
+}
+function exportCSV(){
+  const rows=[['Rank','Name','Email','Score','City','Combo','Event','Date']];
+  filteredScores.forEach((s,i)=>rows.push([i+1,s.player_name||'',s.email||'',s.score||0,`${s.city_flag||''} ${s.city_reached||''}`,s.best_combo||0,s.event_tag||'',new Date(s.created_at).toLocaleString()]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`invoice-rover-${currentEventKey}-${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV exported ✓');
+}
+async function loadTimerSetting(){
+  const res=await api('GET','settings',null,'key=eq.leaderboard_reset_at&select=value');
+  if(res&&res[0]){const d=new Date(res[0].value);document.getElementById('resetAtDisplay').textContent='Resets: '+d.toLocaleString();resetSeconds=Math.max(0,Math.floor((d-new Date())/1000));}
+}
+function startTimer(){
+  if(timerInterval)clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{if(resetSeconds>0)resetSeconds--;const h=Math.floor(resetSeconds/3600),m=Math.floor((resetSeconds%3600)/60),s=resetSeconds%60;document.getElementById('adminTimer').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;},1000);
+}
+async function setTimer(){
+  const val=document.getElementById('newResetAt').value;if(!val)return toast('Pick a date and time first','err');
+  const dt=new Date(val).toISOString();
+  const res=await api('PATCH','settings',{value:dt,updated_at:new Date().toISOString()},'key=eq.leaderboard_reset_at');
+  if(res){document.getElementById('resetAtDisplay').textContent='Resets: '+new Date(val).toLocaleString();resetSeconds=Math.max(0,Math.floor((new Date(val)-new Date())/1000));toast('Timer set ✓');}else toast('Failed','err');
+}
+function setTimerHours(h){const dt=new Date(Date.now()+h*3600*1000);const local=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);document.getElementById('newResetAt').value=local;setTimer();}
+async function resetNow(){
+  if(!confirm('Reset leaderboard NOW?'))return;
+  const dt=new Date().toISOString();
+  const res=await api('PATCH','settings',{value:dt,updated_at:dt},'key=eq.leaderboard_reset_at');
+  if(res){resetSeconds=0;document.getElementById('resetAtDisplay').textContent='Reset just now';toast('Leaderboard reset ✓');}else toast('Reset failed','err');
+}
+setInterval(()=>{if(document.getElementById('adminApp').style.display!=='none')loadStats();},60000);
+</script>
+</body>
+</html>

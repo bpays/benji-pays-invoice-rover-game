@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Benji Pays: Invoice Rover</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap');
+  :root{--cerulean:#004777;--charcoal:#002843;--cooper:#CC7D51;--cameo:#D9B59D;--white:#F8F8F8;--good:#4DC97A;--bad:#E84040;--muted:#7ba3be;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--charcoal);font-family:'Barlow',sans-serif;color:var(--white);touch-action:none;user-select:none;}
+  #app{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+  #gameWrap{position:relative;width:min(420px,100vw);height:min(780px,100vh);overflow:hidden;background:var(--charcoal);}
+  #gameCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;transition:opacity .35s ease;}
+  .screen.hidden{opacity:0;pointer-events:none;}
+  #startScreen{background:linear-gradient(168deg,var(--charcoal) 0%,var(--cerulean) 55%,var(--charcoal) 100%);overflow:hidden;}
+  #startScreen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(204,125,81,.12) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(0,71,119,.2) 0%,transparent 50%);pointer-events:none;}
+  .logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:22px;position:relative;z-index:1;}
+  .logo-svg{width:clamp(180px,55vw,260px);height:auto;margin-bottom:6px;}
+  .logo-sub{font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--cameo);margin-top:5px;font-weight:700;}
+  .legend-strip{display:flex;gap:9px;margin-bottom:20px;width:88%;max-width:320px;position:relative;z-index:1;}
+  .legend-card{flex:1;border-radius:10px;padding:10px 8px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;line-height:1.3;}
+  .legend-card.good{background:rgba(77,201,122,.1);border:1.5px solid rgba(77,201,122,.4);color:var(--good);}
+  .legend-card.bad{background:rgba(232,64,64,.1);border:1.5px solid rgba(232,64,64,.4);color:var(--bad);}
+  .legend-card.pu{background:rgba(204,125,81,.1);border:1.5px solid rgba(204,125,81,.4);color:var(--cooper);}
+  .legend-icon{font-size:18px;display:block;margin-bottom:4px;}
+  .form-group{width:88%;max-width:320px;display:flex;flex-direction:column;gap:9px;margin-bottom:14px;position:relative;z-index:1;}
+  .form-group input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:var(--white);font-family:'Barlow',sans-serif;font-size:14px;font-weight:500;padding:13px 15px;outline:none;transition:border-color .2s;width:100%;}
+  .form-group input::placeholder{color:var(--muted);}
+  .form-group input:focus{border-color:var(--cooper);}
+  .btn-play{background:linear-gradient(135deg,var(--cooper),#e89565);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:12px;padding:16px 0;cursor:pointer;width:88%;max-width:320px;box-shadow:0 4px 24px rgba(204,125,81,.35);transition:transform .1s;position:relative;z-index:1;}
+  .btn-play:active{transform:scale(.97);}
+  .hint-text{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:14px;position:relative;z-index:1;}
+  #hud{position:absolute;top:0;left:0;right:0;z-index:5;padding:12px 14px 0;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;}
+  .hud-lbl{display:block;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:1px;}
+  .hud-score{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:36px;color:var(--white);line-height:1;text-shadow:0 2px 10px rgba(0,0,0,.6);}
+  .hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
+  .combo-badge{background:var(--good);color:#071a0e;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;padding:4px 10px;border-radius:20px;letter-spacing:1px;opacity:0;transition:opacity .2s,transform .15s;}
+  .combo-badge.active{opacity:1;}.combo-badge.fire{transform:scale(1.12);background:#f5c842;color:#1a1000;}
+  .multiplier-badge{background:var(--cooper);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:12px;padding:3px 9px;border-radius:20px;opacity:0;transition:opacity .2s;}
+  .multiplier-badge.active{opacity:1;}
+  #ingameLegend{position:absolute;bottom:68px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:5;pointer-events:none;opacity:1;transition:opacity 1.2s;}
+  #ingameLegend.fade{opacity:0;}
+  .igl-pill{border-radius:20px;padding:5px 11px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:4px;}
+  .igl-pill.good{background:rgba(77,201,122,.18);border:1px solid rgba(77,201,122,.45);color:var(--good);}
+  .igl-pill.bad{background:rgba(232,64,64,.18);border:1px solid rgba(232,64,64,.45);color:var(--bad);}
+  #cityBanner{position:absolute;top:76px;left:0;right:0;z-index:6;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s;}
+  .city-pill{background:linear-gradient(135deg,rgba(0,40,67,0.95),rgba(0,71,119,0.9));border:1px solid rgba(0,71,119,0.6);backdrop-filter:blur(12px);border-radius:30px;padding:10px 22px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:3px;text-transform:uppercase;color:#fff;box-shadow:0 4px 24px rgba(0,71,119,0.5),0 0 0 1px rgba(255,255,255,0.06);}  .city-pill .city-sub{display:block;font-size:9px;font-weight:700;letter-spacing:4px;color:rgba(204,125,81,0.9);margin-bottom:2px;}
+  #powerupBanner{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) scale(.85);z-index:7;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-align:center;}
+  #powerupBanner.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  .pu-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:var(--cooper);letter-spacing:2px;text-transform:uppercase;text-shadow:0 0 20px rgba(204,125,81,.7);}
+  .pu-effect{font-size:11px;letter-spacing:2px;color:rgba(248,248,248,.6);text-transform:uppercase;margin-top:3px;}
+  #soundBtn{position:absolute;bottom:16px;right:14px;z-index:8;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:#fff;transition:background .2s;}
+  #nightOverlay{position:absolute;inset:0;background:rgba(0,10,28,.58);z-index:4;pointer-events:none;opacity:0;transition:opacity .9s ease;}
+  .score-pop{position:absolute;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;pointer-events:none;z-index:9;animation:scorePop .85s ease-out forwards;}
+  @keyframes scorePop{0%{opacity:1;transform:translateY(0) scale(1.1);}100%{opacity:0;transform:translateY(-48px) scale(.75);}}
+  #gameOverScreen{background:rgba(0,18,36,.96);backdrop-filter:blur(14px);}
+  .over-logo{width:clamp(120px,36vw,160px);height:auto;margin-bottom:10px;}
+  .over-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(46px,13vw,62px);color:var(--cooper);letter-spacing:1px;line-height:1;margin-bottom:3px;}
+  .over-city{font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:22px;}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:88%;max-width:320px;margin-bottom:18px;}
+  .stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:13px;text-align:center;}
+  .stat-val{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:30px;color:var(--cerulean);line-height:1;}
+  .stat-val.combo{color:var(--cooper);}
+  .stat-lbl{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:3px;}
+  .share-box{background:rgba(204,125,81,.08);border:1px solid rgba(204,125,81,.25);border-radius:12px;padding:13px 15px;width:88%;max-width:320px;font-size:12px;color:rgba(248,248,248,.78);line-height:1.55;margin-bottom:16px;}
+  .share-tag{color:var(--cooper);font-weight:700;}
+  .btn-row{display:flex;gap:10px;width:88%;max-width:320px;}
+  .btn-retry{flex:1;background:linear-gradient(135deg,var(--cooper),#e89565);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;letter-spacing:1px;text-transform:uppercase;border:none;border-radius:12px;padding:14px;cursor:pointer;box-shadow:0 4px 18px rgba(204,125,81,.3);transition:transform .1s;}
+  .btn-retry:active{transform:scale(.96);}
+  .btn-share{flex:1;background:transparent;color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:14px;cursor:pointer;transition:transform .1s;}
+  .btn-share:active{transform:scale(.96);}
+  .hs-badge{font-size:11px;color:var(--cooper);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;font-weight:800;}
+  #ctaScreen{background:rgba(0,18,36,.97);backdrop-filter:blur(14px);}
+  .cta-logo{width:clamp(100px,30vw,140px);height:auto;margin-bottom:16px;}
+  .cta-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(28px,8vw,38px);color:var(--white);letter-spacing:1px;text-align:center;line-height:1.15;margin-bottom:6px;}
+  .cta-title em{font-style:normal;color:var(--cooper);}
+  .cta-sub{font-size:13px;color:var(--muted);text-align:center;line-height:1.5;max-width:300px;margin-bottom:24px;}
+  .cta-btn{background:linear-gradient(135deg,var(--cooper),#e89565);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:12px;padding:16px 40px;cursor:pointer;box-shadow:0 4px 24px rgba(204,125,81,.35);transition:transform .1s;margin-bottom:12px;}
+  .cta-btn:active{transform:scale(.97);}
+  .cta-link{font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer;margin-bottom:20px;}
+  .cta-skip{font-size:11px;color:rgba(255,255,255,.35);cursor:pointer;letter-spacing:1px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<div id="app"><div id="gameWrap">
+  <canvas id="gameCanvas"></canvas>
+  <div id="nightOverlay"></div>
+  <div id="hud">
+    <div><span class="hud-lbl">Score</span><div class="hud-score" id="scoreDisplay">0</div></div>
+    <div class="hud-right">
+      <div class="combo-badge" id="comboBadge">🔥 0 COMBO</div>
+      <div class="multiplier-badge" id="multiBadge">2× MULTIPLIER</div>
+    </div>
+  </div>
+  <div id="cityBanner"><div class="city-pill" id="cityPill"><span class="city-sub" id="citySub">NOW ENTERING</span><span id="cityPillText"></span></div></div>
+  <div id="powerupBanner"><div class="pu-name" id="puName"></div><div class="pu-effect" id="puEffect"></div></div>
+  <div id="ingameLegend"><div class="igl-pill good">✅ Collect</div><div class="igl-pill bad">❌ Dodge</div></div>
+  <button id="soundBtn">🔊</button>
+
+  <!-- START SCREEN -->
+  <div class="screen" id="startScreen">
+    <div class="logo-wrap">
+      <svg class="logo-svg" viewBox="100 155 600 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g clip-path="url(#cs)"><path d="M250.228 178.284C248.008 178.325 245.87 178.867 244.019 180.199C241.758 181.782 240.606 183.947 240.771 186.737C241.593 199.771 246.404 209.848 255.08 219.467C255.944 220.425 256.314 221.341 256.273 222.59C256.191 225.963 256.232 229.295 256.273 232.668C256.273 233.625 255.944 233.875 254.998 233.958C253.6 234.042 252.819 233.542 252.079 232.293C244.8 220.05 234.438 211.763 220.992 207.474C212.768 204.851 204.338 204.393 195.826 205.767C195.703 205.809 195.538 205.809 195.415 205.85C193.441 206.267 192.989 207.433 194.017 209.182C195.703 212.138 197.43 215.095 198.951 218.135C201.295 222.84 202.899 227.795 204.132 232.876C204.338 233.667 204.091 233.958 203.31 233.958C201.007 233.958 198.704 233.917 196.443 233.958C195.456 234 195.127 233.584 194.798 232.668C193.4 228.67 192.249 224.506 190.439 220.716C184.271 207.724 174.772 197.897 162.19 191.109C152.362 185.821 141.876 183.197 130.732 183.239C128.8 183.239 126.826 183.197 124.893 183.239C123.989 183.281 123.413 182.906 123.043 182.073C122.138 180.158 121.151 175.785 120.247 173.911C119.63 172.62 120.165 171.704 121.604 171.704C125.058 171.663 128.512 171.663 131.966 171.704C133.282 171.788 137.682 169.081 139.08 167.207C139.614 166.499 140.231 166.166 141.095 166.208C142.411 166.249 143.685 166.249 145.001 166.208C146.07 166.166 146.934 166.582 147.674 167.332C149.113 168.789 149.812 170.58 149.936 172.62C150.224 177.326 153.76 180.741 158.242 180.657C161.449 180.616 164.451 178.45 165.603 175.244C165.89 174.494 166.26 174.161 167.042 174.244C167.535 174.286 168.07 174.244 168.563 174.244C205.448 174.244 219.758 174.244 256.643 174.244C257.095 174.244 257.794 174.078 258 174.494C258.206 174.952 257.548 175.41 257.219 175.744C256.273 176.618 254.587 178.2 250.228 178.284Z" fill="#F8F8F8"/><path d="M178.185 207.599C177.651 207.683 177.157 207.807 176.705 207.849C172.84 208.182 168.933 208.474 165.068 208.765C163.341 208.89 162.313 209.265 162.272 210.223C162.231 211.014 162.765 211.347 164.287 211.972C165.52 212.513 166.754 213.013 168.029 213.512C169.303 213.97 168.81 216.469 168.481 217.26C168.152 218.051 167.987 219.009 166.754 218.468C163.341 217.052 159.846 215.636 156.433 214.179C155.98 213.97 154.788 212.929 154.5 212.471C153.965 211.68 153.349 211.305 153.349 208.849C153.965 203.56 162.436 200.687 169.015 200.229C169.55 200.187 175.924 203.56 178.103 206.891C178.144 207.058 178.144 207.224 178.185 207.599Z" fill="#F8F8F8"/><path d="M154.007 165.042C154.706 165.042 155.446 164.917 156.104 165.083C156.885 165.291 157.79 165.583 158.242 166.124C160.298 168.581 161.408 169.456 163.3 172.037C163.67 172.537 163.793 173.495 163.588 174.078C162.683 176.909 160.092 178.45 157.255 178.034C154.5 177.659 152.156 175.202 152.033 172.371C151.951 169.622 151.293 168.706 149.977 166.333C149.442 165.333 149.853 165.042 150.799 165.042C151.622 165.042 153.225 165.042 154.007 165.042Z" fill="#F8F8F8"/><path d="M221.485 210.972C222.554 210.431 226.173 212.138 229.504 214.179C230.408 214.72 231.395 215.803 231.724 216.885C233.122 221.091 234.232 225.422 235.631 229.669C236.494 232.334 235.959 233.667 232.999 233.5C230.984 233.417 229.791 234.167 228.928 231.793C226.707 225.505 224.734 221.299 222.266 215.136C221.609 213.512 220.539 211.43 221.485 210.972Z" fill="#F8F8F8"/></g>
+        <path d="M325.065 215.879C325.065 218.993 324.467 221.624 323.27 223.772C322.074 225.866 320.488 227.557 318.511 228.846C316.535 230.134 314.273 231.074 311.724 231.664C309.228 232.201 306.653 232.47 304 232.47H282V175.45H304C306.133 175.45 308.317 175.691 310.554 176.174C312.79 176.604 314.819 177.383 316.639 178.51C318.459 179.584 319.942 181.06 321.086 182.94C322.23 184.819 322.802 187.208 322.802 190.107C322.802 193.275 321.97 195.906 320.306 198C318.641 200.04 316.457 201.517 313.752 202.43V202.591C315.313 202.859 316.769 203.369 318.121 204.121C319.526 204.819 320.722 205.732 321.71 206.859C322.75 207.987 323.556 209.302 324.129 210.805C324.753 212.309 325.065 214 325.065 215.879ZM309.93 191.96C309.93 190.027 309.202 188.631 307.745 187.772C306.341 186.859 304.235 186.403 301.426 186.403H294.873V198.161H302.05C304.547 198.161 306.471 197.651 307.823 196.631C309.228 195.557 309.93 194 309.93 191.96ZM311.724 214.591C311.724 212.228 310.866 210.591 309.15 209.678C307.433 208.765 305.145 208.309 302.284 208.309H294.873V221.356H302.362C303.402 221.356 304.469 221.275 305.561 221.114C306.705 220.899 307.719 220.55 308.603 220.067C309.54 219.584 310.294 218.913 310.866 218.054C311.438 217.141 311.724 215.987 311.724 214.591Z" fill="#F8F8F8"/>
+        <path d="M333.884 232.47V175.45H371.019V187.128H346.756V197.839H369.693V208.872H346.756V220.711H372.424V232.47H333.884Z" fill="#F8F8F8"/>
+        <path d="M416.379 232.47L394.145 195.181H393.911L394.223 232.47H381.272V175.45H396.485L418.642 212.658H418.876L418.564 175.45H431.515V232.47H416.379Z" fill="#F8F8F8"/>
+        <path d="M473.1 212.98C473.1 215.235 472.84 217.597 472.32 220.067C471.852 222.537 470.942 224.819 469.589 226.913C468.289 228.953 466.443 230.644 464.05 231.987C461.71 233.329 458.667 234 454.922 234C450.241 234 446.341 232.765 443.22 230.295C440.099 227.772 438.019 224.55 436.979 220.631L448.759 216.523C449.123 218.027 449.773 219.235 450.709 220.148C451.698 221.06 452.894 221.517 454.298 221.517C456.483 221.517 457.913 220.738 458.589 219.181C459.317 217.624 459.681 215.584 459.681 213.06V175.45H473.1V212.98Z" fill="#F8F8F8"/>
+        <path d="M484.201 232.47V175.45H497.62V232.47H484.201Z" fill="#F8F8F8"/>
+        <path d="M510.677 175.45H526.28C529.089 175.45 531.637 175.772 533.926 176.416C536.214 177.007 538.165 177.946 539.777 179.235C541.441 180.47 542.715 182.054 543.6 183.987C544.484 185.866 544.926 188.094 544.926 190.671C544.926 193.248 544.458 195.503 543.522 197.436C542.637 199.315 541.363 200.899 539.699 202.188C538.087 203.423 536.11 204.362 533.77 205.007C531.481 205.651 528.933 205.973 526.124 205.973H516.294V232.47H510.677V175.45ZM516.294 201.06H525.812C530.233 201.06 533.588 200.174 535.876 198.403C538.165 196.631 539.309 194.054 539.309 190.671C539.309 187.128 538.113 184.55 535.72 182.94C533.38 181.275 530.077 180.443 525.812 180.443H516.294V201.06Z" fill="#F8F8F8"/>
+        <path d="M550.895 232.47H544.731L568.604 175.45H574.066L597.782 232.47H591.541L585.456 217.49H556.902L550.895 232.47ZM559.008 212.174H583.349L571.179 181.893L559.008 212.174Z" fill="#F8F8F8"/>
+        <path d="M620.222 232.47H614.605V207.906L593.93 175.45H600.952L617.569 203.074L634.343 175.45H640.896L620.222 207.906V232.47Z" fill="#F8F8F8"/>
+        <path d="M674.955 184.631C673.759 182.913 672.224 181.544 670.352 180.523C668.479 179.45 666.217 178.913 663.564 178.913C662.212 178.913 660.834 179.128 659.43 179.557C658.025 179.987 656.751 180.658 655.607 181.57C654.463 182.43 653.526 183.53 652.798 184.872C652.122 186.215 651.784 187.799 651.784 189.624C651.784 191.45 652.122 192.953 652.798 194.134C653.474 195.315 654.359 196.336 655.451 197.195C656.595 198 657.869 198.671 659.274 199.208C660.73 199.745 662.238 200.282 663.798 200.819C665.723 201.463 667.647 202.161 669.572 202.913C671.548 203.664 673.316 204.658 674.877 205.893C676.437 207.074 677.711 208.604 678.7 210.483C679.688 212.309 680.182 214.644 680.182 217.49C680.182 220.336 679.636 222.805 678.543 224.899C677.503 226.94 676.125 228.631 674.409 229.973C672.744 231.315 670.82 232.309 668.635 232.953C666.503 233.597 664.345 233.919 662.16 233.919C660.496 233.919 658.831 233.732 657.167 233.356C655.503 233.034 653.916 232.523 652.408 231.826C650.9 231.128 649.496 230.242 648.195 229.168C646.895 228.094 645.751 226.859 644.763 225.463L649.6 221.758C650.796 223.799 652.46 225.517 654.593 226.913C656.777 228.255 659.326 228.926 662.238 228.926C663.642 228.926 665.073 228.711 666.529 228.282C667.985 227.799 669.286 227.101 670.43 226.188C671.626 225.221 672.588 224.067 673.316 222.725C674.097 221.329 674.487 219.718 674.487 217.893C674.487 215.906 674.097 214.268 673.316 212.98C672.588 211.638 671.6 210.537 670.352 209.678C669.104 208.765 667.673 208.013 666.061 207.423C664.449 206.832 662.758 206.242 660.99 205.651C659.17 205.06 657.375 204.389 655.607 203.638C653.838 202.886 652.252 201.919 650.848 200.738C649.444 199.503 648.299 198 647.415 196.228C646.583 194.456 646.167 192.282 646.167 189.705C646.167 186.966 646.687 184.604 647.727 182.617C648.819 180.631 650.224 178.993 651.94 177.705C653.656 176.416 655.555 175.477 657.635 174.886C659.716 174.295 661.77 174 663.798 174C667.543 174 670.742 174.698 673.394 176.094C676.047 177.436 678.049 179.047 679.402 180.926L674.955 184.631Z" fill="#F8F8F8"/>
+        <defs><clipPath id="cs"><rect width="138" height="69" fill="white" transform="translate(120 165)"/></clipPath></defs>
+      </svg>
+      <div class="logo-sub">Endless Runner</div>
+    </div>
+    <div class="legend-strip">
+      <div class="legend-card good"><span class="legend-icon">💸⚡💵🔄</span>COLLECT</div>
+      <div class="legend-card bad"><span class="legend-icon">📄⚠️😤</span>DODGE</div>
+      <div class="legend-card pu"><span class="legend-icon">🛡️⚡🚫💫</span>POWER-UPS</div>
+    </div>
+    <div class="form-group">
+      <input type="text" id="playerName" placeholder="Your name" maxlength="30"/>
+      <input type="email" id="playerEmail" placeholder="Email (for leaderboard)"/>
+    </div>
+    <button class="btn-play" id="playBtn">RUN WITH BENJI →</button>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;background:rgba(204,125,81,0.1);border:1px solid rgba(204,125,81,0.25);border-radius:20px;padding:7px 16px;width:88%;max-width:320px;"><span style="font-size:18px">🎧</span><span style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--cooper);">Headphones on for the full experience</span></div>
+    <div style="margin-top:14px;width:88%;max-width:320px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;"><div style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">How to Play</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>👆</span>Tap to jump</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>👈👉</span>Swipe lanes</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>✅</span>Collect payments</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>❌</span>Dodge invoices</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>⚡</span>Grab power-ups</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>🔥</span>Build combo</div></div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;width:88%;max-width:320px;margin-top:14px;"><a href="/leaderboard" target="_blank" style="font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;text-decoration:none;font-weight:700;">🏆 Leaderboard</a><button id="startSoundBtn" onclick="toggleSoundFromStart()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:20px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1px;padding:6px 14px;cursor:pointer;">🔊 Music On</button></div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="screen hidden" id="gameOverScreen">
+    <svg class="over-logo" viewBox="100 155 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g clip-path="url(#co)"><path d="M250.228 178.284C248.008 178.325 245.87 178.867 244.019 180.199C241.758 181.782 240.606 183.947 240.771 186.737C241.593 199.771 246.404 209.848 255.08 219.467C255.944 220.425 256.314 221.341 256.273 222.59C256.191 225.963 256.232 229.295 256.273 232.668C256.273 233.625 255.944 233.875 254.998 233.958C253.6 234.042 252.819 233.542 252.079 232.293C244.8 220.05 234.438 211.763 220.992 207.474C212.768 204.851 204.338 204.393 195.826 205.767C195.703 205.809 195.538 205.809 195.415 205.85C193.441 206.267 192.989 207.433 194.017 209.182C195.703 212.138 197.43 215.095 198.951 218.135C201.295 222.84 202.899 227.795 204.132 232.876C204.338 233.667 204.091 233.958 203.31 233.958C201.007 233.958 198.704 233.917 196.443 233.958C195.456 234 195.127 233.584 194.798 232.668C193.4 228.67 192.249 224.506 190.439 220.716C184.271 207.724 174.772 197.897 162.19 191.109C152.362 185.821 141.876 183.197 130.732 183.239C128.8 183.239 126.826 183.197 124.893 183.239C123.989 183.281 123.413 182.906 123.043 182.073C122.138 180.158 121.151 175.785 120.247 173.911C119.63 172.62 120.165 171.704 121.604 171.704C125.058 171.663 128.512 171.663 131.966 171.704C133.282 171.788 137.682 169.081 139.08 167.207C139.614 166.499 140.231 166.166 141.095 166.208C142.411 166.249 143.685 166.249 145.001 166.208C146.07 166.166 146.934 166.582 147.674 167.332C149.113 168.789 149.812 170.58 149.936 172.62C150.224 177.326 153.76 180.741 158.242 180.657C161.449 180.616 164.451 178.45 165.603 175.244C165.89 174.494 166.26 174.161 167.042 174.244C167.535 174.286 168.07 174.244 168.563 174.244C205.448 174.244 219.758 174.244 256.643 174.244C257.095 174.244 257.794 174.078 258 174.494C258.206 174.952 257.548 175.41 257.219 175.744C256.273 176.618 254.587 178.2 250.228 178.284Z" fill="#F8F8F8"/><path d="M178.185 207.599C177.651 207.683 177.157 207.807 176.705 207.849C172.84 208.182 168.933 208.474 165.068 208.765C163.341 208.89 162.313 209.265 162.272 210.223C162.231 211.014 162.765 211.347 164.287 211.972C165.52 212.513 166.754 213.013 168.029 213.512C169.303 213.97 168.81 216.469 168.481 217.26C168.152 218.051 167.987 219.009 166.754 218.468C163.341 217.052 159.846 215.636 156.433 214.179C155.98 213.97 154.788 212.929 154.5 212.471C153.965 211.68 153.349 211.305 153.349 208.849C153.965 203.56 162.436 200.687 169.015 200.229C169.55 200.187 175.924 203.56 178.103 206.891C178.144 207.058 178.144 207.224 178.185 207.599Z" fill="#F8F8F8"/><path d="M154.007 165.042C154.706 165.042 155.446 164.917 156.104 165.083C156.885 165.291 157.79 165.583 158.242 166.124C160.298 168.581 161.408 169.456 163.3 172.037C163.67 172.537 163.793 173.495 163.588 174.078C162.683 176.909 160.092 178.45 157.255 178.034C154.5 177.659 152.156 175.202 152.033 172.371C151.951 169.622 151.293 168.706 149.977 166.333C149.442 165.333 149.853 165.042 150.799 165.042C151.622 165.042 153.225 165.042 154.007 165.042Z" fill="#F8F8F8"/><path d="M221.485 210.972C222.554 210.431 226.173 212.138 229.504 214.179C230.408 214.72 231.395 215.803 231.724 216.885C233.122 221.091 234.232 225.422 235.631 229.669C236.494 232.334 235.959 233.667 232.999 233.5C230.984 233.417 229.791 234.167 228.928 231.793C226.707 225.505 224.734 221.299 222.266 215.136C221.609 213.512 220.539 211.43 221.485 210.972Z" fill="#F8F8F8"/></g>
+      <defs><clipPath id="co"><rect width="138" height="69" fill="white" transform="translate(120 165)"/></clipPath></defs>
+    </svg>
+    <div class="over-title">WIPED OUT</div>
+    <div class="over-city" id="overCity">IN VANCOUVER</div>
+    <div class="hs-badge" id="hsBadge" style="display:none">🏆 NEW HIGH SCORE!</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val" id="finalScore">0</div><div class="stat-lbl">Final Score</div></div>
+      <div class="stat-card"><div class="stat-val combo" id="finalCombo">0</div><div class="stat-lbl">Best Combo</div></div>
+      <div class="stat-card"><div class="stat-val" id="finalCity" style="font-size:18px">Vancouver</div><div class="stat-lbl">Made It To</div></div>
+      <div class="stat-card"><div class="stat-val" id="finalDistance">0m</div><div class="stat-lbl">Distance</div></div>
+    </div>
+    <div class="share-box"><span class="share-tag">📣 Share:</span><br>"<span id="shareCopy"></span>"</div>
+    <div class="btn-row">
+      <button class="btn-retry" id="retryBtn">Run Again</button>
+      <button class="btn-share" id="shareBtn">Share 🔗</button>
+    </div>
+    <a href="/leaderboard" target="_blank" id="lbBtn" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;width:88%;max-width:320px;padding:11px;border-radius:12px;background:rgba(0,71,119,0.15);border:1px solid rgba(0,71,119,0.35);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;transition:border-color .2s,color .2s;">🏆 &nbsp;View Leaderboard</a>
+  </div>
+
+  <!-- CTA SCREEN -->
+  <div class="screen hidden" id="ctaScreen">
+    <svg class="cta-logo" viewBox="100 155 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g clip-path="url(#cc)"><path d="M250.228 178.284C248.008 178.325 245.87 178.867 244.019 180.199C241.758 181.782 240.606 183.947 240.771 186.737C241.593 199.771 246.404 209.848 255.08 219.467C255.944 220.425 256.314 221.341 256.273 222.59C256.191 225.963 256.232 229.295 256.273 232.668C256.273 233.625 255.944 233.875 254.998 233.958C253.6 234.042 252.819 233.542 252.079 232.293C244.8 220.05 234.438 211.763 220.992 207.474C212.768 204.851 204.338 204.393 195.826 205.767C195.703 205.809 195.538 205.809 195.415 205.85C193.441 206.267 192.989 207.433 194.017 209.182C195.703 212.138 197.43 215.095 198.951 218.135C201.295 222.84 202.899 227.795 204.132 232.876C204.338 233.667 204.091 233.958 203.31 233.958C201.007 233.958 198.704 233.917 196.443 233.958C195.456 234 195.127 233.584 194.798 232.668C193.4 228.67 192.249 224.506 190.439 220.716C184.271 207.724 174.772 197.897 162.19 191.109C152.362 185.821 141.876 183.197 130.732 183.239C128.8 183.239 126.826 183.197 124.893 183.239C123.989 183.281 123.413 182.906 123.043 182.073C122.138 180.158 121.151 175.785 120.247 173.911C119.63 172.62 120.165 171.704 121.604 171.704C125.058 171.663 128.512 171.663 131.966 171.704C133.282 171.788 137.682 169.081 139.08 167.207C139.614 166.499 140.231 166.166 141.095 166.208C142.411 166.249 143.685 166.249 145.001 166.208C146.07 166.166 146.934 166.582 147.674 167.332C149.113 168.789 149.812 170.58 149.936 172.62C150.224 177.326 153.76 180.741 158.242 180.657C161.449 180.616 164.451 178.45 165.603 175.244C165.89 174.494 166.26 174.161 167.042 174.244C167.535 174.286 168.07 174.244 168.563 174.244C205.448 174.244 219.758 174.244 256.643 174.244C257.095 174.244 257.794 174.078 258 174.494C258.206 174.952 257.548 175.41 257.219 175.744C256.273 176.618 254.587 178.2 250.228 178.284Z" fill="#CC7D51"/><path d="M178.185 207.599C177.651 207.683 177.157 207.807 176.705 207.849C172.84 208.182 168.933 208.474 165.068 208.765C163.341 208.89 162.313 209.265 162.272 210.223C162.231 211.014 162.765 211.347 164.287 211.972C165.52 212.513 166.754 213.013 168.029 213.512C169.303 213.97 168.81 216.469 168.481 217.26C168.152 218.051 167.987 219.009 166.754 218.468C163.341 217.052 159.846 215.636 156.433 214.179C155.98 213.97 154.788 212.929 154.5 212.471C153.965 211.68 153.349 211.305 153.349 208.849C153.965 203.56 162.436 200.687 169.015 200.229C169.55 200.187 175.924 203.56 178.103 206.891C178.144 207.058 178.144 207.224 178.185 207.599Z" fill="#CC7D51"/><path d="M154.007 165.042C154.706 165.042 155.446 164.917 156.104 165.083C156.885 165.291 157.79 165.583 158.242 166.124C160.298 168.581 161.408 169.456 163.3 172.037C163.67 172.537 163.793 173.495 163.588 174.078C162.683 176.909 160.092 178.45 157.255 178.034C154.5 177.659 152.156 175.202 152.033 172.371C151.951 169.622 151.293 168.706 149.977 166.333C149.442 165.333 149.853 165.042 150.799 165.042C151.622 165.042 153.225 165.042 154.007 165.042Z" fill="#CC7D51"/><path d="M221.485 210.972C222.554 210.431 226.173 212.138 229.504 214.179C230.408 214.72 231.395 215.803 231.724 216.885C233.122 221.091 234.232 225.422 235.631 229.669C236.494 232.334 235.959 233.667 232.999 233.5C230.984 233.417 229.791 234.167 228.928 231.793C226.707 225.505 224.734 221.299 222.266 215.136C221.609 213.512 220.539 211.43 221.485 210.972Z" fill="#CC7D51"/></g>
+      <defs><clipPath id="cc"><rect width="138" height="69" fill="white" transform="translate(120 165)"/></clipPath></defs>
+    </svg>
+    <div class="cta-title">Stop Chasing <em>Invoices</em>.<br>Start Getting <em>Paid</em>.</div>
+    <div class="cta-sub">Benji Pays automates your entire A/R — invoicing, reminders, collections, and reconciliation. All while keeping your processor.</div>
+    <button class="cta-btn" id="ctaBookBtn">Book a Demo →</button>
+    <div class="cta-link" id="ctaLearnBtn">Learn more at benjipays.com</div>
+    <div class="cta-skip" id="ctaSkipBtn">Play again ↩</div>
+  </div>
+</div></div>
+
+<script>
+// ── SUPABASE CONFIG ───────────────────────────────────
+const SUPA_URL = 'https://cxnyfnudhsqrpknyfbft.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4bnlmbnVkaHNxcnBrbnlmYmZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDI4MDUsImV4cCI6MjA5MDcxODgwNX0.cMeJKKBsgfbRvjzNMpmBQ5R2fY67wL1E9kYOoGd0JZw';
+
+async function supaInsert(table, data) {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${SUPA_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) { console.warn('Supabase insert failed:', e); return false; }
+}
+
+async function supaSelect(table, params='') {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}?${params}`, {
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${SUPA_KEY}`
+      }
+    });
+    return res.ok ? await res.json() : [];
+  } catch(e) { console.warn('Supabase select failed:', e); return []; }
+}
+
+// Track if player lead already captured this session
+let leadCaptured = false;
+let playerId = null; // store player's score row id for later
+
+const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d'),wrap=document.getElementById('gameWrap');
+function resizeCanvas(){canvas.width=wrap.clientWidth;canvas.height=wrap.clientHeight;}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+
+const B={cerulean:'#004777',charcoal:'#002843',cooper:'#CC7D51',cameo:'#D9B59D',white:'#F8F8F8',good:'#4DC97A',bad:'#E84040',goodGlow:'rgba(77,201,122,.55)',badGlow:'rgba(232,64,64,.55)',puGlow:'rgba(204,125,81,.65)'};
+
+const CITIES=[
+  {name:'Vancouver',  flag:'🇨🇦',t:0,    sky:['#0c1e36','#183450'],ground:'#0c1c2e',accent:B.cerulean, gl:'#1a3250'},
+  {name:'Toronto',    flag:'🇨🇦',t:1500, sky:['#0e1a2e','#1a2c44'],ground:'#0a1420',accent:'#3a7bd5',  gl:'#1a3050'},
+  {name:'Montreal',   flag:'🇨🇦',t:3000, sky:['#1a1028','#2a1840'],ground:'#100a1c',accent:'#9b59b6',  gl:'#2a1840'},
+  {name:'Dallas',     flag:'🤠', t:4500, sky:['#28180a','#3a2410'],ground:'#18100a',accent:'#c45c10',  gl:'#442e12'},
+  {name:'New York',   flag:'🗽', t:6000, sky:['#0a0e1a','#141e30'],ground:'#080c14',accent:'#f0c040',  gl:'#1a2030'},
+  {name:'Los Angeles',flag:'🌴', t:7500, sky:['#180848','#280e5e'],ground:'#100630',accent:'#b040ff',  gl:'#280e5c'},
+  {name:'Miami',      flag:'🌊', t:9000, sky:['#0a1828','#102038'],ground:'#081018',accent:'#00c8aa',  gl:'#0a2030'},
+  {name:'London',     flag:'🇬🇧',t:10500,sky:['#0c1016','#141c24'],ground:'#080c12',accent:'#4488ff',  gl:'#1c2836'},
+  {name:'Australia',  flag:'🇦🇺',t:12000,sky:['#062c4c','#0a3c5c'],ground:'#041c30',accent:'#00aadd',  gl:'#0a3050'},
+  {name:'Cyber City', flag:'🤖', t:13500,sky:['#000a08','#001814'],ground:'#000806',accent:'#00ffcc',  gl:'#003828'},
+];
+const getCity=s=>{for(let i=CITIES.length-1;i>=0;i--)if(s>=CITIES[i].t)return CITIES[i];return CITIES[0];};
+
+// City skyline data for parallax
+const SKY={
+  'Vancouver':[{x:.05,w:.04,h:.35,t:'pointed'},{x:.12,w:.06,h:.28},{x:.2,w:.035,h:.42,t:'antenna'},{x:.28,w:.07,h:.22},{x:.42,w:.05,h:.3},{x:.55,w:.3,h:.45,t:'mountain'},{x:.75,w:.25,h:.35,t:'mountain'},{x:.88,w:.06,h:.18},{x:.95,w:.04,h:.25}],
+  'Dallas':[{x:.08,w:.06,h:.25},{x:.18,w:.05,h:.35},{x:.26,w:.08,h:.48,t:'reunion'},{x:.38,w:.06,h:.32},{x:.48,w:.04,h:.28},{x:.56,w:.07,h:.38},{x:.66,w:.05,h:.22},{x:.76,w:.06,h:.3},{x:.86,w:.04,h:.2},{x:.92,w:.07,h:.26}],
+  'Los Angeles':[{x:.1,w:.05,h:.2},{x:.2,w:.04,h:.15},{x:.3,w:.06,h:.28},{x:.42,w:.02,h:.22,t:'palm'},{x:.5,w:.02,h:.18,t:'palm'},{x:.6,w:.05,h:.22},{x:.72,w:.02,h:.2,t:'palm'},{x:.8,w:.04,h:.16},{x:.9,w:.02,h:.24,t:'palm'}],
+  'Australia':[{x:.12,w:.15,h:.18,t:'opera'},{x:.35,w:.04,h:.38,t:'antenna'},{x:.5,w:.06,h:.22},{x:.65,w:.05,h:.18},{x:.78,w:.06,h:.25},{x:.9,w:.04,h:.2}],
+  'Tokyo':[{x:.05,w:.04,h:.2},{x:.12,w:.06,h:.32},{x:.22,w:.035,h:.52,t:'tokyo'},{x:.32,w:.08,h:.28},{x:.42,w:.05,h:.22},{x:.5,w:.06,h:.36},{x:.6,w:.04,h:.18},{x:.68,w:.07,h:.3},{x:.78,w:.05,h:.25},{x:.88,w:.06,h:.2},{x:.95,w:.04,h:.32}],
+  'Lagos':[{x:.08,w:.06,h:.22},{x:.18,w:.05,h:.3},{x:.28,w:.07,h:.38},{x:.4,w:.05,h:.25},{x:.52,w:.08,h:.32},{x:.64,w:.04,h:.2},{x:.74,w:.06,h:.28},{x:.85,w:.05,h:.18},{x:.93,w:.04,h:.24}],
+  'London':[{x:.05,w:.04,h:.22},{x:.14,w:.06,h:.18},{x:.22,w:.04,h:.48,t:'bigben'},{x:.32,w:.08,h:.25},{x:.44,w:.05,h:.34,t:'gherkin'},{x:.54,w:.06,h:.2},{x:.64,w:.04,h:.28},{x:.78,w:.12,h:.24,t:'eye'},{x:.92,w:.05,h:.22}],
+  'Cyber City':[{x:.03,w:.05,h:.35},{x:.12,w:.04,h:.52},{x:.2,w:.07,h:.28},{x:.3,w:.03,h:.6,t:'antenna'},{x:.38,w:.06,h:.4},{x:.48,w:.05,h:.32},{x:.56,w:.08,h:.48},{x:.66,w:.04,h:.35},{x:.74,w:.06,h:.55},{x:.84,w:.05,h:.3},{x:.92,w:.04,h:.42}],
+};
+
+const PU_TYPES=[{name:'AUTO-PAY SHIELD',effect:'INVINCIBILITY · 15s',color:B.cerulean,emoji:'🛡️',dur:15*60},{name:'INSTANT PAY BOOST',effect:'SPEED + 2× SCORE · 12s',color:'#f5c842',emoji:'⚡',dur:12*60},{name:'PAID IN FULL',effect:'ALL OBSTACLES CLEARED 💰',color:B.cooper,emoji:'💰',dur:0},{name:'PAYMENT STREAK',effect:'DOUBLE POINTS · 15s',color:B.good,emoji:'💫',dur:15*60}];
+const OBS=[{label:'📄',name:'PAPER CHECK',color:B.bad,size:34},{label:'⚠️',name:'OVERDUE INVOICE',color:B.bad,size:33},{label:'😤',name:'ANGRY CLIENT',color:B.bad,size:33}];
+const COL=[{label:'💸',name:'ACH',color:B.good,size:30,pts:20},{label:'⚡',name:'INSTANT',color:B.good,size:28,pts:30},{label:'💵',name:'DOLLAR',color:B.good,size:28,pts:15},{label:'🔄',name:'AUTO-PAY',color:B.good,size:28,pts:25}];
+
+let state='start',score=0,combo=0,maxCombo=0,multiplier=1,isNight=false,nightTimer=0;
+let shieldActive=false,shieldTimer=0,speedBoost=false,speedBoostTimer=0,doublePoints=false,doublePointsTimer=0;
+let clutchUsed=false,isClutch=false,clutchTimer=0;
+let puWarning=false,puFlashTimer=0,puFlashVisible=true,activePUTimer=0,activePUName=null;
+let frameCount=0,distance=0,currentCity=CITIES[0],lastCity=null,soundOn=true,playerName='',playCount=0;
+let targetLane=1,benjiX=0,benjiY=0,benjiBaseY=0,isJumping=false,jumpVy=0,benjiGlow=0;
+const GRAVITY=0.62,JUMP=-15;
+let obstacles=[],collectibles=[],powerups=[],particles=[],groundLines=[];
+let spawnT=0,colT=0,puT=0,legendT=0,legendFaded=false,skylineOff=0;
+let highScore=parseInt(localStorage.getItem('benjiHS')||'0');
+
+// ── AUDIO SYSTEM ─────────────────────────────────────────
+let audioCtx=null;
+const MUSIC_BASE = '/game/assets/audio/music/';
+const CITY_TRACKS = {
+  'Vancouver':   {day:'music_vancouver_day_loop.mp3',   night:'music_vancouver_night_loop.mp3'},
+  'Toronto':     {day:'music_toronto_day_loop.mp3',     night:'music_toronto_night_loop.mp3'},
+  'Montreal':    {day:'music_montreal_day_loop.mp3',    night:'music_montreal_night_loop.mp3'},
+  'Dallas':      {day:'music_dallas_day_loop.mp3',      night:'music_dallas_night_loop.mp3'},
+  'New York':    {day:'music_newyork_day_loop.mp3',     night:'music_newyork_night_loop.mp3'},
+  'Los Angeles': {day:'music_losangeles_day_loop.mp3',  night:'music_losangeles_night_loop.mp3'},
+  'Miami':       {day:'music_miami_day_loop.mp3',       night:'music_miami_night_loop.mp3'},
+  'London':      {day:'music_london_day_loop.mp3',      night:'music_london_night_loop.mp3'},
+  'Australia':   {day:'music_australia_day_loop.mp3',   night:'music_australia_night_loop.mp3'},
+  'Cyber City':  {day:'music_cybercity_day_loop.mp3',   night:'music_cybercity_night_loop.mp3'},
+};
+
+// Audio nodes — AudioContext based (works on iOS Safari after gesture unlock)
+let currentTrackFile = null;
+let musicSource = null;      // AudioBufferSourceNode
+let musicGain = null;        // GainNode for volume control
+let musicFadeTimer = null;
+const audioCache = {};       // decoded AudioBuffer cache
+
+function getAC(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function getMusicFile(cityName, night){
+  const tracks = CITY_TRACKS[cityName] || CITY_TRACKS['Vancouver'];
+  return MUSIC_BASE + (night ? tracks.night : tracks.day);
+}
+
+async function loadTrack(file){
+  if(audioCache[file]) return audioCache[file];
+  try{
+    const resp = await fetch(file);
+    const buf = await resp.arrayBuffer();
+    const decoded = await getAC().decodeAudioData(buf);
+    audioCache[file] = decoded;
+    return decoded;
+  }catch(e){ console.warn('Track load failed:', file, e); return null; }
+}
+
+function setMusicVol(val){
+  if(musicGain) musicGain.gain.value = Math.max(0, Math.min(1, val));
+}
+
+function fadeMusicTo(targetVol, ms, cb){
+  if(!musicGain) return;
+  if(musicFadeTimer) clearInterval(musicFadeTimer);
+  const start = musicGain.gain.value;
+  const steps = ms / 30;
+  const step = (targetVol - start) / steps;
+  let count = 0;
+  musicFadeTimer = setInterval(()=>{
+    count++;
+    const v = start + step * count;
+    musicGain.gain.value = Math.max(0, Math.min(1, v));
+    if(count >= steps){
+      clearInterval(musicFadeTimer);
+      musicFadeTimer = null;
+      if(cb) cb();
+    }
+  }, 30);
+}
+
+function stopCurrentSource(fadeMs=600, cb){
+  if(!musicSource){ if(cb)cb(); return; }
+  const src = musicSource;
+  const gain = musicGain;
+  musicSource = null;
+  musicGain = null;
+  currentTrackFile = null;
+  if(gain && fadeMs > 0){
+    fadeMusicTo.call({musicGain:gain}, 0, fadeMs, ()=>{
+      try{ src.stop(); }catch(e){}
+      gain.disconnect();
+      if(cb)cb();
+    });
+    // Use the local gain ref since musicGain is now null
+    if(musicFadeTimer) clearInterval(musicFadeTimer);
+    const start = gain.gain.value;
+    const steps = fadeMs / 30;
+    const step = -start / steps;
+    let count = 0;
+    musicFadeTimer = setInterval(()=>{
+      count++;
+      gain.gain.value = Math.max(0, start + step * count);
+      if(count >= steps){
+        clearInterval(musicFadeTimer);
+        musicFadeTimer = null;
+        try{ src.stop(); }catch(e){}
+        gain.disconnect();
+        if(cb)cb();
+      }
+    }, 30);
+  } else {
+    try{ src.stop(); }catch(e){}
+    if(gain) gain.disconnect();
+    if(cb)cb();
+  }
+}
+
+function playMusic(file, vol=0.55, loop=true, fadeInMs=600){
+  if(!soundOn) return;
+  if(currentTrackFile===file && musicSource) return;
+  const ac = getAC();
+  currentTrackFile = file;
+  // Stop current source
+  if(musicSource){
+    const s=musicSource, g=musicGain;
+    musicSource=null; musicGain=null;
+    const sv=g?g.gain.value:0, steps=Math.max(1,200/30); let n=0;
+    const t=setInterval(()=>{
+      n++; if(g) g.gain.value=Math.max(0,sv-(sv/steps)*n);
+      if(n>=steps){clearInterval(t);try{s.stop();}catch(e){}if(g)g.disconnect();}
+    },30);
+  }
+  // Fetch, decode and play — all chained with .then() so no async/await
+  fetch(file)
+    .then(r=>r.arrayBuffer())
+    .then(buf=>ac.decodeAudioData(buf))
+    .then(decoded=>{
+      if(currentTrackFile!==file || !soundOn) return;
+      const src=ac.createBufferSource();
+      src.buffer=decoded; src.loop=loop;
+      const gain=ac.createGain(); gain.gain.value=0;
+      src.connect(gain); gain.connect(ac.destination);
+      src.start(0);
+      musicSource=src; musicGain=gain;
+      const steps=Math.max(1,fadeInMs/30); let n=0;
+      const t=setInterval(()=>{
+        n++; gain.gain.value=Math.min(vol,(vol/steps)*n);
+        if(n>=steps){clearInterval(t); gain.gain.value=vol;}
+      },30);
+    })
+    .catch(e=>console.warn('Music failed:',file,e));
+}
+function stopMusic(fadeMs=600){
+  if(!musicSource) return;
+  const src = musicSource;
+  const gain = musicGain;
+  musicSource = null; musicGain = null; currentTrackFile = null;
+  if(musicFadeTimer){ clearInterval(musicFadeTimer); musicFadeTimer=null; }
+  if(!gain){ try{src.stop();}catch(e){} return; }
+  const startVol = gain.gain.value;
+  const steps = fadeMs / 30;
+  let count = 0;
+  const t = setInterval(()=>{
+    count++;
+    gain.gain.value = Math.max(0, startVol - (startVol/steps)*count);
+    if(count >= steps){
+      clearInterval(t);
+      try{ src.stop(); }catch(e){}
+      gain.disconnect();
+    }
+  }, 30);
+}
+
+// Legacy stubs so nothing breaks
+function fadeOut(){}
+function fadeIn(){}
+
+function swapToNightMusic(cityName){
+  playMusic(getMusicFile(cityName, true), 0.78, true, 300);
+}
+
+function swapToDayMusic(cityName){
+  playMusic(getMusicFile(cityName, false), 0.55, true, 800);
+}
+
+function playTitleMusic(){
+  playMusic(MUSIC_BASE + 'Title Screen.mp3', 0.4, true, 800);
+}
+
+// ── SFX (Web Audio API — instant, no loading) ─────────
+function beep(fr,dur,type='square',vol=0.12){if(!soundOn)return;try{const ac=getAC(),o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type=type;o.frequency.value=fr;g.gain.setValueAtTime(vol,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+dur);o.start();o.stop(ac.currentTime+dur);}catch(e){}}
+const sCollect=()=>{beep(660,.09,'sine',.14);setTimeout(()=>beep(880,.07,'sine',.1),75);};
+const sJump=()=>{beep(280,.13,'triangle',.09);beep(380,.09,'triangle',.07);};
+const sHit=()=>{beep(110,.35,'sawtooth',.18);beep(75,.45,'sawtooth',.13);};
+const sPU=()=>{[440,550,660,880].forEach((f,i)=>setTimeout(()=>beep(f,.14,'sine',.16),i*65));};
+const sCity=()=>{[330,440,550].forEach((f,i)=>setTimeout(()=>beep(f,.18,'sine',.09),i*90));};
+
+function toggleMusicFromStart(){
+  soundOn=!soundOn;
+  const btn=document.getElementById('startSoundBtn');
+  if(btn) btn.textContent=soundOn?'\uD83D\uDD0A Music On':'\uD83D\uDD07 Music Off';
+  document.getElementById('soundBtn').textContent=soundOn?'\uD83D\uDD0A':'\uD83D\uDD07';
+  if(soundOn){ if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume(); playTitleMusic(); }
+  else stopMusic();
+}
+
+const laneX=l=>{const lp=canvas.width*.08,lw=(canvas.width-lp*2)/3;return lp+lw*l+lw/2;};
+const groundY=()=>canvas.height*.78;
+const benjiSz=()=>Math.min(canvas.width*.13,48);
+
+function initGame(){score=0;combo=0;maxCombo=0;multiplier=1;isNight=false;nightTimer=0;shieldActive=false;shieldTimer=0;speedBoost=false;speedBoostTimer=0;doublePoints=false;doublePointsTimer=0;clutchUsed=false;isClutch=false;clutchTimer=0;puWarning=false;puFlashTimer=0;puFlashVisible=true;activePUTimer=0;activePUName=null;frameCount=0;distance=0;currentCity=CITIES[0];lastCity=null;targetLane=1;benjiX=laneX(1);benjiGlow=0;isJumping=false;jumpVy=0;benjiBaseY=groundY()-benjiSz()*.52;benjiY=benjiBaseY;obstacles=[];collectibles=[];powerups=[];particles=[];groundLines=[];spawnT=0;colT=0;puT=0;legendT=0;legendFaded=false;skylineOff=0;document.getElementById('ingameLegend').classList.remove('fade');document.getElementById('scoreDisplay').textContent='0';document.getElementById('nightOverlay').style.opacity='0';updateComboUI();const gy=groundY();for(let i=0;i<8;i++)groundLines.push({y:gy+Math.random()*canvas.height*.2,speed:.35+Math.random()*.35});setTimeout(()=>showCityBanner(CITIES[0]),600);}
+
+function spawnObs(){const n=Math.random()<.28?2:1,lanes=[0,1,2].sort(()=>Math.random()-.5).slice(0,n);lanes.forEach(l=>{const t=OBS[Math.floor(Math.random()*OBS.length)];obstacles.push({lane:l,x:laneX(l),y:-55,type:t,size:t.size*(canvas.width/375),alive:true});});}
+function spawnCol(){const l=Math.floor(Math.random()*3),t=COL[Math.floor(Math.random()*COL.length)];collectibles.push({lane:l,x:laneX(l),y:-45,type:t,size:t.size*(canvas.width/375),alive:true,w:Math.random()*Math.PI*2});}
+function spawnPU(){const l=Math.floor(Math.random()*3),t=PU_TYPES[Math.floor(Math.random()*PU_TYPES.length)];powerups.push({lane:l,x:laneX(l),y:-45,type:t,size:34*(canvas.width/375),alive:true,pulse:0});}
+function burst(x,y,col,n=8){for(let i=0;i<n;i++){const a=(Math.PI*2*i)/n+Math.random()*.4,sp=2+Math.random()*4;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,color:col,alpha:1,size:2.5+Math.random()*3.5,life:1});}}
+function scorePop(x,y,text,col){const el=document.createElement('div');el.className='score-pop';el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';el.style.color=col||B.good;wrap.appendChild(el);setTimeout(()=>el.remove(),860);}
+function activateNight(){
+  isNight=!isNight;
+  nightTimer=isNight?13*60:0;
+  document.getElementById('nightOverlay').style.opacity=isNight?'1':'0';
+  benjiGlow=1;
+  if(soundOn){
+    if(isNight) swapToNightMusic(currentCity.name, 300);
+    else swapToDayMusic(currentCity.name, 800);
+  }
+}
+function activatePU(t){sPU();document.getElementById('puName').textContent=t.emoji+' '+t.name;document.getElementById('puEffect').textContent=t.effect;const b=document.getElementById('powerupBanner');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2200);
+  if(t.name==='PAID IN FULL'){obstacles.forEach(o=>o.alive=false);burst(canvas.width/2,canvas.height/2,B.cooper,20);return;}
+  activateNight();activePUName=t.name;activePUTimer=t.dur;puWarning=false;puFlashVisible=true;
+  if(t.name==='AUTO-PAY SHIELD'){shieldActive=true;shieldTimer=t.dur;}
+  if(t.name==='INSTANT PAY BOOST'){speedBoost=true;speedBoostTimer=t.dur;}
+  if(t.name==='PAYMENT STREAK'){doublePoints=true;doublePointsTimer=t.dur;}
+}
+function updateComboUI(){const b=document.getElementById('comboBadge'),m=document.getElementById('multiBadge');if(combo>0){b.textContent='🔥 '+combo+' COMBO';b.classList.add('active');b.classList.toggle('fire',combo>=3);}else b.classList.remove('active','fire');m.classList.toggle('active',multiplier>1);if(multiplier>1)m.textContent=multiplier+'× MULTIPLIER';}
+function showCityBanner(city){const b=document.getElementById('cityBanner');const txt=document.getElementById('cityPillText');if(txt)txt.textContent=city.flag+' '+city.name.toUpperCase();b.style.transition='opacity 0.15s ease';b.style.opacity='1';setTimeout(()=>{b.style.transition='opacity 0.6s ease';b.style.opacity='0';},1800);sCity();}
+function emoji(e,x,y,sz){ctx.font=`${sz}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e,x,y);}
+function label(x,y,text,bg){ctx.font='bold 9px Barlow,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';const tw=ctx.measureText(text).width,pw=tw+10,ph=14;ctx.fillStyle=bg;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x-pw/2,y-ph/2,pw,ph,4);else ctx.rect(x-pw/2,y-ph/2,pw,ph);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(text,x,y);}
+function darken(hex,f){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgb(${Math.round(r*(1-f))},${Math.round(g*(1-f))},${Math.round(b*(1-f))})`;}
+
+function drawSkyline(city,w,gy){
+  const bldgs=SKY[city.name];if(!bldgs)return;
+  const col=city.accent;
+  // Far layer
+  ctx.save();
+  const fo=(skylineOff*.25)%w;
+  bldgs.forEach(b=>{
+    const bx=((b.x*w-fo)%w+w)%w,bh=b.h*gy*.55,bw=b.w*w;
+    ctx.fillStyle=col;ctx.globalAlpha=isNight?.06:.1;
+    if(b.t==='mountain'){ctx.beginPath();ctx.moveTo(bx-bw/2,gy);ctx.lineTo(bx,gy-bh);ctx.lineTo(bx+bw/2,gy);ctx.closePath();ctx.fill();ctx.fillStyle='#fff';ctx.globalAlpha=.03;ctx.beginPath();ctx.moveTo(bx-bw*.06,gy-bh+bh*.12);ctx.lineTo(bx,gy-bh);ctx.lineTo(bx+bw*.06,gy-bh+bh*.12);ctx.closePath();ctx.fill();}
+    else if(b.t==='palm'){ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(bx,gy);ctx.quadraticCurveTo(bx+2,gy-bh*.6,bx,gy-bh);ctx.stroke();for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(bx,gy-bh);ctx.quadraticCurveTo(bx+i*10,gy-bh-6,bx+i*16,gy-bh+8);ctx.stroke();}}
+    else if(b.t==='opera'){for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(bx+i*bw*.18,gy);ctx.quadraticCurveTo(bx+i*bw*.18+bw*.04,gy-bh*(1-i*.12),bx+i*bw*.18+bw*.12,gy);ctx.fill();}}
+    else if(b.t==='eye'){const r=bw*.45;ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(bx,gy-r,r,0,Math.PI*2);ctx.stroke();for(let i=0;i<6;i++){const a=i*Math.PI/3+frameCount*.004;ctx.beginPath();ctx.moveTo(bx,gy-r);ctx.lineTo(bx+Math.cos(a)*r,gy-r+Math.sin(a)*r);ctx.stroke();}ctx.beginPath();ctx.moveTo(bx-r*.3,gy);ctx.lineTo(bx,gy-r);ctx.lineTo(bx+r*.3,gy);ctx.stroke();}
+    else{
+      ctx.fillRect(bx-bw/2,gy-bh,bw,bh);
+      if(b.t==='pointed'){ctx.beginPath();ctx.moveTo(bx-bw/2,gy-bh);ctx.lineTo(bx,gy-bh-bh*.2);ctx.lineTo(bx+bw/2,gy-bh);ctx.closePath();ctx.fill();}
+      if(b.t==='antenna')ctx.fillRect(bx-1,gy-bh-bh*.25,2,bh*.25);
+      if(b.t==='reunion'){ctx.beginPath();ctx.arc(bx,gy-bh-bw*.5,bw*.5,0,Math.PI*2);ctx.fill();}
+      if(b.t==='bigben'){ctx.beginPath();ctx.moveTo(bx-bw*.5,gy-bh);ctx.lineTo(bx,gy-bh-bh*.18);ctx.lineTo(bx+bw*.5,gy-bh);ctx.closePath();ctx.fill();}
+      if(b.t==='gherkin'){ctx.beginPath();ctx.moveTo(bx-bw/2,gy-bh);ctx.quadraticCurveTo(bx-bw*.6,gy-bh-bh*.25,bx,gy-bh-bh*.3);ctx.quadraticCurveTo(bx+bw*.6,gy-bh-bh*.25,bx+bw/2,gy-bh);ctx.closePath();ctx.fill();}
+      if(b.t==='tokyo'){ctx.fillStyle='#ff3333';ctx.globalAlpha=(isNight?.08:.12);ctx.beginPath();ctx.moveTo(bx-bw*.8,gy-bh*.35);ctx.lineTo(bx,gy-bh);ctx.lineTo(bx+bw*.8,gy-bh*.35);ctx.closePath();ctx.fill();ctx.fillRect(bx-1,gy-bh-bh*.12,2,bh*.12);}
+      // Windows
+      ctx.fillStyle='#fff';ctx.globalAlpha=isNight?.1:.03;
+      const wr=Math.floor(bh/7);for(let r=0;r<wr;r++)for(let c=0;c<Math.floor(bw/4);c++)if(Math.random()<.55)ctx.fillRect(bx-bw/2+c*4+1.5,gy-bh+r*7+2,1.5,2.5);
+    }
+  });
+  // Near layer
+  const no=(skylineOff*.6)%w;
+  bldgs.forEach(b=>{
+    if(b.t==='mountain'||b.t==='palm'||b.t==='opera'||b.t==='eye')return;
+    const bx=((b.x*w+w*.45-no)%w+w)%w,bh=b.h*gy*.3,bw=b.w*w*.7;
+    ctx.fillStyle=col;ctx.globalAlpha=isNight?.04:.07;
+    ctx.fillRect(bx-bw/2,gy-bh,bw,bh);
+  });
+  ctx.restore();
+  // Fog for London
+  if(city.name==='London'){ctx.save();const fg=ctx.createLinearGradient(0,gy*.4,0,gy);fg.addColorStop(0,'rgba(180,190,210,0)');fg.addColorStop(.7,'rgba(180,190,210,.03)');fg.addColorStop(1,'rgba(180,190,210,.06)');ctx.fillStyle=fg;ctx.fillRect(0,0,w,gy);ctx.restore();}
+  // Neon for Tokyo/Cyber
+  if((city.name==='Tokyo'||city.name==='Cyber City')&&!isNight){ctx.save();ctx.globalAlpha=.05;const nc=['#ff0055','#00ffcc','#ff9900','#ff55ff','#00aaff'];for(let i=0;i<5;i++){ctx.fillStyle=nc[i];ctx.fillRect(((i*137+frameCount*.1)%w),gy*.3+i*28,12,3);}ctx.restore();}
+}
+
+function drawBG(){
+  const w=canvas.width,h=canvas.height,city=currentCity,gy=groundY();
+  const grd=ctx.createLinearGradient(0,0,w*.3,gy*.95);
+  grd.addColorStop(0,isNight?darken(city.sky[0],.55):city.sky[0]);
+  grd.addColorStop(1,isNight?darken(city.sky[1],.55):city.sky[1]);
+  ctx.fillStyle=grd;ctx.fillRect(0,0,w,h);
+  // Brand gradient overlay
+  const bg=ctx.createLinearGradient(0,0,w,gy);bg.addColorStop(0,'rgba(0,71,119,.06)');bg.addColorStop(1,'rgba(204,125,81,.04)');ctx.fillStyle=bg;ctx.fillRect(0,0,w,gy);
+  // Stars
+  if(isNight||city.name==='Tokyo'||city.name==='Cyber City'){ctx.fillStyle='rgba(255,255,255,.72)';for(let i=0;i<35;i++){const sx=(i*137+frameCount*.05)%w,sy=(i*97)%(h*.56);ctx.beginPath();ctx.arc(sx,sy,.5+(i%3)*.5,0,Math.PI*2);ctx.fill();}}
+  // Cyber scanlines + ACH
+  if(city.name==='Cyber City'){ctx.strokeStyle='rgba(0,255,180,.03)';ctx.lineWidth=1;for(let y=0;y<h;y+=4){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}ctx.font='8px monospace';ctx.fillStyle='rgba(0,255,180,.2)';ctx.textAlign='left';for(let i=0;i<4;i++)ctx.fillText('ACH+$'+(1200+i*817+frameCount).toFixed(2),(frameCount*(1+i*.3))%(w+180)-80,28+i*26);}
+  // LA text
+  if(city.name==='Los Angeles'&&!isNight){ctx.font='bold '+Math.round(w*.047)+'px Barlow,sans-serif';ctx.fillStyle='rgba(255,255,255,.09)';ctx.textAlign='center';ctx.fillText('BENJI PAYS',w/2,h*.25);}
+  // Skyline
+  drawSkyline(city,w,gy);
+  // Ground
+  const gg=ctx.createLinearGradient(0,gy,0,h);gg.addColorStop(0,city.ground);gg.addColorStop(1,darken(city.ground,.5));ctx.fillStyle=gg;ctx.fillRect(0,gy,w,h-gy);
+  // Ground line gradient
+  const glg=ctx.createLinearGradient(0,0,w,0);glg.addColorStop(0,B.cerulean);glg.addColorStop(.5,city.gl);glg.addColorStop(1,B.cooper);ctx.strokeStyle=glg;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(w,gy);ctx.stroke();
+  // Lanes
+  const lp=w*.08,lw=(w-lp*2)/3;ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=1;ctx.setLineDash([7,13]);for(let i=1;i<3;i++){const lx=lp+lw*i;ctx.beginPath();ctx.moveTo(lx,gy);ctx.lineTo(lx,h);ctx.stroke();}ctx.setLineDash([]);
+  groundLines.forEach(gl=>{ctx.strokeStyle='rgba(255,255,255,.03)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,gl.y);ctx.lineTo(w,gl.y);ctx.stroke();});
+}
+
+function drawBenji(x,y,sz){
+  const t=frameCount,bounce=isJumping?0:Math.sin(t*.25)*1.8;const bodyCol=currentCity.accent||B.cerulean;
+  ctx.save();ctx.translate(x,y+bounce);
+  if(benjiGlow>0){ctx.shadowBlur=22;ctx.shadowColor='rgba(0,71,119,'+benjiGlow*.9+')';}
+  if(shieldActive){ctx.beginPath();ctx.arc(0,0,sz*.84,0,Math.PI*2);ctx.strokeStyle='rgba(0,71,119,'+(0.45+Math.sin(t*.15)*.25)+')';ctx.lineWidth=3;ctx.stroke();}
+  const sc=sz/48;ctx.scale(sc,sc);
+  ctx.fillStyle=bodyCol;
+  ctx.beginPath();ctx.ellipse(0,0,24,13,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(26,-14,14,11,-.2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(37,-12,9,7,-.1,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(22,-22,5,9,-.4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(30,-17,3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(31,-17,1.6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(44,-11,2.2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.moveTo(-24,0);ctx.quadraticCurveTo(-36,-18+Math.sin(t*.2)*5,-28,-6);ctx.strokeStyle=bodyCol;ctx.lineWidth=7;ctx.lineCap='round';ctx.stroke();
+  const la=isJumping?.2:Math.sin(t*.28)*.22;ctx.fillStyle=bodyCol;
+  [[-16,14],[0,14],[14,14],[26,14]].forEach(([lx,ly],i)=>{const lo=(i%2===0?1:-1)*la*14;ctx.beginPath();ctx.ellipse(lx,ly+lo,5,11,la*(i%2===0?1:-1),0,Math.PI*2);ctx.fill();});
+  if(currentCity.name==='Cyber City'){ctx.globalAlpha=.22;for(let i=1;i<=3;i++){ctx.fillStyle=bodyCol;ctx.fillRect(-24-i*9,-12,48,24);}ctx.globalAlpha=1;}
+  ctx.shadowBlur=0;ctx.restore();if(benjiGlow>0)benjiGlow-=.018;
+}
+
+let lastTime=0;
+function gameLoop(timestamp){
+  if(state!=='playing')return;requestAnimationFrame(gameLoop);
+  const rawDelta=lastTime?Math.min(timestamp-lastTime,50):16.67;
+  lastTime=timestamp;
+  const delta=rawDelta/16.67; // normalised: 1.0 = perfect 60fps
+  frameCount++;
+  const gy=groundY(),bs=benjiSz(),baseSpd=2.2+Math.min(score/1800,2.8),spd=baseSpd*(speedBoost?1.5:1);
+  skylineOff+=spd*.8*delta;
+  benjiX+=(laneX(targetLane)-benjiX)*.17*delta;benjiBaseY=gy-bs*.52;
+  if(isJumping){jumpVy+=GRAVITY*delta;benjiY+=jumpVy*delta;if(benjiY>=benjiBaseY){benjiY=benjiBaseY;isJumping=false;jumpVy=0;}}else benjiY=benjiBaseY;
+  if(nightTimer>0){nightTimer-=delta;if(nightTimer<=0)activateNight();}
+  if(shieldTimer>0){shieldTimer-=delta;if(shieldTimer<=0)shieldActive=false;}
+  if(speedBoostTimer>0){speedBoostTimer-=delta;if(speedBoostTimer<=0)speedBoost=false;}
+  if(doublePointsTimer>0){doublePointsTimer-=delta;if(doublePointsTimer<=0)doublePoints=false;}
+  if(isClutch){clutchTimer-=delta;if(clutchTimer<=0)isClutch=false;}
+  if(activePUTimer>0){activePUTimer-=delta;
+    if(activePUTimer<=240&&!puWarning)puWarning=true;
+    if(puWarning){puFlashTimer+=delta;if(puFlashTimer%10<delta*5)puFlashVisible=!puFlashVisible;}
+    if(activePUTimer<=0){activePUName=null;puWarning=false;puFlashVisible=true;}
+  }
+  if(!legendFaded){legendT++;if(legendT>300){document.getElementById('ingameLegend').classList.add('fade');legendFaded=true;}}
+  score+=(0.044*(spd/baseSpd))*multiplier*(doublePoints?2:1)*delta;distance+=spd*delta;
+  document.getElementById('scoreDisplay').textContent=Math.floor(score);
+  const nc=getCity(Math.floor(score));if(nc!==currentCity){currentCity=nc;if(lastCity!==nc){showCityBanner(nc);lastCity=nc;if(soundOn) swapToDayMusic(nc.name);}}
+  spawnT+=delta;const sr=Math.max(72-Math.floor(score/150),34);if(spawnT>=sr){spawnObs();spawnT=0;}
+  colT+=delta;if(colT>=Math.max(52-Math.floor(score/240),26)){spawnCol();colT=0;}
+  puT+=delta;if(puT>=490){spawnPU();puT=0;}
+  obstacles=obstacles.filter(o=>{if(!o.alive)return false;o.y+=spd*delta;o.x=laneX(o.lane);return o.y<canvas.height+70;});
+  collectibles=collectibles.filter(c=>{if(!c.alive)return false;c.y+=spd*delta;c.w+=.07*delta;c.x=laneX(c.lane);return c.y<canvas.height+70;});
+  powerups=powerups.filter(p=>{if(!p.alive)return false;p.y+=spd*delta;p.pulse+=.09*delta;p.x=laneX(p.lane);return p.y<canvas.height+70;});
+  groundLines.forEach(gl=>{gl.y+=gl.speed*(spd/baseSpd)*delta;if(gl.y>canvas.height+20)gl.y=gy+5;});
+  particles=particles.filter(p=>{p.x+=p.vx*delta;p.y+=p.vy*delta;p.vy+=.14*delta;p.life-=.024*delta;p.alpha=p.life;return p.life>0;});
+  const bx=benjiX,by=benjiY,hr=bs*.36;
+  obstacles.forEach(o=>{if(!o.alive)return;const dx=o.x-bx,dy=o.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+o.size*.38){if(shieldActive){o.alive=false;burst(o.x,o.y,B.cerulean,6);}else if(isClutch){/* still invincible from clutch */}else if(!clutchUsed){o.alive=false;clutchUsed=true;isClutch=true;clutchTimer=90;combo=0;multiplier=1;updateComboUI();sHit();burst(o.x,o.y,B.bad,8);}else{o.alive=false;sHit();burst(o.x,o.y,B.bad,12);endGame();}}});
+  collectibles.forEach(c=>{if(!c.alive)return;const dx=c.x-bx,dy=c.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+c.size*.43){c.alive=false;const pts=c.type.pts*multiplier*(doublePoints?2:1);score+=pts;combo++;if(combo>maxCombo)maxCombo=combo;if(combo>=3)multiplier=Math.min(Math.floor(combo/3)+1,4);updateComboUI();sCollect();burst(c.x,c.y,B.good,8);scorePop(c.x,c.y,'+'+pts,B.good);benjiGlow=1;}});
+  powerups.forEach(p=>{if(!p.alive)return;const dx=p.x-bx,dy=p.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+p.size*.43){p.alive=false;activatePU(p.type);burst(p.x,p.y,B.cooper,14);benjiGlow=1;}});
+  ctx.clearRect(0,0,canvas.width,canvas.height);drawBG();
+  collectibles.forEach(c=>{ctx.save();ctx.shadowBlur=14;ctx.shadowColor=B.goodGlow;emoji(c.type.label,c.x,c.y+Math.sin(c.w)*4,c.size);ctx.restore();label(c.x,c.y-c.size*.78,'✅ COLLECT','rgba(77,201,122,.82)');});
+  powerups.forEach(p=>{ctx.save();ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);emoji(p.type.emoji,p.x,p.y,p.size);ctx.restore();ctx.beginPath();ctx.arc(p.x,p.y,p.size*.72,0,Math.PI*2);ctx.strokeStyle=p.type.color+'44';ctx.lineWidth=2;ctx.stroke();label(p.x,p.y-p.size*.88,'⚡ POWER-UP','rgba(204,125,81,.82)');});
+  obstacles.forEach(o=>{ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;emoji(o.type.label,o.x,o.y,o.size);ctx.restore();label(o.x,o.y-o.size*.78,'❌ DODGE','rgba(232,64,64,.82)');});
+  particles.forEach(p=>{ctx.save();ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();ctx.restore();});
+  if((isClutch||puWarning)&&!puFlashVisible){/* skip drawing Benji for flash effect */}else{drawBenji(benjiX,benjiY,bs);}
+}
+
+function endGame(){
+  state='over';const fs=Math.floor(score);
+  const isNew=fs>highScore;if(isNew){highScore=fs;localStorage.setItem('benjiHS',String(highScore));}
+  document.getElementById('hsBadge').style.display=isNew?'block':'none';
+  const n=playerName||'Anonymous';
+  document.getElementById('finalScore').textContent=fs;
+  document.getElementById('finalCombo').textContent=maxCombo;
+  document.getElementById('finalCity').textContent=currentCity.flag+' '+currentCity.name;
+  document.getElementById('finalDistance').textContent=Math.floor(distance/60)+'m';
+  document.getElementById('overCity').textContent='IN '+currentCity.name.toUpperCase();
+  document.getElementById('shareCopy').textContent=n+' scored '+fs+' pts in Benji Pays: Invoice Rover! Reached '+currentCity.name+'. Can you beat me? 🐕💸 benjipays.com/run';
+  document.getElementById('gameOverScreen').classList.remove('hidden');playCount++;if(soundOn){try{const ac=getAC();[220,196,174,155].forEach((f,i)=>{setTimeout(()=>{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.4);o.start();o.stop(ac.currentTime+0.4);},i*120);});}catch(e){}}stopMusic(800);
+  // Submit score to Supabase
+  supaInsert('scores',{
+    player_name: n,
+    email: document.getElementById('playerEmail').value.trim()||null,
+    score: fs,
+    city_reached: currentCity.name,
+    city_flag: currentCity.flag,
+    best_combo: maxCombo,
+    distance: Math.floor(distance/60),
+    event_tag: 'nable-empower-2026'
+  });
+}
+
+let txS=0,tyS=0,ttS=0;
+wrap.addEventListener('touchstart',e=>{if(state!=='playing')return;txS=e.touches[0].clientX;tyS=e.touches[0].clientY;ttS=Date.now();},{passive:true});
+wrap.addEventListener('touchend',e=>{if(state!=='playing')return;const dx=e.changedTouches[0].clientX-txS,dy=e.changedTouches[0].clientY-tyS,dt=Date.now()-ttS;if(Math.abs(dx)>28&&Math.abs(dx)>Math.abs(dy)){if(dx>0){if(targetLane<2)targetLane++;}else{if(targetLane>0)targetLane--;}}else if(Math.abs(dy)<28&&dt<300&&!isJumping)doJump();},{passive:true});
+let mdX=0;
+wrap.addEventListener('mousedown',e=>{if(state==='playing')mdX=e.clientX;});
+wrap.addEventListener('mouseup',e=>{if(state!=='playing')return;const dx=e.clientX-mdX;if(Math.abs(dx)>28){if(dx>0){if(targetLane<2)targetLane++;}else{if(targetLane>0)targetLane--;}}else if(!isJumping)doJump();});
+window.addEventListener('keydown',e=>{if(state!=='playing')return;if(e.key==='ArrowLeft'||e.key==='a'){if(targetLane>0)targetLane--;}if(e.key==='ArrowRight'||e.key==='d'){if(targetLane<2)targetLane++;}if((e.key==='ArrowUp'||e.key==='w'||e.key===' ')&&!isJumping)doJump();});
+function toggleSoundFromStart(){
+  soundOn=!soundOn;
+  var btn=document.getElementById('startSoundBtn');
+  if(btn)btn.textContent=soundOn?'🔊 Music On':'🔇 Music Off';
+  document.getElementById('soundBtn').textContent=soundOn?'🔊':'🔇';
+  if(soundOn){getAC();playTitleMusic();}
+  else stopMusic();
+}
+function doJump(){isJumping=true;jumpVy=JUMP;sJump();}
+function startGame(){
+  playerName=document.getElementById('playerName').value.trim()||'Anonymous';
+  const email=document.getElementById('playerEmail').value.trim();
+  document.getElementById('startScreen').classList.add('hidden');
+  state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);
+  // Lead capture — write to Supabase on first play
+  if(!leadCaptured){
+    leadCaptured=true;
+    supaInsert('scores',{player_name:playerName,email:email||null,score:0,city_reached:'Vancouver',city_flag:'🇨🇦',best_combo:0,distance:0,event_tag:'nable-empower-2026'});
+  }
+  // Start game music — swapToDayMusic handles crossfade from title music
+  if(soundOn) setTimeout(()=>swapToDayMusic('Vancouver'), 200);
+}
+// Title music starts on first interaction with Play button or sound toggle
+// Music during gameplay starts in startGame() directly
+document.getElementById('playBtn').addEventListener('click',()=>{ getAC(); startGame();});
+document.getElementById('retryBtn').addEventListener('click',()=>{
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  if(playCount>=2){document.getElementById('ctaScreen').classList.remove('hidden');}
+  else{state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');}
+});
+document.getElementById('shareBtn').addEventListener('click',()=>{const txt=document.getElementById('shareCopy').textContent;if(navigator.share)navigator.share({text:txt}).catch(()=>{});else navigator.clipboard?.writeText(txt).then(()=>alert('Copied!')).catch(()=>alert(txt));});
+document.getElementById('soundBtn').addEventListener('click',()=>{
+  soundOn=!soundOn;
+  document.getElementById('soundBtn').textContent=soundOn?'\uD83D\uDD0A':'\uD83D\uDD07';
+  const sb=document.getElementById('startSoundBtn');
+  if(sb) sb.textContent=soundOn?'\uD83D\uDD0A Music On':'\uD83D\uDD07 Music Off';
+  if(soundOn){
+    if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+    if(state==='playing') swapToDayMusic(currentCity?currentCity.name:'Vancouver');
+    else playTitleMusic();
+  } else {
+    stopMusic();
+  }
+});
+document.getElementById('playerEmail').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
+document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('playerEmail').focus();});
+document.getElementById('ctaBookBtn').addEventListener('click',()=>{window.open('https://benjipays.com/demo','_blank');});
+document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
+document.getElementById('ctaSkipBtn').addEventListener('click',()=>{document.getElementById('ctaScreen').classList.add('hidden');state='playing';initGame();requestAnimationFrame(gameLoop);});
+</script>
+</body>
+</html>
