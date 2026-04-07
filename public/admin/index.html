@@ -170,7 +170,12 @@ let mfaFactorId=null;
 
 function showScreen(id){
   ['loginScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
-    document.getElementById(s).style.display=(s===id)?'':'none';
+    const el=document.getElementById(s);
+    if(s===id){
+      el.style.display=(s==='adminApp')?'':'flex';
+    } else {
+      el.style.display='none';
+    }
   });
 }
 showScreen('loginScreen');
