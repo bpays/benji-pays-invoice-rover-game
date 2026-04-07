@@ -105,7 +105,7 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
   </header>
   <div class="divider"></div>
   <div class="your-rank-section">
-    <a class="play-cta" href="#" onclick="window.top.location='/game';return false;">
+    <a class="play-cta" href="#" onclick="try{window.parent.location='/game'}catch(e){window.location='../game/'}return false;">
       <div><div class="play-cta-label">Your Rank</div><div class="play-cta-text">Play to see your rank 🐾</div></div>
       <span style="font-size:32px">🐕</span>
     </a>
@@ -122,7 +122,7 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
   </div>
 </div>
 <div class="bottom-cta">
-  <button class="cta-btn" onclick="window.top.location='/game'">🐕 &nbsp;Run With Benji</button>
+  <button class="cta-btn" onclick="try{window.parent.location='/game'}catch(e){window.location='../game/'}">🐕 &nbsp;Run With Benji</button>
 </div>
 <script>
 const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
