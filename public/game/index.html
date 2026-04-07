@@ -12,7 +12,7 @@
   #app{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
   #gameWrap{position:relative;width:min(420px,100vw);height:min(780px,100vh);overflow:hidden;background:var(--charcoal);}
   #gameCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
-  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;transition:opacity .35s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:max(24px,env(safe-area-inset-bottom,24px));}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;z-index:10;transition:opacity .35s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:max(24px,env(safe-area-inset-top,24px));padding-bottom:max(40px,calc(24px + env(safe-area-inset-bottom,24px)));}
   .screen.hidden{opacity:0;pointer-events:none;}
   #startScreen{background:linear-gradient(168deg,var(--charcoal) 0%,var(--cerulean) 55%,var(--charcoal) 100%);overflow:hidden;}
   #startScreen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(204,125,81,.12) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(0,71,119,.2) 0%,transparent 50%);pointer-events:none;}
@@ -55,7 +55,7 @@
   #nightOverlay{position:absolute;inset:0;background:rgba(0,10,28,.58);z-index:4;pointer-events:none;opacity:0;transition:opacity .9s ease;}
   .score-pop{position:absolute;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;pointer-events:none;z-index:9;animation:scorePop .85s ease-out forwards;}
   @keyframes scorePop{0%{opacity:1;transform:translateY(0) scale(1.1);}100%{opacity:0;transform:translateY(-48px) scale(.75);}}
-  #gameOverScreen{background:rgba(0,18,36,.96);backdrop-filter:blur(14px);}
+  #gameOverScreen{background:rgba(0,18,36,.96);backdrop-filter:blur(14px);justify-content:flex-start;padding-top:max(40px,env(safe-area-inset-top,40px));}
   .over-logo{width:clamp(120px,36vw,160px);height:auto;margin-bottom:10px;}
   .over-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(46px,13vw,62px);color:var(--cooper);letter-spacing:1px;line-height:1;margin-bottom:3px;}
   .over-city{font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:22px;}
@@ -152,7 +152,7 @@
       <button class="btn-retry" id="retryBtn">Run Again</button>
       <button class="btn-share" id="shareBtn">Share 🔗</button>
     </div>
-    <a href="#" onclick="window.parent.postMessage({type:'navigate',path:'/leaderboard'},'*');return false;" id="lbBtn" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;width:88%;max-width:320px;padding:11px;border-radius:12px;background:rgba(0,71,119,0.15);border:1px solid rgba(0,71,119,0.35);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;transition:border-color .2s,color .2s;">🏆 &nbsp;View Leaderboard</a>
+    <a href="#" onclick="window.parent.postMessage({type:'navigate',path:'/leaderboard'},'*');return false;" id="lbBtn" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;margin-bottom:max(30px,env(safe-area-inset-bottom,30px));width:88%;max-width:320px;padding:11px;border-radius:12px;background:rgba(0,71,119,0.15);border:1px solid rgba(0,71,119,0.35);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;transition:border-color .2s,color .2s;">🏆 &nbsp;View Leaderboard</a>
   </div>
 
   <!-- CTA SCREEN -->
