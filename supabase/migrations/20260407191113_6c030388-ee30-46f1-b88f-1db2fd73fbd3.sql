@@ -1,0 +1,1 @@
+DELETE FROM public.scores WHERE player_name = 'TestFix';
