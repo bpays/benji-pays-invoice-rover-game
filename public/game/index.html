@@ -207,7 +207,7 @@ let leadCaptured = false;
 let playerId = null; // store player's score row id for later
 
 const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d'),wrap=document.getElementById('gameWrap');
-function resizeCanvas(){canvas.width=wrap.clientWidth;canvas.height=wrap.clientHeight;}
+function resizeCanvas(){const dpr=window.devicePixelRatio||1;const w=wrap.clientWidth;const h=wrap.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
 resizeCanvas();window.addEventListener('resize',resizeCanvas);
 
 const B={cerulean:'#004777',charcoal:'#002843',cooper:'#CC7D51',cameo:'#D9B59D',white:'#F8F8F8',good:'#4DC97A',bad:'#E84040',goodGlow:'rgba(77,201,122,.55)',badGlow:'rgba(232,64,64,.55)',puGlow:'rgba(204,125,81,.65)'};
