@@ -206,11 +206,13 @@ async function tryLogin(){
   }
 
   // Check MFA status
+  console.log('Login success, checking MFA...');
   await handleMfaFlow();
 }
 
 async function handleMfaFlow(){
   const {data,error}=await supaClient.auth.mfa.listFactors();
+  console.log('MFA factors:', JSON.stringify(data), 'error:', error);
   if(error){console.error('MFA list error',error);enterAdmin();return;}
 
   const totpFactors=(data.totp||[]).filter(f=>f.status==='verified');
@@ -243,9 +245,12 @@ async function handleMfaFlow(){
 
 async function startMfaEnrollment(){
   const fname='TOTP-'+Date.now();
+  console.log('MFA: enrolling new factor', fname);
   const {data,error}=await supaClient.auth.mfa.enroll({factorType:'totp',friendlyName:fname});
   if(error){
     console.error('MFA enroll error',error);
+    // Show the enroll screen first so the error is visible
+    showScreen('mfaEnrollScreen');
     document.getElementById('mfaEnrollErr').textContent='Failed to set up MFA: '+error.message;
     document.getElementById('mfaEnrollErr').style.display='block';
     return;
