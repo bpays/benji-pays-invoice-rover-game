@@ -125,8 +125,8 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
   <button class="cta-btn" onclick="window.location='../game/'">🐕 &nbsp;Run With Benji</button>
 </div>
 <script>
-const SUPA_URL='https://cxnyfnudhsqrpknyfbft.supabase.co';
-const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4bnlmbnVkaHNxcnBrbnlmYmZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDI4MDUsImV4cCI6MjA5MDcxODgwNX0.cMeJKKBsgfbRvjzNMpmBQ5R2fY67wL1E9kYOoGd0JZw';
+const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
 
 async function fetchScores(){
   const res=await fetch(`${SUPA_URL}/rest/v1/scores?select=player_name,score,city_reached,city_flag,best_combo,created_at&flagged=eq.false&event_tag=eq.nable-empower-2026&order=score.desc&limit=10`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`}});
