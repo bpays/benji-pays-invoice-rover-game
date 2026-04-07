@@ -157,7 +157,31 @@ tr:hover td{background:rgba(255,255,255,.02);}
         </div>
       </div>
     </div>
+    <div class="section">
+      <div class="section-title">👥 Admin Management</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Invite New Admin</div>
+          <div class="field"><label>Email</label><input type="email" id="inviteEmail" placeholder="user@company.com" /></div>
+          <div class="field"><label>Temporary Password</label><input type="text" id="invitePassword" placeholder="Min 6 characters" /></div>
+          <div class="field"><label>Role</label>
+            <select id="inviteRole" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:13px;padding:9px 12px;outline:none;">
+              <option value="admin">Admin</option>
+              <option value="moderator">Moderator</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="inviteAdmin()">Create & Assign Role →</button>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Current Admins</div>
+          <div id="adminList" style="display:flex;flex-direction:column;gap:6px;">
+            <div style="color:var(--muted);font-size:12px;">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
 </div>
 <div class="modal-overlay" id="editModal">
   <div class="modal">
@@ -231,7 +255,7 @@ async function api(method,table,body,params=''){
   return res.ok?await res.json():null;
 }
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>t.className='',2500);}
-async function init(){await loadAll();await loadTimerSetting();startTimer();}
+async function init(){await loadAll();await loadTimerSetting();startTimer();loadAdminList();}
 async function loadAll(){await Promise.all([loadScores(),loadStats()]);}
 function onEventChange(){
   currentEventKey=document.getElementById('eventSelector').value;
@@ -351,6 +375,60 @@ async function resetNow(){
   if(res){resetSeconds=0;document.getElementById('resetAtDisplay').textContent='Reset just now';toast('Leaderboard reset ✓');}else toast('Reset failed','err');
 }
 setInterval(()=>{if(document.getElementById('adminApp').style.display!=='none')loadStats();},60000);
+
+// ── ADMIN MANAGEMENT ─────────────────────────────
+async function adminApi(body) {
+  const {data:{session}}=await supaClient.auth.getSession();
+  const token=session?.access_token;
+  if(!token){toast('Not authenticated','err');return null;}
+  const res=await fetch(`${SUPA_URL}/functions/v1/admin-invite`,{
+    method:'POST',
+    headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json','apikey':SUPA_KEY},
+    body:JSON.stringify(body)
+  });
+  const data=await res.json();
+  if(!res.ok){toast(data.error||'Request failed','err');return null;}
+  return data;
+}
+
+async function inviteAdmin(){
+  const email=document.getElementById('inviteEmail').value.trim();
+  const password=document.getElementById('invitePassword').value;
+  const role=document.getElementById('inviteRole').value;
+  if(!email||!password){return toast('Email and password required','err');}
+  if(password.length<6){return toast('Password must be at least 6 characters','err');}
+  const res=await adminApi({action:'invite',email,password,role});
+  if(res&&res.success){
+    toast(`${email} added as ${role} ✓`);
+    document.getElementById('inviteEmail').value='';
+    document.getElementById('invitePassword').value='';
+    loadAdminList();
+  }
+}
+
+async function loadAdminList(){
+  const res=await adminApi({action:'list'});
+  if(!res||!res.admins)return;
+  const list=document.getElementById('adminList');
+  if(!res.admins.length){list.innerHTML='<div style="color:var(--muted);font-size:12px;">No admins found</div>';return;}
+  list.innerHTML=res.admins.map(a=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px 12px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">${a.email}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">${a.roles.map(r=>'<span style="background:rgba(204,125,81,.15);color:var(--cooper);padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">'+r+'</span>').join(' ')}</div>
+      </div>
+      <div style="display:flex;gap:4px;">
+        ${a.roles.map(r=>`<button class="btn btn-danger btn-sm" onclick="removeAdmin('${a.user_id}','${r}','${a.email}')">Remove ${r}</button>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function removeAdmin(userId,role,email){
+  if(!confirm(`Remove ${role} role from ${email}?`))return;
+  const res=await adminApi({action:'remove',user_id:userId,role});
+  if(res&&res.success){toast(`${email} removed as ${role} ✓`);loadAdminList();}
+}
 </script>
 </body>
 </html>
