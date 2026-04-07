@@ -107,6 +107,7 @@ export type Database = {
           score: number
         }[]
       }
+      get_today_run_count: { Args: { p_event_tag?: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
