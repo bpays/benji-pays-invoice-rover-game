@@ -346,6 +346,10 @@ document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key
         await supaClient.auth.signOut();accessToken=null;
     }
   }
+  }catch(e){
+    console.error('Session restore error',e);
+    showScreen('loginScreen');
+  }
 })();
 
 async function logout(){await supaClient.auth.signOut();location.reload();}
