@@ -157,29 +157,6 @@ tr:hover td{background:rgba(255,255,255,.02);}
         </div>
       </div>
     </div>
-    <div class="section">
-      <div class="section-title">👥 Admin Management</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Invite New Admin</div>
-          <div class="field"><label>Email</label><input type="email" id="inviteEmail" placeholder="user@company.com" /></div>
-          <div class="field"><label>Temporary Password</label><input type="text" id="invitePassword" placeholder="Min 6 characters" /></div>
-          <div class="field"><label>Role</label>
-            <select id="inviteRole" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--white);font-family:'Barlow',sans-serif;font-size:13px;padding:9px 12px;outline:none;">
-              <option value="admin">Admin</option>
-              <option value="moderator">Moderator</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" onclick="inviteAdmin()">Create & Assign Role →</button>
-        </div>
-        <div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Current Admins</div>
-          <div id="adminList" style="display:flex;flex-direction:column;gap:6px;">
-            <div style="color:var(--muted);font-size:12px;">Loading...</div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 </div>
