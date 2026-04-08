@@ -228,6 +228,16 @@ async function tryLogin(){
     await supaClient.auth.signOut();accessToken=null;return;
   }
 
+  // Check if user must change password first
+  if(data.user.user_metadata?.must_change_password){
+    showScreen('changePwScreen');
+    document.getElementById('changePwErr').style.display='none';
+    document.getElementById('newPw1').value='';
+    document.getElementById('newPw2').value='';
+    document.getElementById('newPw1').focus();
+    return;
+  }
+
   console.log('Login success, checking MFA...');
   await handleMfaFlow();
 }
