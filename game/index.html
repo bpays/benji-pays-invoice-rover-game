@@ -152,6 +152,7 @@
       <button class="btn-retry" id="retryBtn">Run Again</button>
       <button class="btn-share" id="shareBtn">Share 🔗</button>
     </div>
+    <button id="overSoundBtn" onclick="toggleSoundFromGameOver()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:20px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1px;padding:6px 14px;cursor:pointer;margin-top:10px;">🔊 Music On</button>
     <a href="#" onclick="window.parent.postMessage({type:'navigate',path:'/leaderboard'},'*');return false;" id="lbBtn" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;margin-bottom:max(30px,env(safe-area-inset-bottom,30px));width:88%;max-width:320px;padding:11px;border-radius:12px;background:rgba(0,71,119,0.15);border:1px solid rgba(0,71,119,0.35);color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;transition:border-color .2s,color .2s;">🏆 &nbsp;View Leaderboard</a>
   </div>
 
@@ -625,7 +626,7 @@ function endGame(){
   document.getElementById('finalDistance').textContent=Math.floor(distance/60)+'m';
   document.getElementById('overCity').textContent='IN '+currentCity.name.toUpperCase();
   document.getElementById('shareCopy').textContent=n+' scored '+fs+' pts in Benji Pays: Invoice Rover! Reached '+currentCity.name+'. Can you beat me? 🐕💸 benjipays.com/run';
-  document.getElementById('gameOverScreen').classList.remove('hidden');playCount++;if(soundOn){try{const ac=getAC();[220,196,174,155].forEach((f,i)=>{setTimeout(()=>{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.4);o.start();o.stop(ac.currentTime+0.4);},i*120);});}catch(e){}}stopMusic(800);
+  document.getElementById('gameOverScreen').classList.remove('hidden');var osb=document.getElementById('overSoundBtn');if(osb)osb.textContent=soundOn?'🔊 Music On':'🔇 Music Off';playCount++;if(soundOn){try{const ac=getAC();[220,196,174,155].forEach((f,i)=>{setTimeout(()=>{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.4);o.start();o.stop(ac.currentTime+0.4);},i*120);});}catch(e){}}stopMusic(800);
   // Submit score to Supabase
   submitScore({
     player_name: n,
@@ -648,6 +649,14 @@ window.addEventListener('keydown',e=>{if(state!=='playing')return;if(e.key==='Ar
 function toggleSoundFromStart(){
   soundOn=!soundOn;
   var btn=document.getElementById('startSoundBtn');
+  if(btn)btn.textContent=soundOn?'🔊 Music On':'🔇 Music Off';
+  document.getElementById('soundBtn').textContent=soundOn?'🔊':'🔇';
+  if(soundOn){getAC();playTitleMusic();}
+  else stopMusic();
+}
+function toggleSoundFromGameOver(){
+  soundOn=!soundOn;
+  var btn=document.getElementById('overSoundBtn');
   if(btn)btn.textContent=soundOn?'🔊 Music On':'🔇 Music Off';
   document.getElementById('soundBtn').textContent=soundOn?'🔊':'🔇';
   if(soundOn){getAC();playTitleMusic();}
