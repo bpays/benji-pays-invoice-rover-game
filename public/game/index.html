@@ -708,6 +708,35 @@ document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key===
 document.getElementById('ctaBookBtn').addEventListener('click',()=>{window.open('https://benjipays.com/demo','_blank');});
 document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
 document.getElementById('ctaSkipBtn').addEventListener('click',()=>{document.getElementById('ctaScreen').classList.add('hidden');state='playing';initGame();requestAnimationFrame(gameLoop);});
+
+// Gamepad indicator + start-screen polling
+(function(){
+  var gpInd=document.getElementById('gamepadIndicator');
+  var gpStartFired=false;
+  function checkGP(){
+    var pads=navigator.getGamepads?navigator.getGamepads():[];
+    var found=false;
+    for(var i=0;i<pads.length;i++){if(pads[i]&&pads[i].connected){found=true;break;}}
+    if(found){gpInd.style.display='flex';}else{gpInd.style.display='none';}
+    // Allow gamepad to start the game from start screen
+    if(found&&state!=='playing'&&!gpStartFired){
+      for(var i=0;i<pads.length;i++){
+        var p=pads[i];if(!p)continue;
+        // A(0) or X(3) or Start(9) button
+        if((p.buttons[0]&&p.buttons[0].pressed)||(p.buttons[3]&&p.buttons[3].pressed)||(p.buttons[9]&&p.buttons[9].pressed)){
+          var ss=document.getElementById('startScreen');
+          var cs=document.getElementById('ctaScreen');
+          if(ss&&!ss.classList.contains('hidden')){gpStartFired=true;getAC();startGame();break;}
+          if(cs&&!cs.classList.contains('hidden')){gpStartFired=true;document.getElementById('ctaSkipBtn').click();break;}
+        }
+      }
+    }
+    if(state!=='playing')gpStartFired=false;
+    requestAnimationFrame(checkGP);
+  }
+  checkGP();
+})();
+
 </script>
 </body>
 </html>
