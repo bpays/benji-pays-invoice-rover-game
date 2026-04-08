@@ -1,88 +1,37 @@
 
 
-## Plan: Google-Only Login + Invite-Record Model (No Email Sending)
+## Plan: Add Gamepad Controller Support
 
 ### Summary
-1. Remove password-based login entirely — Google SSO only
-2. Replace user pre-creation with a lightweight `admin_invites` table
-3. On Google sign-in, check invite record, auto-assign role, then MFA
-4. If no invite and no existing role: deny access **and sign the user out**
-5. No email sending — admins communicate invites manually
+Add gamepad input support to `GameScene.js` for two controller types: Xbox and "Tata". Poll gamepad state each frame in the `update()` loop.
 
-### Database Migration
+### Controller Mappings
 
-Create `admin_invites` table:
-
-```sql
-CREATE TABLE public.admin_invites (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email text NOT NULL UNIQUE,
-  role app_role NOT NULL DEFAULT 'admin',
-  invited_by uuid NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.admin_invites ENABLE ROW LEVEL SECURITY;
-
--- Only admins can read/write (but actual operations go through edge function with service role)
-CREATE POLICY "Admins can view invites" ON public.admin_invites
-  FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can insert invites" ON public.admin_invites
-  FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can delete invites" ON public.admin_invites
-  FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'));
-```
+| Action | Xbox Controller | Tata Controller |
+|--------|----------------|-----------------|
+| Move left | Left stick left, LT (axis 6/button 6), LB (button 4) | Left stick left |
+| Move right | Left stick right, RT (axis 7/button 7), RB (button 5) | Left stick right |
+| Jump | A button (B0) | X button (B3) |
 
 ### File Changes
 
-**`public/admin/index.html`**
+**`public/game/src/GameScene.js`**
 
-Login screen:
-- Remove email/password inputs, "Sign In" button, "or" divider
-- Keep only the Google SSO button
-- Remove the "Change Password" screen entirely
+1. **Enable gamepad in `create()`**: Add `this.input.gamepad.once('connected', ...)` listener. Initialize tracking state (`this.padPrevLeft`, `this.padPrevRight`, `this.padPrevJump`) for edge detection so holding a button doesn't repeat actions every frame.
 
-Login logic:
-- Remove `tryLogin()`, `submitNewPassword()`, `generatePw()` functions
-- Remove related Enter-key handlers and session restore for password logins
-- Update `handleOAuthSession()`: after domain check, if no `user_roles` entry, check `admin_invites` for matching email. If found, call edge function to claim the invite (assigns role). If neither exists, show "Access denied" and **sign out**.
+2. **Add gamepad polling in `update()`**: At the top of the update loop (after the alive check), read the first connected pad. Check:
+   - **Left stick X axis**: Use a deadzone (~0.3). On crossing threshold left/right (edge-triggered), change `targetLane`.
+   - **LT/RT (buttons 6/7 or axes)**: Edge-triggered lane changes.
+   - **LB/RB (buttons 4/5)**: Edge-triggered lane changes.
+   - **Jump buttons**: A (index 0) for Xbox, X (index 3) for Tata — both checked, so either controller "just works" without needing a controller-type selector.
 
-Invite form:
-- Remove "Temporary Password" field and "Generate Password" button
-- Keep only: email input + "Invite Admin" button
-- Update `inviteAdmin()` to call edge function without password
-- Success message: "Invited name@benjipays.com — let them know to sign in with Google at /admin"
+3. **Edge detection logic**: Track previous frame's button/stick state. Only trigger lane change or jump on the transition from "not pressed" to "pressed" (rising edge). This prevents continuous lane switching while a button is held.
 
-Admin list:
-- Show both active admins (from `user_roles`) and pending invites (from `admin_invites`) with status labels
+**Sync**: Copy updated `public/game/src/GameScene.js` to `game/src/GameScene.js`.
 
-**`supabase/functions/admin-invite/index.ts`**
-
-- **invite action**: Insert into `admin_invites` (email + role + invited_by). No user creation, no password. Return success.
-- **list action**: Query both `user_roles` (active) and `admin_invites` (pending). Return combined list with status.
-- **remove action**: Delete from `user_roles` AND `admin_invites` for the given email/user.
-- **New `claim` action**: Called during Google sign-in. Verifies caller's email matches an `admin_invites` record, assigns role in `user_roles`, optionally deletes the invite. Server-side only (service role key).
-
-**Sync**: Copy `public/admin/index.html` to `admin/index.html`
-
-### Login Flow After Changes
-
-```text
-Admin clicks "Sign in with Google"
-  → Google OAuth (restricted to @benjipays.com)
-  → Return to /admin with session
-  → Check user_roles for admin role
-     ├─ Has role → proceed to MFA
-     └─ No role → check admin_invites for email
-         ├─ Found → call edge function "claim" → assigns role → proceed to MFA
-         └─ Not found → show "Access denied" → sign out
-```
-
-### Security
-- `admin_invites` protected by RLS (admin-only) + edge function uses service role
-- Role assignment only happens server-side in the edge function `claim` action
-- Client never writes to `admin_invites` or `user_roles` directly
-- Domain validation + invite check + role check + MFA = 4 layers
+### Technical Notes
+- Phaser 3's gamepad API uses the standard Gamepad API mapping. Button indices: 0=A/Cross, 1=B/Circle, 2=X/Square, 3=Y/Triangle, 4=LB, 5=RB, 6=LT, 7=RT.
+- Both jump buttons (B0 and B3) will be active simultaneously — no need for a controller selector. This means either controller can use either button.
+- The left stick deadzone prevents drift from causing unintended lane changes.
+- No config.js changes needed; gamepad settings are simple enough to keep inline.
 
