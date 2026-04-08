@@ -654,6 +654,14 @@ function toggleSoundFromStart(){
   if(soundOn){getAC();playTitleMusic();}
   else stopMusic();
 }
+function toggleSoundFromGameOver(){
+  soundOn=!soundOn;
+  var btn=document.getElementById('overSoundBtn');
+  if(btn)btn.textContent=soundOn?'🔊 Music On':'🔇 Music Off';
+  document.getElementById('soundBtn').textContent=soundOn?'🔊':'🔇';
+  if(soundOn){getAC();playTitleMusic();}
+  else stopMusic();
+}
 function doJump(){isJumping=true;jumpVy=JUMP;sJump();}
 function startGame(){
   playerName=document.getElementById('playerName').value.trim()||'Anonymous';
