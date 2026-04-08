@@ -228,6 +228,24 @@ Deno.serve(async (req) => {
           .eq("user_id", user_id)
           .eq("role", role || "admin");
 
+        // Reset MFA: unenroll all factors for the removed user
+        try {
+          const { data: { factors } } = await adminClient.auth.mfa.listFactors();
+          // Use admin API to get the user's factors
+          const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
+          if (targetUser?.user?.factors && targetUser.user.factors.length > 0) {
+            for (const factor of targetUser.user.factors) {
+              await adminClient.auth.admin.mfa.deleteFactor({
+                userId: user_id,
+                factorId: factor.id,
+              });
+            }
+          }
+        } catch (mfaErr) {
+          // Log but don't fail the removal if MFA reset fails
+          console.error("MFA reset error:", mfaErr);
+        }
+
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
