@@ -719,6 +719,7 @@ try{const sn=localStorage.getItem('bp_playerName');const se=localStorage.getItem
 document.getElementById('playBtn').addEventListener('click',()=>{ getAC(); startGame();});
 document.getElementById('retryBtn').addEventListener('click',()=>{
   document.getElementById('gameOverScreen').classList.add('hidden');
+  if(playCount>=2){playCount=0;document.getElementById('ctaScreen').classList.remove('hidden');return;}
   state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');
 });
 document.getElementById('shareBtn').addEventListener('click',()=>{const txt=document.getElementById('shareCopy').textContent;if(navigator.share)navigator.share({text:txt}).catch(()=>{});else navigator.clipboard?.writeText(txt).then(()=>alert('Copied!')).catch(()=>alert(txt));});
