@@ -1,37 +1,57 @@
 
+Goal: fix the actual live game and page wiring, not the unused Phaser source files.
 
-## Plan: Add Gamepad Controller Support
+What I found
+- The preview/live route `/game` renders `public/game/index.html` inside an iframe via `src/App.tsx`.
+- The currently running game is the custom canvas game in `public/game/index.html`, not `public/game/src/GameScene.js`.
+- That explains why the earlier controller work appears to do nothing: it was added to files that are not driving the live experience.
+- The “Book a Demo” and “Learn more” actions already exist in `public/game/index.html`, but they use `window.open(...)` from inside the iframe, which is likely being blocked or ignored in preview/live.
+- “Play again” is also in `public/game/index.html`; its current logic shows the CTA screen after multiple plays instead of always restarting, which matches the “doesn’t work” report.
+- The leaderboard layout issue is in `leaderboard/index.html` and `public/leaderboard/index.html`, where the main CTA is fixed to the bottom and can overlap the scrollable content.
 
-### Summary
-Add gamepad input support to `GameScene.js` for two controller types: Xbox and "Tata". Poll gamepad state each frame in the `update()` loop.
+Implementation plan
 
-### Controller Mappings
+1. Fix controller support in the real game
+- Update `public/game/index.html` and `game/index.html`, since those files power the live game.
+- Add gamepad polling to the active canvas loop:
+  - left stick horizontal movement with deadzone
+  - LT/LB move left
+  - RT/RB move right
+  - jump on A and X
+  - rising-edge handling so held buttons do not spam actions
+- Keep the existing connected-controller indicator, but wire it to the same real gamepad detection used by gameplay so the indicator and controls stay in sync.
+- Allow controller start/restart from the start screen, CTA screen, and game-over state.
 
-| Action | Xbox Controller | Tata Controller |
-|--------|----------------|-----------------|
-| Move left | Left stick left, LT (axis 6/button 6), LB (button 4) | Left stick left |
-| Move right | Left stick right, RT (axis 7/button 7), RB (button 5) | Left stick right |
-| Jump | A button (B0) | X button (B3) |
+2. Fix “Play again”
+- Change the game-over “Run Again” flow so it always restarts the run immediately.
+- If you still want the promo CTA after a run, I’ll keep it reachable separately instead of hijacking the retry action.
+- Also let controller confirm buttons restart from the game-over/CTA screens.
 
-### File Changes
+3. Fix external links in the iframe
+- Replace iframe-local `window.open(...)` handlers for:
+  - Book a Demo → `https://benjipays.com/demo`
+  - Learn more → `https://benjipays.com`
+- Use a top-level navigation approach that works reliably from inside the embedded iframe in preview and live.
 
-**`public/game/src/GameScene.js`**
+4. Fix leaderboard CTA placement and scroll space
+- Move the “Run With Benji” button from the fixed footer into the page flow above the leaderboard list.
+- Remove the fixed bottom CTA bar so it no longer covers content.
+- Add enough bottom padding/margin after the list so the full leaderboard can be scrolled into view cleanly.
 
-1. **Enable gamepad in `create()`**: Add `this.input.gamepad.once('connected', ...)` listener. Initialize tracking state (`this.padPrevLeft`, `this.padPrevRight`, `this.padPrevJump`) for edge detection so holding a button doesn't repeat actions every frame.
+5. Keep mirrored files aligned
+- Apply the same HTML/JS fixes in both:
+  - `public/game/index.html` and `game/index.html`
+  - `public/leaderboard/index.html` and `leaderboard/index.html`
+- This avoids preview/live drift.
 
-2. **Add gamepad polling in `update()`**: At the top of the update loop (after the alive check), read the first connected pad. Check:
-   - **Left stick X axis**: Use a deadzone (~0.3). On crossing threshold left/right (edge-triggered), change `targetLane`.
-   - **LT/RT (buttons 6/7 or axes)**: Edge-triggered lane changes.
-   - **LB/RB (buttons 4/5)**: Edge-triggered lane changes.
-   - **Jump buttons**: A (index 0) for Xbox, X (index 3) for Tata — both checked, so either controller "just works" without needing a controller-type selector.
+Technical notes
+- The key bug is architectural: controller logic was added to Phaser scene files, but the shipped experience is the standalone HTML canvas game.
+- The safest fix is to patch the active runtime in `public/game/index.html`.
+- For external links from iframe content, top-window navigation or direct anchor links are more reliable than `window.open`.
+- For gamepad support in the active game, I’ll centralize input state near the existing keyboard/touch handlers and consume it inside the main game loop.
 
-3. **Edge detection logic**: Track previous frame's button/stick state. Only trigger lane change or jump on the transition from "not pressed" to "pressed" (rising edge). This prevents continuous lane switching while a button is held.
-
-**Sync**: Copy updated `public/game/src/GameScene.js` to `game/src/GameScene.js`.
-
-### Technical Notes
-- Phaser 3's gamepad API uses the standard Gamepad API mapping. Button indices: 0=A/Cross, 1=B/Circle, 2=X/Square, 3=Y/Triangle, 4=LB, 5=RB, 6=LT, 7=RT.
-- Both jump buttons (B0 and B3) will be active simultaneously — no need for a controller selector. This means either controller can use either button.
-- The left stick deadzone prevents drift from causing unintended lane changes.
-- No config.js changes needed; gamepad settings are simple enough to keep inline.
-
+Files I expect to update
+- `public/game/index.html`
+- `game/index.html`
+- `public/leaderboard/index.html`
+- `leaderboard/index.html`
