@@ -18,6 +18,15 @@
     <input type="password" id="pwInput" placeholder="Password" />
     <button onclick="tryLogin()">Sign In →</button>
     <div class="login-err" id="loginErr"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin:18px 0 14px;">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,.1);"></div>
+      <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">or</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,.1);"></div>
+    </div>
+    <button onclick="googleSignIn()" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--cooper)'" onmouseout="this.style.borderColor='rgba(255,255,255,.14)'">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      <span style="color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;">Sign in with Google</span>
+    </button>
   </div>
 </div>
 
@@ -169,6 +178,66 @@
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script type="module">
+import { createLovableAuth } from './cloud-auth.js';
+const lovableAuth = createLovableAuth();
+
+window.googleSignIn = async function() {
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+  try {
+    const result = await lovableAuth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin + '/admin/',
+      extraParams: { hd: 'benjipays.com' }
+    });
+    if (result.error) {
+      errEl.textContent = result.error.message || 'Google sign-in failed';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (result.redirected) return;
+    // Got tokens back directly — set session
+    await supaClient.auth.setSession(result.tokens);
+    await handleOAuthSession();
+  } catch (e) {
+    errEl.textContent = 'Google sign-in failed: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }
+};
+
+async function handleOAuthSession() {
+  const { data: { session } } = await supaClient.auth.getSession();
+  if (!session) return;
+  window.accessToken = session.access_token;
+  const email = session.user.email || '';
+  if (!window.validateDomain(email)) {
+    document.getElementById('loginErr').textContent = 'Access restricted to @benjipays.com accounts only';
+    document.getElementById('loginErr').style.display = 'block';
+    await supaClient.auth.signOut();
+    window.accessToken = null;
+    return;
+  }
+  const { data: roles } = await supaClient.from('user_roles').select('role').eq('user_id', session.user.id).eq('role', 'admin');
+  if (!roles || roles.length === 0) {
+    document.getElementById('loginErr').textContent = 'Access denied — admin role required';
+    document.getElementById('loginErr').style.display = 'block';
+    await supaClient.auth.signOut();
+    window.accessToken = null;
+    return;
+  }
+  await window.handleMfaFlow();
+}
+
+// Listen for OAuth callback on page load
+(async () => {
+  // Small delay to let supaClient initialize
+  await new Promise(r => setTimeout(r, 200));
+  const { data: { session } } = await supaClient.auth.getSession();
+  if (session && session.user.app_metadata?.provider === 'google') {
+    await handleOAuthSession();
+  }
+})();
+</script>
 <script>
 const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
@@ -190,6 +259,9 @@ function showScreen(id){
     }
   });
 }
+// Expose for module script
+window.validateDomain = validateDomain;
+window.showScreen = showScreen;
 showScreen('loginScreen');
 
 function validateDomain(email){
@@ -259,6 +331,7 @@ async function submitNewPassword(){
 }
 
 async function handleMfaFlow(){
+window.handleMfaFlow = handleMfaFlow;
   const {data,error}=await supaClient.auth.mfa.listFactors();
   console.log('MFA factors:', JSON.stringify(data), 'error:', error);
   if(error){console.error('MFA list error',error);await enterAdmin();return;}
@@ -381,6 +454,8 @@ document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key
   try{
     const {data:{session}}=await supaClient.auth.getSession();
     if(session){
+      // Google OAuth sessions are handled by the module script
+      if(session.user.app_metadata?.provider==='google')return;
       accessToken=session.access_token;
       if(!validateDomain(session.user.email||'')){
         await supaClient.auth.signOut();accessToken=null;return;
