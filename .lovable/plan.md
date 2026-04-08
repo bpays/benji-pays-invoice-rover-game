@@ -1,37 +1,88 @@
 
 
-## Plan: Add Google Sign-In to Admin Panel
+## Plan: Google-Only Login + Invite-Record Model (No Email Sending)
 
-### Overview
-Add a "Sign in with Google" button to the admin login screen. When an admin clicks it, they'll authenticate via Google OAuth (restricted to @benjipays.com accounts), then go through the same admin role check and MFA flow as password-based login.
+### Summary
+1. Remove password-based login entirely — Google SSO only
+2. Replace user pre-creation with a lightweight `admin_invites` table
+3. On Google sign-in, check invite record, auto-assign role, then MFA
+4. If no invite and no existing role: deny access **and sign the user out**
+5. No email sending — admins communicate invites manually
 
-### How It Works
-Since Google Auth is already enabled in your authentication settings, we just need to wire up the button in the admin panel.
+### Database Migration
 
-### Steps
+Create `admin_invites` table:
 
-1. **Install the Lovable Cloud auth module** — Use the Configure Social Auth tool to generate the `lovable` integration module that handles Google OAuth.
+```sql
+CREATE TABLE public.admin_invites (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  role app_role NOT NULL DEFAULT 'admin',
+  invited_by uuid NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
 
-2. **Add Google Sign-In button to the admin login screen** (`public/admin/index.html` + `game/index.html` mirror)
-   - Add a "Sign in with Google" button below the existing email/password form
-   - Style it to match the existing login UI
-   - Add a visual divider ("— or —") between the two login methods
+ALTER TABLE public.admin_invites ENABLE ROW LEVEL SECURITY;
 
-3. **Implement the Google sign-in handler**
-   - On click, call `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + '/admin', extraParams: { hd: 'benjipays.com' } })` to restrict to the benjipays.com domain
-   - Handle the OAuth redirect callback on the admin page load — detect when returning from Google, check the session, validate the admin role in `user_roles`, then proceed through the existing MFA flow
+-- Only admins can read/write (but actual operations go through edge function with service role)
+CREATE POLICY "Admins can view invites" ON public.admin_invites
+  FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));
 
-4. **Handle the post-redirect session**
-   - On admin page load, check for an active Supabase session (from the OAuth redirect)
-   - If found, validate the user's email domain is @benjipays.com
-   - Check they have an admin role in `user_roles`
-   - Route them through the existing MFA enrollment/verification flow
+CREATE POLICY "Admins can insert invites" ON public.admin_invites
+  FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin'));
 
-5. **Sync files** — Copy updated `public/admin/index.html` content to keep files in sync.
+CREATE POLICY "Admins can delete invites" ON public.admin_invites
+  FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'));
+```
 
-### Technical Details
-- The `hd: 'benjipays.com'` parameter tells Google to only show @benjipays.com accounts in the picker
-- Server-side domain validation is still performed as a security backstop
-- The existing MFA flow (TOTP enrollment + verification) applies identically after Google sign-in
-- Users must still be pre-invited (exist in `user_roles` with admin role) — Google sign-in alone won't grant access
+### File Changes
+
+**`public/admin/index.html`**
+
+Login screen:
+- Remove email/password inputs, "Sign In" button, "or" divider
+- Keep only the Google SSO button
+- Remove the "Change Password" screen entirely
+
+Login logic:
+- Remove `tryLogin()`, `submitNewPassword()`, `generatePw()` functions
+- Remove related Enter-key handlers and session restore for password logins
+- Update `handleOAuthSession()`: after domain check, if no `user_roles` entry, check `admin_invites` for matching email. If found, call edge function to claim the invite (assigns role). If neither exists, show "Access denied" and **sign out**.
+
+Invite form:
+- Remove "Temporary Password" field and "Generate Password" button
+- Keep only: email input + "Invite Admin" button
+- Update `inviteAdmin()` to call edge function without password
+- Success message: "Invited name@benjipays.com — let them know to sign in with Google at /admin"
+
+Admin list:
+- Show both active admins (from `user_roles`) and pending invites (from `admin_invites`) with status labels
+
+**`supabase/functions/admin-invite/index.ts`**
+
+- **invite action**: Insert into `admin_invites` (email + role + invited_by). No user creation, no password. Return success.
+- **list action**: Query both `user_roles` (active) and `admin_invites` (pending). Return combined list with status.
+- **remove action**: Delete from `user_roles` AND `admin_invites` for the given email/user.
+- **New `claim` action**: Called during Google sign-in. Verifies caller's email matches an `admin_invites` record, assigns role in `user_roles`, optionally deletes the invite. Server-side only (service role key).
+
+**Sync**: Copy `public/admin/index.html` to `admin/index.html`
+
+### Login Flow After Changes
+
+```text
+Admin clicks "Sign in with Google"
+  → Google OAuth (restricted to @benjipays.com)
+  → Return to /admin with session
+  → Check user_roles for admin role
+     ├─ Has role → proceed to MFA
+     └─ No role → check admin_invites for email
+         ├─ Found → call edge function "claim" → assigns role → proceed to MFA
+         └─ Not found → show "Access denied" → sign out
+```
+
+### Security
+- `admin_invites` protected by RLS (admin-only) + edge function uses service role
+- Role assignment only happens server-side in the edge function `claim` action
+- Client never writes to `admin_invites` or `user_roles` directly
+- Domain validation + invite check + role check + MFA = 4 layers
 
