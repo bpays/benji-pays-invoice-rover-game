@@ -21,7 +21,19 @@
   </div>
 </div>
 
-<!-- MFA ENROLLMENT SCREEN -->
+<!-- CHANGE PASSWORD SCREEN -->
+<div id="changePwScreen" class="mfa-screen">
+  <div class="login-box" style="max-width:420px;">
+    <div class="login-logo">🔑 Change Password</div>
+    <div class="login-sub">You must set a new password before continuing</div>
+    <input type="password" id="newPw1" placeholder="New password (min 8 characters)" />
+    <input type="password" id="newPw2" placeholder="Confirm new password" />
+    <button onclick="submitNewPassword()">Set New Password →</button>
+    <div class="login-err" id="changePwErr"></div>
+  </div>
+</div>
+
+
 <div id="mfaEnrollScreen" class="mfa-screen">
   <div class="login-box" style="max-width:420px;">
     <div class="login-logo">🔐 Set Up MFA</div>
