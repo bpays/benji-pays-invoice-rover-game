@@ -331,6 +331,7 @@ async function submitNewPassword(){
 }
 
 async function handleMfaFlow(){
+window.handleMfaFlow = handleMfaFlow;
   const {data,error}=await supaClient.auth.mfa.listFactors();
   console.log('MFA factors:', JSON.stringify(data), 'error:', error);
   if(error){console.error('MFA list error',error);await enterAdmin();return;}
