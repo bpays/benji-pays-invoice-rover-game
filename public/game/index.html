@@ -740,7 +740,7 @@ document.getElementById('playerEmail').addEventListener('keydown',e=>{if(e.key==
 document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('playerEmail').focus();});
 document.getElementById('ctaBookBtn').addEventListener('click',()=>{window.open('https://benjipays.com/demo','_blank');});
 document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
-document.getElementById('ctaSkipBtn').addEventListener('click',()=>{document.getElementById('ctaScreen').classList.add('hidden');state='playing';initGame();requestAnimationFrame(gameLoop);});
+document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();document.getElementById('ctaScreen').classList.add('hidden');state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');});
 
 // Gamepad indicator + start-screen polling
 (function(){
