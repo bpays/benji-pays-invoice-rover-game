@@ -242,6 +242,22 @@ async function tryLogin(){
   await handleMfaFlow();
 }
 
+async function submitNewPassword(){
+  const pw1=document.getElementById('newPw1').value;
+  const pw2=document.getElementById('newPw2').value;
+  const errEl=document.getElementById('changePwErr');
+  errEl.style.display='none';
+
+  if(!pw1||pw1.length<8){errEl.textContent='Password must be at least 8 characters';errEl.style.display='block';return;}
+  if(pw1!==pw2){errEl.textContent='Passwords do not match';errEl.style.display='block';return;}
+
+  const {error:pwErr}=await supaClient.auth.updateUser({password:pw1,data:{must_change_password:false}});
+  if(pwErr){errEl.textContent='Failed to update password: '+pwErr.message;errEl.style.display='block';return;}
+
+  toast('Password updated ✓');
+  await handleMfaFlow();
+}
+
 async function handleMfaFlow(){
   const {data,error}=await supaClient.auth.mfa.listFactors();
   console.log('MFA factors:', JSON.stringify(data), 'error:', error);
