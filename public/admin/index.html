@@ -178,6 +178,66 @@
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script type="module">
+import { createLovableAuth } from './cloud-auth.js';
+const lovableAuth = createLovableAuth();
+
+window.googleSignIn = async function() {
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+  try {
+    const result = await lovableAuth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin + '/admin/',
+      extraParams: { hd: 'benjipays.com' }
+    });
+    if (result.error) {
+      errEl.textContent = result.error.message || 'Google sign-in failed';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (result.redirected) return;
+    // Got tokens back directly — set session
+    await supaClient.auth.setSession(result.tokens);
+    await handleOAuthSession();
+  } catch (e) {
+    errEl.textContent = 'Google sign-in failed: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }
+};
+
+async function handleOAuthSession() {
+  const { data: { session } } = await supaClient.auth.getSession();
+  if (!session) return;
+  window.accessToken = session.access_token;
+  const email = session.user.email || '';
+  if (!window.validateDomain(email)) {
+    document.getElementById('loginErr').textContent = 'Access restricted to @benjipays.com accounts only';
+    document.getElementById('loginErr').style.display = 'block';
+    await supaClient.auth.signOut();
+    window.accessToken = null;
+    return;
+  }
+  const { data: roles } = await supaClient.from('user_roles').select('role').eq('user_id', session.user.id).eq('role', 'admin');
+  if (!roles || roles.length === 0) {
+    document.getElementById('loginErr').textContent = 'Access denied — admin role required';
+    document.getElementById('loginErr').style.display = 'block';
+    await supaClient.auth.signOut();
+    window.accessToken = null;
+    return;
+  }
+  await window.handleMfaFlow();
+}
+
+// Listen for OAuth callback on page load
+(async () => {
+  // Small delay to let supaClient initialize
+  await new Promise(r => setTimeout(r, 200));
+  const { data: { session } } = await supaClient.auth.getSession();
+  if (session && session.user.app_metadata?.provider === 'google') {
+    await handleOAuthSession();
+  }
+})();
+</script>
 <script>
 const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
