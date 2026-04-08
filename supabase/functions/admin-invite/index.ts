@@ -68,7 +68,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Validate invited user's domain
       const invitedDomain = email.split("@")[1]?.toLowerCase();
       if (invitedDomain !== ALLOWED_DOMAIN) {
         return new Response(JSON.stringify({ error: "Can only invite @" + ALLOWED_DOMAIN + " emails" }), {
@@ -77,24 +76,47 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { must_change_password: true },
-      });
+      // Check if user already exists
+      const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+      const existingUser = existingUsers?.users?.find(
+        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+      );
 
-      if (createErr) {
-        return new Response(JSON.stringify({ error: createErr.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      let userId: string;
+
+      if (existingUser) {
+        // Re-activate existing user: reset password and metadata
+        const { error: updateErr } = await adminClient.auth.admin.updateUserById(existingUser.id, {
+          password,
+          email_confirm: true,
+          user_metadata: { must_change_password: true },
         });
+        if (updateErr) {
+          return new Response(JSON.stringify({ error: updateErr.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        userId = existingUser.id;
+      } else {
+        const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { must_change_password: true },
+        });
+        if (createErr) {
+          return new Response(JSON.stringify({ error: createErr.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        userId = newUser.user.id;
       }
 
-      // Use upsert with onConflict to avoid duplicate key errors
       const { error: roleErr } = await adminClient
         .from("user_roles")
-        .upsert({ user_id: newUser.user.id, role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+        .upsert({ user_id: userId, role }, { onConflict: "user_id,role", ignoreDuplicates: true });
 
       if (roleErr) {
         return new Response(JSON.stringify({ error: roleErr.message }), {
@@ -103,7 +125,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ success: true, user_id: newUser.user.id, email }), {
+      return new Response(JSON.stringify({ success: true, user_id: userId, email }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
