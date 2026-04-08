@@ -666,6 +666,8 @@ function doJump(){isJumping=true;jumpVy=JUMP;sJump();}
 function startGame(){
   playerName=document.getElementById('playerName').value.trim()||'Anonymous';
   const email=document.getElementById('playerEmail').value.trim();
+  // Save to localStorage for returning users
+  try{localStorage.setItem('bp_playerName',playerName);if(email)localStorage.setItem('bp_playerEmail',email);}catch(e){}
   document.getElementById('startScreen').classList.add('hidden');
   state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);
   // Lead capture — write to Supabase on first play
@@ -676,6 +678,8 @@ function startGame(){
   // Start game music — swapToDayMusic handles crossfade from title music
   if(soundOn) setTimeout(()=>swapToDayMusic('Vancouver'), 200);
 }
+// Restore saved name/email on page load
+try{const sn=localStorage.getItem('bp_playerName');const se=localStorage.getItem('bp_playerEmail');if(sn)document.getElementById('playerName').value=sn;if(se)document.getElementById('playerEmail').value=se;}catch(e){}
 // Title music starts on first interaction with Play button or sound toggle
 // Music during gameplay starts in startGame() directly
 document.getElementById('playBtn').addEventListener('click',()=>{ getAC(); startGame();});
