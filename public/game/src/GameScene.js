@@ -412,6 +412,41 @@ class GameScene extends Phaser.Scene {
     const pxPerMs = spd / 1000;
     const move = pxPerMs * delta;
 
+    // ── Gamepad Polling ──────────────────────────
+    if (this.input.gamepad && this.input.gamepad.total > 0) {
+      const pad = this.input.gamepad.getPad(0);
+      if (pad) {
+        const DEADZONE = 0.3;
+
+        // Left stick X
+        const stickLeft  = pad.leftStick.x < -DEADZONE;
+        const stickRight = pad.leftStick.x >  DEADZONE;
+
+        // LB (4) / RB (5) — digital buttons
+        const lb = pad.buttons[4] && pad.buttons[4].pressed;
+        const rb = pad.buttons[5] && pad.buttons[5].pressed;
+
+        // LT (6) / RT (7) — may be analog or digital
+        const lt = pad.buttons[6] && (pad.buttons[6].pressed || pad.buttons[6].value > 0.3);
+        const rt = pad.buttons[7] && (pad.buttons[7].pressed || pad.buttons[7].value > 0.3);
+
+        const wantLeft  = stickLeft  || lb || lt;
+        const wantRight = stickRight || rb || rt;
+
+        // Edge-triggered lane changes
+        if (wantLeft && !this.padPrevLeft && this.targetLane > 0) this.targetLane--;
+        if (wantRight && !this.padPrevRight && this.targetLane < 2) this.targetLane++;
+        this.padPrevLeft  = wantLeft;
+        this.padPrevRight = wantRight;
+
+        // Jump: A (0) for Xbox, X (3) for Tata — both active
+        const jumpPressed = (pad.buttons[0] && pad.buttons[0].pressed) ||
+                            (pad.buttons[3] && pad.buttons[3].pressed);
+        if (jumpPressed && !this.padPrevJump && !this.isJumping) this.doJump();
+        this.padPrevJump = jumpPressed;
+      }
+    }
+
     // ── Benji X ──────────────────────────────────
     const targetX = this.laneX[this.targetLane];
     this.benjiX += (targetX - this.benjiX) * 0.15;
