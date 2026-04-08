@@ -454,6 +454,8 @@ document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key
   try{
     const {data:{session}}=await supaClient.auth.getSession();
     if(session){
+      // Google OAuth sessions are handled by the module script
+      if(session.user.app_metadata?.provider==='google')return;
       accessToken=session.access_token;
       if(!validateDomain(session.user.email||'')){
         await supaClient.auth.signOut();accessToken=null;return;
