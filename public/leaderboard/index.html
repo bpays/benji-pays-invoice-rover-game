@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Benji Pays: Invoice Rover — Leaderboard</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap');
 :root{--cerulean:#004777;--charcoal:#002843;--cooper:#CC7D51;--cameo:#D9B59D;--white:#F8F8F8;--good:#4DC97A;--muted:#7ba3be;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;min-height:100%;background:var(--charcoal);font-family:'Barlow',sans-serif;color:var(--white);}
-.page{max-width:480px;margin:0 auto;padding-bottom:120px;position:relative;}
+.page{max-width:480px;margin:0 auto;padding-bottom:100px;position:relative;}
 .bg{position:fixed;inset:0;z-index:0;pointer-events:none;}
 .bg-grad{position:absolute;inset:0;background:linear-gradient(180deg,#001e36 0%,var(--charcoal) 100%);}
 .orb1{position:absolute;width:300px;height:300px;background:var(--cerulean);border-radius:50%;filter:blur(80px);opacity:.1;top:-60px;right:-80px;}
@@ -34,7 +34,6 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
 .play-cta{border-radius:14px;padding:16px 20px;background:rgba(0,71,119,.12);border:1.5px dashed rgba(204,125,81,.35);display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;text-decoration:none;}
 .play-cta-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
 .play-cta-text{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;color:var(--cameo);}
-.cta-section{position:relative;z-index:2;padding:18px 20px 0;}
 .board-section{position:relative;z-index:2;padding:18px 20px 0;}
 .board-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .board-title{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
@@ -61,7 +60,7 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
 @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
 .empty-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-align:center;}
 .empty-sub{font-size:13px;color:var(--muted);text-align:center;}
-.bottom-cta{position:relative;width:100%;}
+.bottom-cta{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;padding:12px 20px 20px;background:linear-gradient(0deg,var(--charcoal) 60%,transparent 100%);z-index:10;}
 .cta-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--cooper),#004777);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 28px rgba(204,125,81,.3);}
 .loading{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
 </style>
@@ -112,11 +111,6 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
     </a>
   </div>
   <div class="divider"></div>
-  <div class="cta-section">
-    <div class="bottom-cta">
-      <button class="cta-btn" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*')">🐕 &nbsp;Run With Benji</button>
-    </div>
-  </div>
   <div class="board-section">
     <div class="board-hdr">
       <div class="board-title">Top Runners</div>
@@ -126,6 +120,9 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
       <div class="loading">Loading leaderboard...</div>
     </div>
   </div>
+</div>
+<div class="bottom-cta">
+  <button class="cta-btn" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*')">🐕 &nbsp;Run With Benji</button>
 </div>
 <script>
 const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
@@ -175,9 +172,11 @@ function renderList(scores){
   });
 }
 
+// Countdown timer
 function getSecsUntilReset(resetAt){
   const now=new Date(),reset=new Date(resetAt);
   if(isNaN(reset)||reset<now){
+    // Default to midnight UTC
     const midnight=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1));
     return Math.floor((midnight-now)/1000);
   }
@@ -188,6 +187,7 @@ function fmt(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;re
 let resetSeconds=0;
 setInterval(()=>{if(resetSeconds>0)resetSeconds--;document.getElementById('timerDisplay').textContent=fmt(resetSeconds);},1000);
 
+// Load everything
 (async()=>{
   const[scores,settings,count]=await Promise.all([fetchScores(),fetchSettings(),fetchCount()]);
   renderList(scores);
@@ -198,6 +198,7 @@ setInterval(()=>{if(resetSeconds>0)resetSeconds--;document.getElementById('timer
   document.getElementById('timerDisplay').textContent=fmt(resetSeconds);
 })();
 
+// Auto-refresh every 30 seconds
 setInterval(async()=>{const scores=await fetchScores();renderList(scores);},30000);
 </script>
 </body>
