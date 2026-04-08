@@ -573,8 +573,40 @@ function drawBenji(x,y,sz){
 }
 
 let lastTime=0;
+function pollGamepad(){
+  var pads=navigator.getGamepads?navigator.getGamepads():[];
+  for(var i=0;i<pads.length;i++){
+    var p=pads[i];if(!p||!p.connected)continue;
+    // Left stick horizontal
+    var lx=p.axes[0]||0;
+    if(lx<-0.3&&!gpPrevLeft){if(targetLane>0)targetLane--;gpPrevLeft=true;}
+    else if(lx>=-0.3)gpPrevLeft=false;
+    if(lx>0.3&&!gpPrevRight){if(targetLane<2)targetLane++;gpPrevRight=true;}
+    else if(lx<=0.3)gpPrevRight=false;
+    // LB(4) / LT(6) = left
+    var lb=p.buttons[4]&&p.buttons[4].pressed,lt=p.buttons[6]&&p.buttons[6].pressed;
+    if((lb||lt)&&!gpPrevLB){if(targetLane>0)targetLane--;gpPrevLB=true;}
+    else if(!lb&&!lt)gpPrevLB=false;
+    // RB(5) / RT(7) = right
+    var rb=p.buttons[5]&&p.buttons[5].pressed,rt=p.buttons[7]&&p.buttons[7].pressed;
+    if((rb||rt)&&!gpPrevRB){if(targetLane<2)targetLane++;gpPrevRB=true;}
+    else if(!rb&&!rt)gpPrevRB=false;
+    // A(0) / X(3) = jump
+    var aj=p.buttons[0]&&p.buttons[0].pressed,xj=p.buttons[3]&&p.buttons[3].pressed;
+    if((aj||xj)&&!gpPrevJump&&!isJumping){doJump();gpPrevJump=true;}
+    else if(!aj&&!xj)gpPrevJump=false;
+    // D-pad: left(14), right(15)
+    var dl=p.buttons[14]&&p.buttons[14].pressed,dr=p.buttons[15]&&p.buttons[15].pressed;
+    if(dl&&!gpPrevDL){if(targetLane>0)targetLane--;gpPrevDL=true;}else if(!dl)gpPrevDL=false;
+    if(dr&&!gpPrevDR){if(targetLane<2)targetLane++;gpPrevDR=true;}else if(!dr)gpPrevDR=false;
+    break; // use first connected pad
+  }
+}
+var gpPrevLeft=false,gpPrevRight=false,gpPrevLB=false,gpPrevRB=false,gpPrevJump=false,gpPrevDL=false,gpPrevDR=false;
+
 function gameLoop(timestamp){
   if(state!=='playing')return;requestAnimationFrame(gameLoop);
+  pollGamepad();
   const rawDelta=lastTime?Math.min(timestamp-lastTime,50):16.67;
   lastTime=timestamp;
   const delta=rawDelta/16.67; // normalised: 1.0 = perfect 60fps
@@ -687,8 +719,7 @@ try{const sn=localStorage.getItem('bp_playerName');const se=localStorage.getItem
 document.getElementById('playBtn').addEventListener('click',()=>{ getAC(); startGame();});
 document.getElementById('retryBtn').addEventListener('click',()=>{
   document.getElementById('gameOverScreen').classList.add('hidden');
-  if(playCount>=2){document.getElementById('ctaScreen').classList.remove('hidden');}
-  else{state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');}
+  state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');
 });
 document.getElementById('shareBtn').addEventListener('click',()=>{const txt=document.getElementById('shareCopy').textContent;if(navigator.share)navigator.share({text:txt}).catch(()=>{});else navigator.clipboard?.writeText(txt).then(()=>alert('Copied!')).catch(()=>alert(txt));});
 document.getElementById('soundBtn').addEventListener('click',()=>{
@@ -706,8 +737,8 @@ document.getElementById('soundBtn').addEventListener('click',()=>{
 });
 document.getElementById('playerEmail').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
 document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('playerEmail').focus();});
-document.getElementById('ctaBookBtn').addEventListener('click',()=>{window.open('https://benjipays.com/demo','_blank');});
-document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
+document.getElementById('ctaBookBtn').addEventListener('click',()=>{try{window.top.location.href='https://benjipays.com/demo';}catch(e){window.open('https://benjipays.com/demo','_blank');}});
+document.getElementById('ctaLearnBtn').addEventListener('click',()=>{try{window.top.location.href='https://benjipays.com';}catch(e){window.open('https://benjipays.com','_blank');}});
 document.getElementById('ctaSkipBtn').addEventListener('click',()=>{document.getElementById('ctaScreen').classList.add('hidden');state='playing';initGame();requestAnimationFrame(gameLoop);});
 
 // Gamepad indicator + start-screen polling
@@ -732,7 +763,26 @@ document.getElementById('ctaSkipBtn').addEventListener('click',()=>{document.get
         }
       }
     }
-    if(state!=='playing')gpStartFired=false;
+    // Also allow restart from game-over screen
+    if(found&&state==='over'){
+      for(var j=0;j<pads.length;j++){
+        var pg=pads[j];if(!pg)continue;
+        if((pg.buttons[0]&&pg.buttons[0].pressed)||(pg.buttons[3]&&pg.buttons[3].pressed)||(pg.buttons[9]&&pg.buttons[9].pressed)){
+          if(!gpStartFired){
+            gpStartFired=true;
+            var go=document.getElementById('gameOverScreen');
+            if(go&&!go.classList.contains('hidden')){document.getElementById('retryBtn').click();break;}
+          }
+        }
+      }
+    }
+    if(state!=='playing'&&state!=='over')gpStartFired=false;
+    else if(state==='playing'){
+      // Reset gpStartFired when no confirm buttons are held
+      var anyHeld=false;
+      for(var k=0;k<pads.length;k++){var pk=pads[k];if(!pk)continue;if((pk.buttons[0]&&pk.buttons[0].pressed)||(pk.buttons[3]&&pk.buttons[3].pressed)||(pk.buttons[9]&&pk.buttons[9].pressed))anyHeld=true;}
+      if(!anyHeld)gpStartFired=false;
+    }
     requestAnimationFrame(checkGP);
   }
   checkGP();
