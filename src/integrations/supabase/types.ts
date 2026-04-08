@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_invites: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       scores: {
         Row: {
           best_combo: number | null
