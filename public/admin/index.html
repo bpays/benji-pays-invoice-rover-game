@@ -181,7 +181,7 @@ let accessToken=null;
 let mfaFactorId=null;
 
 function showScreen(id){
-  ['loginScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
+  ['loginScreen','changePwScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
     const el=document.getElementById(s);
     if(s===id){
       el.style.display=(s==='adminApp')?'block':'flex';
