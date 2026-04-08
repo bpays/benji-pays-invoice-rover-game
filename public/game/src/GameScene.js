@@ -141,6 +141,11 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-RIGHT', () => { if(this.targetLane<2) this.targetLane++; });
     this.input.keyboard.on('keydown-UP',    () => { if(!this.isJumping) this.doJump(); });
     this.input.keyboard.on('keydown-SPACE', () => { if(!this.isJumping) this.doJump(); });
+
+    // ── GAMEPAD ────────────────────────────────────
+    this.padPrevLeft  = false;
+    this.padPrevRight = false;
+    this.padPrevJump  = false;
   }
 
   // ── JUMP ──────────────────────────────────────────
