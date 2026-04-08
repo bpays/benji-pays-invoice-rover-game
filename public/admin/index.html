@@ -371,6 +371,8 @@ async function enterAdmin(){
 // Enter key handlers
 document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
 document.getElementById('emailInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwInput').focus();});
+document.getElementById('newPw1').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('newPw2').focus();});
+document.getElementById('newPw2').addEventListener('keydown',e=>{if(e.key==='Enter')submitNewPassword();});
 document.getElementById('mfaEnrollCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyEnrollment();});
 document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyMfa();});
 
