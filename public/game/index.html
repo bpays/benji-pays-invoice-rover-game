@@ -81,6 +81,7 @@
   .cta-btn:active{transform:scale(.97);}
   .cta-link{font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer;margin-bottom:20px;}
   .cta-skip{font-size:11px;color:rgba(255,255,255,.35);cursor:pointer;letter-spacing:1px;text-transform:uppercase;}
+  @keyframes gpPulse{0%,100%{opacity:.85;}50%{opacity:1;}}
 </style>
 </head>
 <body>
@@ -127,6 +128,7 @@
       <input type="email" id="playerEmail" placeholder="Email (for leaderboard)"/>
     </div>
     <button class="btn-play" id="playBtn">RUN WITH BENJI →</button>
+    <div id="gamepadIndicator" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:12px;background:rgba(77,201,122,0.1);border:1px solid rgba(77,201,122,0.35);border-radius:20px;padding:7px 16px;width:88%;max-width:320px;animation:gpPulse 2s ease-in-out infinite;"><span style="font-size:18px">🎮</span><span style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--good);">Controller Connected</span></div>
     <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;background:rgba(204,125,81,0.1);border:1px solid rgba(204,125,81,0.25);border-radius:20px;padding:7px 16px;width:88%;max-width:320px;"><span style="font-size:18px">🎧</span><span style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--cooper);">Headphones on for the full experience</span></div>
     <div style="margin-top:14px;width:88%;max-width:320px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;"><div style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">How to Play</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>👆</span>Tap to jump</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>👈👉</span>Swipe lanes</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>✅</span>Collect payments</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>❌</span>Dodge invoices</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>⚡</span>Grab power-ups</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>🔥</span>Build combo</div></div></div>
     <div style="display:flex;align-items:center;justify-content:center;width:88%;max-width:320px;margin-top:14px;"><a href="/leaderboard" target="_blank" style="font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;text-decoration:none;font-weight:700;">🏆 Leaderboard</a></div>
@@ -707,6 +709,35 @@ document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key===
 document.getElementById('ctaBookBtn').addEventListener('click',()=>{window.open('https://benjipays.com/demo','_blank');});
 document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
 document.getElementById('ctaSkipBtn').addEventListener('click',()=>{document.getElementById('ctaScreen').classList.add('hidden');state='playing';initGame();requestAnimationFrame(gameLoop);});
+
+// Gamepad indicator + start-screen polling
+(function(){
+  var gpInd=document.getElementById('gamepadIndicator');
+  var gpStartFired=false;
+  function checkGP(){
+    var pads=navigator.getGamepads?navigator.getGamepads():[];
+    var found=false;
+    for(var i=0;i<pads.length;i++){if(pads[i]&&pads[i].connected){found=true;break;}}
+    if(found){gpInd.style.display='flex';}else{gpInd.style.display='none';}
+    // Allow gamepad to start the game from start screen
+    if(found&&state!=='playing'&&!gpStartFired){
+      for(var i=0;i<pads.length;i++){
+        var p=pads[i];if(!p)continue;
+        // A(0) or X(3) or Start(9) button
+        if((p.buttons[0]&&p.buttons[0].pressed)||(p.buttons[3]&&p.buttons[3].pressed)||(p.buttons[9]&&p.buttons[9].pressed)){
+          var ss=document.getElementById('startScreen');
+          var cs=document.getElementById('ctaScreen');
+          if(ss&&!ss.classList.contains('hidden')){gpStartFired=true;getAC();startGame();break;}
+          if(cs&&!cs.classList.contains('hidden')){gpStartFired=true;document.getElementById('ctaSkipBtn').click();break;}
+        }
+      }
+    }
+    if(state!=='playing')gpStartFired=false;
+    requestAnimationFrame(checkGP);
+  }
+  checkGP();
+})();
+
 </script>
 </body>
 </html>
