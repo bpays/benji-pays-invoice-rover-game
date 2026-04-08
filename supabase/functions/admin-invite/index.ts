@@ -90,9 +90,10 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Use upsert with onConflict to avoid duplicate key errors
       const { error: roleErr } = await adminClient
         .from("user_roles")
-        .insert({ user_id: newUser.user.id, role });
+        .upsert({ user_id: newUser.user.id, role }, { onConflict: "user_id,role", ignoreDuplicates: true });
 
       if (roleErr) {
         return new Response(JSON.stringify({ error: roleErr.message }), {
