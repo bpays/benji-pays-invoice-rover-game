@@ -259,6 +259,9 @@ function showScreen(id){
     }
   });
 }
+// Expose for module script
+window.validateDomain = validateDomain;
+window.showScreen = showScreen;
 showScreen('loginScreen');
 
 function validateDomain(email){
