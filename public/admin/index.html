@@ -21,7 +21,19 @@
   </div>
 </div>
 
-<!-- MFA ENROLLMENT SCREEN -->
+<!-- CHANGE PASSWORD SCREEN -->
+<div id="changePwScreen" class="mfa-screen">
+  <div class="login-box" style="max-width:420px;">
+    <div class="login-logo">🔑 Change Password</div>
+    <div class="login-sub">You must set a new password before continuing</div>
+    <input type="password" id="newPw1" placeholder="New password (min 8 characters)" />
+    <input type="password" id="newPw2" placeholder="Confirm new password" />
+    <button onclick="submitNewPassword()">Set New Password →</button>
+    <div class="login-err" id="changePwErr"></div>
+  </div>
+</div>
+
+
 <div id="mfaEnrollScreen" class="mfa-screen">
   <div class="login-box" style="max-width:420px;">
     <div class="login-logo">🔐 Set Up MFA</div>
@@ -169,7 +181,7 @@ let accessToken=null;
 let mfaFactorId=null;
 
 function showScreen(id){
-  ['loginScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
+  ['loginScreen','changePwScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
     const el=document.getElementById(s);
     if(s===id){
       el.style.display=(s==='adminApp')?'block':'flex';
@@ -216,7 +228,33 @@ async function tryLogin(){
     await supaClient.auth.signOut();accessToken=null;return;
   }
 
+  // Check if user must change password first
+  if(data.user.user_metadata?.must_change_password){
+    showScreen('changePwScreen');
+    document.getElementById('changePwErr').style.display='none';
+    document.getElementById('newPw1').value='';
+    document.getElementById('newPw2').value='';
+    document.getElementById('newPw1').focus();
+    return;
+  }
+
   console.log('Login success, checking MFA...');
+  await handleMfaFlow();
+}
+
+async function submitNewPassword(){
+  const pw1=document.getElementById('newPw1').value;
+  const pw2=document.getElementById('newPw2').value;
+  const errEl=document.getElementById('changePwErr');
+  errEl.style.display='none';
+
+  if(!pw1||pw1.length<8){errEl.textContent='Password must be at least 8 characters';errEl.style.display='block';return;}
+  if(pw1!==pw2){errEl.textContent='Passwords do not match';errEl.style.display='block';return;}
+
+  const {error:pwErr}=await supaClient.auth.updateUser({password:pw1,data:{must_change_password:false}});
+  if(pwErr){errEl.textContent='Failed to update password: '+pwErr.message;errEl.style.display='block';return;}
+
+  toast('Password updated ✓');
   await handleMfaFlow();
 }
 
@@ -333,6 +371,8 @@ async function enterAdmin(){
 // Enter key handlers
 document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
 document.getElementById('emailInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwInput').focus();});
+document.getElementById('newPw1').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('newPw2').focus();});
+document.getElementById('newPw2').addEventListener('keydown',e=>{if(e.key==='Enter')submitNewPassword();});
 document.getElementById('mfaEnrollCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyEnrollment();});
 document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyMfa();});
 
