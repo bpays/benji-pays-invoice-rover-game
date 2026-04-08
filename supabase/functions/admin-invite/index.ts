@@ -12,8 +12,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify the caller is an authenticated admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
@@ -33,7 +33,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify caller's domain
     const callerDomain = caller.email?.split("@")[1]?.toLowerCase();
     if (callerDomain !== ALLOWED_DOMAIN) {
       return new Response(JSON.stringify({ error: "Access restricted to @" + ALLOWED_DOMAIN }), {
@@ -42,27 +41,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check caller has admin role
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: callerRoles } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id)
-      .eq("role", "admin");
+    const { action, email, role, user_id } = await req.json();
 
-    if (!callerRoles || callerRoles.length === 0) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { action, email, password, role, user_id } = await req.json();
-
-    // ── CREATE USER + ASSIGN ROLE ──
+    // ── INVITE: insert into admin_invites ──
     if (action === "invite") {
-      if (!email || !password || !role) {
-        return new Response(JSON.stringify({ error: "Email, password, and role are required" }), {
+      // Only admins can invite
+      const { data: callerRoles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .eq("role", "admin");
+
+      if (!callerRoles || callerRoles.length === 0) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!email) {
+        return new Response(JSON.stringify({ error: "Email is required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -76,123 +74,179 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check if user already exists
-      const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find(
-        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
-      );
+      const { error: insertErr } = await adminClient
+        .from("admin_invites")
+        .upsert(
+          { email: email.toLowerCase(), role: role || "admin", invited_by: caller.id },
+          { onConflict: "email", ignoreDuplicates: true }
+        );
 
-      let userId: string;
-
-      if (existingUser) {
-        // Re-activate existing user: reset password and metadata
-        const { error: updateErr } = await adminClient.auth.admin.updateUserById(existingUser.id, {
-          password,
-          email_confirm: true,
-          user_metadata: { must_change_password: true },
+      if (insertErr) {
+        return new Response(JSON.stringify({ error: insertErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-        if (updateErr) {
-          return new Response(JSON.stringify({ error: updateErr.message }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        userId = existingUser.id;
-      } else {
-        const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { must_change_password: true },
-        });
-        if (createErr) {
-          return new Response(JSON.stringify({ error: createErr.message }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        userId = newUser.user.id;
       }
 
+      return new Response(JSON.stringify({ success: true, email }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── CLAIM: called on first Google sign-in to assign role from invite ──
+    if (action === "claim") {
+      const callerEmail = caller.email?.toLowerCase();
+      if (!callerEmail) {
+        return new Response(JSON.stringify({ error: "No email on account" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: invite } = await adminClient
+        .from("admin_invites")
+        .select("role")
+        .eq("email", callerEmail)
+        .maybeSingle();
+
+      if (!invite) {
+        return new Response(JSON.stringify({ error: "No invite found for this email" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Assign role
       const { error: roleErr } = await adminClient
         .from("user_roles")
-        .upsert({ user_id: userId, role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+        .upsert(
+          { user_id: caller.id, role: invite.role },
+          { onConflict: "user_id,role", ignoreDuplicates: true }
+        );
 
       if (roleErr) {
         return new Response(JSON.stringify({ error: roleErr.message }), {
-          status: 400,
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      return new Response(JSON.stringify({ success: true, user_id: userId, email }), {
+      // Delete the invite record
+      await adminClient
+        .from("admin_invites")
+        .delete()
+        .eq("email", callerEmail);
+
+      return new Response(JSON.stringify({ success: true, role: invite.role }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ── LIST ADMINS ──
+    // ── LIST: combined active admins + pending invites ──
     if (action === "list") {
-      const { data: roles, error: listErr } = await adminClient
+      const { data: callerRoles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .eq("role", "admin");
+
+      if (!callerRoles || callerRoles.length === 0) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Active admins from user_roles
+      const { data: roles } = await adminClient
         .from("user_roles")
         .select("user_id, role");
 
-      if (listErr) {
-        return new Response(JSON.stringify({ error: listErr.message }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const userIds = [...new Set(roles.map((r: any) => r.user_id))];
       const admins = [];
-      for (const uid of userIds) {
-        const { data: { user } } = await adminClient.auth.admin.getUserById(uid as string);
-        if (user) {
-          const userRoles = roles.filter((r: any) => r.user_id === uid);
-          admins.push({
-            user_id: uid,
-            email: user.email,
-            roles: userRoles.map((r: any) => r.role),
-            created_at: user.created_at,
-          });
+      if (roles) {
+        const userIds = [...new Set(roles.map((r: any) => r.user_id))];
+        for (const uid of userIds) {
+          const { data: { user } } = await adminClient.auth.admin.getUserById(uid as string);
+          if (user) {
+            const userRoles = roles.filter((r: any) => r.user_id === uid);
+            admins.push({
+              user_id: uid,
+              email: user.email,
+              roles: userRoles.map((r: any) => r.role),
+              created_at: user.created_at,
+              status: "active",
+            });
+          }
         }
       }
 
-      return new Response(JSON.stringify({ admins }), {
+      // Pending invites
+      const { data: invites } = await adminClient
+        .from("admin_invites")
+        .select("id, email, role, created_at");
+
+      const pending = (invites || []).map((inv: any) => ({
+        invite_id: inv.id,
+        email: inv.email,
+        roles: [inv.role],
+        created_at: inv.created_at,
+        status: "pending",
+      }));
+
+      return new Response(JSON.stringify({ admins: [...admins, ...pending] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ── REMOVE ROLE ──
+    // ── REMOVE: delete from user_roles and/or admin_invites ──
     if (action === "remove") {
-      if (!user_id || !role) {
-        return new Response(JSON.stringify({ error: "user_id and role required" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (user_id === caller.id) {
-        return new Response(JSON.stringify({ error: "Cannot remove your own admin role" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const { error: delErr } = await adminClient
+      const { data: callerRoles } = await adminClient
         .from("user_roles")
-        .delete()
-        .eq("user_id", user_id)
-        .eq("role", role);
+        .select("role")
+        .eq("user_id", caller.id)
+        .eq("role", "admin");
 
-      if (delErr) {
-        return new Response(JSON.stringify({ error: delErr.message }), {
-          status: 500,
+      if (!callerRoles || callerRoles.length === 0) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      return new Response(JSON.stringify({ success: true }), {
+      // Remove active admin by user_id
+      if (user_id) {
+        if (user_id === caller.id) {
+          return new Response(JSON.stringify({ error: "Cannot remove your own admin role" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        await adminClient
+          .from("user_roles")
+          .delete()
+          .eq("user_id", user_id)
+          .eq("role", role || "admin");
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Remove pending invite by email
+      if (email) {
+        await adminClient
+          .from("admin_invites")
+          .delete()
+          .eq("email", email.toLowerCase());
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ error: "user_id or email required" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
