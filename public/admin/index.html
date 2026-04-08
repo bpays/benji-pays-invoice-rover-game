@@ -14,35 +14,15 @@
     <div class="login-logo">🐕 INVOICE ROVER</div>
     <div class="login-sub">Admin Panel · Benji Pays</div>
     <div class="login-domain-note">@benjipays.com accounts only</div>
-    <input type="email" id="emailInput" placeholder="Admin email (@benjipays.com)" />
-    <input type="password" id="pwInput" placeholder="Password" />
-    <button onclick="tryLogin()">Sign In →</button>
-    <div class="login-err" id="loginErr"></div>
-    <div style="display:flex;align-items:center;gap:12px;margin:18px 0 14px;">
-      <div style="flex:1;height:1px;background:rgba(255,255,255,.1);"></div>
-      <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">or</span>
-      <div style="flex:1;height:1px;background:rgba(255,255,255,.1);"></div>
-    </div>
     <button onclick="googleSignIn()" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--cooper)'" onmouseout="this.style.borderColor='rgba(255,255,255,.14)'">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       <span style="color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;">Sign in with Google</span>
     </button>
+    <div class="login-err" id="loginErr"></div>
   </div>
 </div>
 
-<!-- CHANGE PASSWORD SCREEN -->
-<div id="changePwScreen" class="mfa-screen">
-  <div class="login-box" style="max-width:420px;">
-    <div class="login-logo">🔑 Change Password</div>
-    <div class="login-sub">You must set a new password before continuing</div>
-    <input type="password" id="newPw1" placeholder="New password (min 8 characters)" />
-    <input type="password" id="newPw2" placeholder="Confirm new password" />
-    <button onclick="submitNewPassword()">Set New Password →</button>
-    <div class="login-err" id="changePwErr"></div>
-  </div>
-</div>
-
-
+<!-- MFA ENROLL SCREEN -->
 <div id="mfaEnrollScreen" class="mfa-screen">
   <div class="login-box" style="max-width:420px;">
     <div class="login-logo">🔐 Set Up MFA</div>
@@ -144,10 +124,8 @@
         <div class="admin-invite-form">
           <div class="section-label" style="margin-bottom:10px;">Invite New Admin</div>
           <div class="field"><label>Email (@benjipays.com)</label><input type="email" id="inviteEmail" placeholder="name@benjipays.com" /></div>
-          <div class="field"><label>Temporary Password</label><input type="text" id="invitePw" placeholder="Min 8 characters" /></div>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="inviteAdmin()">Send Invite</button>
-            <button class="btn btn-ghost" onclick="generatePw()">Generate Password</button>
+            <button class="btn btn-primary" onclick="inviteAdmin()">Invite Admin</button>
           </div>
           <div class="login-err" id="inviteErr" style="text-align:left;"></div>
           <div class="invite-success" id="inviteSuccess"></div>
@@ -196,7 +174,6 @@ window.googleSignIn = async function() {
       return;
     }
     if (result.redirected) return;
-    // Got tokens back directly — set session
     await supaClient.auth.setSession(result.tokens);
     await handleOAuthSession();
   } catch (e) {
@@ -210,27 +187,52 @@ async function handleOAuthSession() {
   if (!session) return;
   window.accessToken = session.access_token;
   const email = session.user.email || '';
+  const errEl = document.getElementById('loginErr');
+
   if (!window.validateDomain(email)) {
-    document.getElementById('loginErr').textContent = 'Access restricted to @benjipays.com accounts only';
-    document.getElementById('loginErr').style.display = 'block';
+    errEl.textContent = 'Access restricted to @benjipays.com accounts only';
+    errEl.style.display = 'block';
     await supaClient.auth.signOut();
     window.accessToken = null;
     return;
   }
+
+  // Check if user already has admin role
   const { data: roles } = await supaClient.from('user_roles').select('role').eq('user_id', session.user.id).eq('role', 'admin');
-  if (!roles || roles.length === 0) {
-    document.getElementById('loginErr').textContent = 'Access denied — admin role required';
-    document.getElementById('loginErr').style.display = 'block';
-    await supaClient.auth.signOut();
-    window.accessToken = null;
+  if (roles && roles.length > 0) {
+    await window.handleMfaFlow();
     return;
   }
-  await window.handleMfaFlow();
+
+  // No role yet — try to claim an invite via edge function
+  try {
+    const claimRes = await fetch(`${window.SUPA_URL}/functions/v1/admin-invite`, {
+      method: 'POST',
+      headers: {
+        'apikey': window.SUPA_KEY,
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ action: 'claim' })
+    });
+    const claimData = await claimRes.json();
+    if (claimData.success) {
+      await window.handleMfaFlow();
+      return;
+    }
+  } catch (e) {
+    console.error('Claim failed', e);
+  }
+
+  // No invite, no role — deny access and sign out
+  errEl.textContent = 'Access denied — no admin invite found for this account';
+  errEl.style.display = 'block';
+  await supaClient.auth.signOut();
+  window.accessToken = null;
 }
 
 // Listen for OAuth callback on page load
 (async () => {
-  // Small delay to let supaClient initialize
   await new Promise(r => setTimeout(r, 200));
   const { data: { session } } = await supaClient.auth.getSession();
   if (session && session.user.app_metadata?.provider === 'google') {
@@ -249,8 +251,12 @@ let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,t
 let accessToken=null;
 let mfaFactorId=null;
 
+// Expose for module script
+window.SUPA_URL = SUPA_URL;
+window.SUPA_KEY = SUPA_KEY;
+
 function showScreen(id){
-  ['loginScreen','changePwScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
+  ['loginScreen','mfaEnrollScreen','mfaVerifyScreen','adminApp'].forEach(s=>{
     const el=document.getElementById(s);
     if(s===id){
       el.style.display=(s==='adminApp')?'block':'flex';
@@ -259,7 +265,6 @@ function showScreen(id){
     }
   });
 }
-// Expose for module script
 window.validateDomain = validateDomain;
 window.showScreen = showScreen;
 showScreen('loginScreen');
@@ -275,59 +280,6 @@ function getTotpFactors(factorData){
   const merged=[...direct];
   fromAll.forEach(f=>{if(!merged.some(existing=>existing.id===f.id))merged.push(f);});
   return merged;
-}
-
-async function tryLogin(){
-  const email=document.getElementById('emailInput').value.trim().toLowerCase();
-  const pw=document.getElementById('pwInput').value;
-  const errEl=document.getElementById('loginErr');
-  errEl.style.display='none';
-
-  if(!email||!pw){errEl.textContent='Email and password required';errEl.style.display='block';return;}
-
-  if(!validateDomain(email)){
-    errEl.textContent='Access restricted to @'+ALLOWED_DOMAIN+' accounts only';
-    errEl.style.display='block';return;
-  }
-
-  const {data,error}=await supaClient.auth.signInWithPassword({email,password:pw});
-  if(error){errEl.textContent=error.message;errEl.style.display='block';return;}
-  accessToken=data.session.access_token;
-
-  const {data:roles,error:roleErr}=await supaClient.from('user_roles').select('role').eq('user_id',data.user.id).eq('role','admin');
-  if(roleErr||!roles||roles.length===0){
-    errEl.textContent='Access denied — admin role required';errEl.style.display='block';
-    await supaClient.auth.signOut();accessToken=null;return;
-  }
-
-  // Check if user must change password first
-  if(data.user.user_metadata?.must_change_password){
-    showScreen('changePwScreen');
-    document.getElementById('changePwErr').style.display='none';
-    document.getElementById('newPw1').value='';
-    document.getElementById('newPw2').value='';
-    document.getElementById('newPw1').focus();
-    return;
-  }
-
-  console.log('Login success, checking MFA...');
-  await handleMfaFlow();
-}
-
-async function submitNewPassword(){
-  const pw1=document.getElementById('newPw1').value;
-  const pw2=document.getElementById('newPw2').value;
-  const errEl=document.getElementById('changePwErr');
-  errEl.style.display='none';
-
-  if(!pw1||pw1.length<8){errEl.textContent='Password must be at least 8 characters';errEl.style.display='block';return;}
-  if(pw1!==pw2){errEl.textContent='Passwords do not match';errEl.style.display='block';return;}
-
-  const {error:pwErr}=await supaClient.auth.updateUser({password:pw1,data:{must_change_password:false}});
-  if(pwErr){errEl.textContent='Failed to update password: '+pwErr.message;errEl.style.display='block';return;}
-
-  toast('Password updated ✓');
-  await handleMfaFlow();
 }
 
 async function handleMfaFlow(){
@@ -442,10 +394,6 @@ async function enterAdmin(){
 }
 
 // Enter key handlers
-document.getElementById('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
-document.getElementById('emailInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('pwInput').focus();});
-document.getElementById('newPw1').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('newPw2').focus();});
-document.getElementById('newPw2').addEventListener('keydown',e=>{if(e.key==='Enter')submitNewPassword();});
 document.getElementById('mfaEnrollCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyEnrollment();});
 document.getElementById('mfaVerifyCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyMfa();});
 
@@ -634,30 +582,21 @@ async function inviteEdgeFn(body){
   return res.json();
 }
 
-function generatePw(){
-  const chars='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-  let pw='';for(let i=0;i<14;i++)pw+=chars[Math.floor(Math.random()*chars.length)];
-  document.getElementById('invitePw').value=pw;
-}
-
 async function inviteAdmin(){
   const email=document.getElementById('inviteEmail').value.trim().toLowerCase();
-  const pw=document.getElementById('invitePw').value;
   const errEl=document.getElementById('inviteErr');
   const successEl=document.getElementById('inviteSuccess');
   errEl.style.display='none';successEl.className='invite-success';
 
-  if(!email||!pw){errEl.textContent='Email and password required';errEl.style.display='block';return;}
+  if(!email){errEl.textContent='Email is required';errEl.style.display='block';return;}
   if(!email.endsWith('@benjipays.com')){errEl.textContent='Only @benjipays.com emails allowed';errEl.style.display='block';return;}
-  if(pw.length<8){errEl.textContent='Password must be at least 8 characters';errEl.style.display='block';return;}
 
-  const res=await inviteEdgeFn({action:'invite',email,password:pw,role:'admin'});
+  const res=await inviteEdgeFn({action:'invite',email,role:'admin'});
   if(res.error){errEl.textContent=res.error;errEl.style.display='block';return;}
 
-  successEl.innerHTML=`✓ Invited <strong>${email}</strong><br>Temp password: <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;">${pw}</code><br><span style="font-size:10px;color:var(--muted);">Share this securely — they'll set up MFA on first login.</span>`;
+  successEl.innerHTML=`✓ Invited <strong>${email}</strong><br><span style="font-size:10px;color:var(--muted);">Let them know to sign in with Google at /admin</span>`;
   successEl.className='invite-success show';
   document.getElementById('inviteEmail').value='';
-  document.getElementById('invitePw').value='';
   toast('Admin invited ✓');
   loadAdminList();
 }
@@ -667,7 +606,6 @@ async function loadAdminList(){
   const list=document.getElementById('adminList');
   if(res.error||!res.admins){list.textContent='Failed to load';return;}
 
-  const {data:{session}}=await supaClient.auth.getSession();
   const {data:{user:me}}=await supaClient.auth.getUser();
   const myId=me?.id;
 
@@ -675,13 +613,23 @@ async function loadAdminList(){
 
   list.innerHTML=res.admins.map(a=>{
     const isMe=a.user_id===myId;
+    const isPending=a.status==='pending';
+    const statusBadge=isPending?'<span class="admin-card-role" style="background:rgba(255,180,0,.15);color:#ffb400;">PENDING</span>':'';
     const roles=a.roles.map(r=>`<span class="admin-card-role">${r}</span>`).join(' ');
-    const removeBtn=isMe?'<span class="admin-card-you">You</span>':`<button class="btn btn-danger btn-sm" onclick="removeAdmin('${a.user_id}','admin')">Remove</button>`;
+    let removeBtn='';
+    if(isMe){
+      removeBtn='<span class="admin-card-you">You</span>';
+    } else if(isPending){
+      removeBtn=`<button class="btn btn-danger btn-sm" onclick="removePendingInvite('${a.email}')">Revoke</button>`;
+    } else {
+      removeBtn=`<button class="btn btn-danger btn-sm" onclick="removeAdmin('${a.user_id}','admin')">Remove</button>`;
+    }
     return `<div class="admin-card">
       <div class="admin-card-info">
         <div class="admin-card-email">${a.email}</div>
-        <div class="admin-card-meta">Added ${new Date(a.created_at).toLocaleDateString()}</div>
+        <div class="admin-card-meta">${isPending?'Invited':'Added'} ${new Date(a.created_at).toLocaleDateString()}</div>
       </div>
+      ${statusBadge}
       ${roles}
       ${removeBtn}
     </div>`;
@@ -693,6 +641,14 @@ async function removeAdmin(userId,role){
   const res=await inviteEdgeFn({action:'remove',user_id:userId,role});
   if(res.error){toast(res.error,'err');return;}
   toast('Admin removed ✓');
+  loadAdminList();
+}
+
+async function removePendingInvite(email){
+  if(!confirm('Revoke this invite?'))return;
+  const res=await inviteEdgeFn({action:'remove',email});
+  if(res.error){toast(res.error,'err');return;}
+  toast('Invite revoked ✓');
   loadAdminList();
 }
 
