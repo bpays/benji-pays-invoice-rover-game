@@ -1,28 +1,46 @@
 
 
-## Fix submit-score Build Error
+## UI and Copy Updates for Benji Pays Game
 
-### Root Cause
-The edge function imports `npm:obscenity@0.4.6`, but Lovable's Deno edge runtime requires a `deno.json` to resolve npm specifiers (other than `@supabase/supabase-js` which is pre-configured). There's no `deno.json` in the project.
+### Summary of Changes
 
-### Solution
-Replace the `obscenity` npm import with an **inline profanity check** using a curated word list and regex matching. The existing validation logic in the file (blocked email domains, reserved names, etc.) is already solid — we just need to swap out the one broken import.
+All changes are in `public/game/index.html`. The root `index.html` is fine as-is.
 
-### Changes
+### 1. GTags and HubSpot Placement -- Already Correct
+- **GTM script** is in `<head>` (lines 4-10) -- correct
+- **GTM noscript** is in `<body>` (lines 103-106) -- correct
+- **HubSpot** is at end of `<body>` (lines 1011-1013) -- correct
+- Root `index.html` also has both in the right spots. No changes needed.
 
-**1. `supabase/functions/submit-score/index.ts`**
-- Remove lines 2-6 (the `obscenity` import)
-- Remove the `profanityMatcher` constant that uses `RegExpMatcher`
-- Add an inline `PROFANITY_WORDS` set (~80 common offensive terms)
-- Add a `hasProfanity(text)` function that normalizes input (lowercase, strip non-alpha) and checks each word token against the set using word-boundary matching
-- Replace the `profanityMatcher.hasMatch(name)` call in `validateDisplayName()` with `hasProfanity(name)`
+### 2. Logo Links to benjipays.com
+- Wrap the `<svg class="logo-svg">` (line 125-137) inside an `<a href="https://benjipays.com" target="_blank">` tag
 
-No other files change. All existing validation (blocked email domains, reserved names, score bounds, etc.) stays as-is.
+### 3. Update "How to Play" Steps
+- Replace the current 6-item grid (line 153) with 5 items:
+  1. Tap to Jump
+  2. Collect payments, autopay and installments
+  3. Power up with integrations
+  4. Dodge excuses, delays and NSF
+  5. Build combinations
 
-### After Deploy
-- The function auto-deploys when saved
-- Will test with `curl_edge_functions` to confirm:
-  - Gmail email → rejected
-  - Profane name → rejected
-  - Valid submission → accepted
+### 4. Play Button Text
+- Change `RUN WITH BENJI →` (line 150) to `P(L)AY NOW`
+
+### 5. Rename "Score"/"points" to "$ Collected"
+- HUD label (line 111): `Score` → `$ Collected`
+- HUD score display in JS (line 827): update `scoreDisplay` text
+- Game over stat label (line 167): `Final Score` → `$ Collected`
+- Share copy text (line 859): replace "scored X pts" with "collected $X"
+
+### 6. Bigger Final Score + New Copy
+- Make the `#finalScore` stat card span full width and increase font size
+- Change the game over title area to say: **Collected $X in Accounts Receivable** (larger text, replacing or augmenting the current "WIPED OUT" title)
+
+### 7. "Learn More About Benji Pays" Button
+- Add a prominent button between the music toggle (line 177) and leaderboard link (line 178) on the game over screen
+- Links to `https://benjipays.com/demo`
+- Styled as a large CTA button matching the game aesthetic
+
+### Files Modified
+- `public/game/index.html` (all changes in this single file)
 
