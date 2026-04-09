@@ -94,6 +94,11 @@
       </div>
     </div>
     <div class="section">
+      <div class="section-title">Reset event leaderboard</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:14px;max-width:640px;">Deletes <strong>all</strong> score rows for the event selected in the header (not “All Events”). This cannot be undone. Daily boards only include today’s rows; this clears the underlying event data.</p>
+      <button type="button" class="btn btn-danger" id="resetEventLeaderboardBtn" onclick="resetEventLeaderboard()">Reset event scores</button>
+    </div>
+    <div class="section">
       <div class="section-title">🏆 Scores — <span id="tableEventLabel">N-able Empower 2026</span></div>
       <div class="table-controls">
         <input class="search-input" type="text" id="searchInput" placeholder="Search name or email..." oninput="filterScores()" />
@@ -448,6 +453,48 @@ async function api(method,table,body,params=''){
   if(method==='DELETE')return res.ok;
   return res.ok?await res.json():null;
 }
+
+async function resetEventLeaderboard(){
+  const key=document.getElementById('eventSelector').value;
+  if(key==='all'){
+    toast('Select a specific event in the header (not All Events)','err');
+    return;
+  }
+  const ev=EVENTS[key];
+  if(!ev||!ev.tag){
+    toast('No event tag for selection','err');
+    return;
+  }
+  if(!confirm('Delete ALL scores for '+ev.label+'? This cannot be undone.'))return;
+  const {data:{session}}=await supaClient.auth.getSession();
+  const token=session?.access_token;
+  if(!token){
+    toast('You must be signed in','err');
+    return;
+  }
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/reset_event_scores',{
+    method:'POST',
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({p_event_tag:ev.tag})
+  });
+  if(!res.ok){
+    let msg='Reset failed';
+    try{
+      const j=await res.json();
+      if(j.message)msg=j.message;
+      if(j.error_description)msg=j.error_description;
+    }catch(_){}
+    toast(msg,'err');
+    return;
+  }
+  let deleted=0;
+  try{
+    const t=await res.text();
+    deleted=parseInt(t,10)||0;
+  }catch(_){}
+  toast('Deleted '+deleted+' score row(s)','ok');
+  await loadAll();
+}
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>t.className='',2500);}
 async function init(){await loadAll();await loadTimerSetting();startTimer();}
 async function loadAll(){await Promise.all([loadScores(),loadStats()]);}
@@ -457,6 +504,8 @@ function onEventChange(){
   document.getElementById('eventNameBadge').textContent=ev.label.toUpperCase();
   document.getElementById('statsEventLabel').textContent=ev.label;
   document.getElementById('tableEventLabel').textContent=ev.label;
+  const resetBtn=document.getElementById('resetEventLeaderboardBtn');
+  if(resetBtn)resetBtn.disabled=currentEventKey==='all';
   loadAll();
 }
 function eventParams(){const ev=EVENTS[currentEventKey];return ev.tag?`event_tag=eq.${ev.tag}`:'';}

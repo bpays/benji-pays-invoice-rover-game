@@ -68,6 +68,9 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
 .empty-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-align:center;}
 .empty-sub{font-size:13px;color:var(--muted);text-align:center;}
   .inline-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--cooper),#004777);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 28px rgba(204,125,81,.3);}
+  .board-toggle{display:flex;gap:0;padding:4px;border-radius:12px;background:rgba(0,40,67,.5);border:1px solid rgba(255,255,255,.1);}
+  .board-toggle .toggle-btn{flex:1;padding:12px 14px;border:none;border-radius:9px;background:transparent;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s;}
+  .board-toggle .toggle-btn.active{background:rgba(204,125,81,.25);color:var(--white);box-shadow:0 2px 12px rgba(0,0,0,.2);}
   .loading{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
 </style>
 </head>
@@ -100,14 +103,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <defs><clipPath id="clip_lb"><rect width="138" height="69" fill="white" transform="translate(120 165)"/></clipPath></defs>
         </svg>
       </div>
-      <div class="timer-wrap">
-        <div class="timer-lbl">Resets in</div>
+      <div class="timer-wrap" id="timerSection">
+        <div class="timer-lbl" id="timerLabel">Resets in (UTC)</div>
         <div class="timer"><span class="pulse"></span><span id="timerDisplay">--:--:--</span></div>
       </div>
     </div>
     <div class="title-block">
       <div class="eyebrow">Invoice Rover · High Velocity Fintech Ledger</div>
-      <div class="title">Daily<br><span class="acc">Leader</span>board</div>
+      <div class="title" id="leaderTitle"><span id="titleScope">Daily</span><br><span class="acc">Leader</span>board</div>
       <div style="display:flex;justify-content:center;">
         <div class="live-pill"><span class="pulse" style="margin:0;width:5px;height:5px;"></span><span id="runnerCount">Loading...</span></div>
       </div>
@@ -123,6 +126,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="divider"></div>
   <div style="padding:16px 20px 0;position:relative;z-index:2;">
     <button class="inline-cta" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*')">🐕 &nbsp;Run With Benji</button>
+    <div class="board-toggle" style="margin-top:14px;" role="tablist" aria-label="Leaderboard type">
+      <button type="button" class="toggle-btn active" data-board="daily" role="tab" aria-selected="true">Daily</button>
+      <button type="button" class="toggle-btn" data-board="event" role="tab" aria-selected="false">Event</button>
+    </div>
   </div>
   <div class="divider"></div>
   <div class="board-section">
@@ -138,19 +145,29 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <script>
 const SUPA_URL='https://wowzqjrvmgkcustjdxpo.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3pxanJ2bWdrY3VzdGpkeHBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODA5NTYsImV4cCI6MjA5MTE1Njk1Nn0.f5Pvand0Ov_dhqvateUr_fBw_feT8NGRcym9vdMUdyo';
+const EVENT_TAG='nable-empower-2026';
 
-async function fetchScores(){
-  const res=await fetch(`${SUPA_URL}/rest/v1/rpc/get_leaderboard`,{method:'POST',headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({p_event_tag:'nable-empower-2026',p_limit:10})});
+const rpcHeaders={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'};
+
+let activeBoard='daily';
+
+async function fetchDailyScores(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_leaderboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
   return res.ok?await res.json():[];
 }
 
-async function fetchSettings(){
-  const res=await fetch(`${SUPA_URL}/rest/v1/settings?select=key,value`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`}});
+async function fetchEventScores(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_leaderboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
   return res.ok?await res.json():[];
 }
 
-async function fetchCount(){
-  const res=await fetch(`${SUPA_URL}/rest/v1/rpc/get_today_run_count`,{method:'POST',headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({p_event_tag:'nable-empower-2026'})});
+async function fetchTodayRunCount(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_today_run_count',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG})});
+  return res.ok?await res.json():0;
+}
+
+async function fetchEventSubmissionCount(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_event_submission_count',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG})});
   return res.ok?await res.json():0;
 }
 
@@ -158,10 +175,14 @@ const medals=['🥇','🥈','🥉'];
 const rClasses=['r1','r2','r3'];
 const badgeClasses=['gold','silver','bronze'];
 
-function renderList(scores){
+function esc(t){const d=document.createElement('div');d.textContent=t==null?'':String(t);return d.innerHTML;}
+
+function renderList(scores,mode){
   const list=document.getElementById('rankList');
   if(!scores.length){
-    list.innerHTML=`<div class="empty-state"><div class="empty-dog">🐕</div><div class="empty-title">No runs yet today.</div><div class="empty-sub">Be the first on the board! 🏁</div></div>`;
+    const title=mode==='daily'?'No runs yet today.':'No scores for this event yet.';
+    const sub=mode==='daily'?'Be the first on the board! 🏁':'Play a run to land on the event board.';
+    list.innerHTML='<div class="empty-state"><div class="empty-dog">🐕</div><div class="empty-title">'+title+'</div><div class="empty-sub">'+sub+'</div></div>';
     return;
   }
   list.innerHTML='';
@@ -170,47 +191,80 @@ function renderList(scores){
     const row=document.createElement('div');
     row.className='rank-row'+(rClasses[i]?' '+rClasses[i]:'');
     row.style.animationDelay=(i*0.05)+'s';
-    row.innerHTML=`
-      <div class="rank-badge ${isTop3?badgeClasses[i]:'plain'}">${isTop3?medals[i]:rank}</div>
-      <div class="rank-player">
-        <div class="rank-name">${s.player_name}</div>
-        <div class="rank-meta"><span>${s.city_flag||'🇨🇦'}</span><span>${s.city_reached||'Vancouver'}</span><span>· ${s.best_combo||0}× combo</span></div>
-      </div>
-      <div class="rank-right">
-        <div class="rank-score">${(s.score||0).toLocaleString()}</div>
-      </div>`;
+    row.innerHTML=
+      '<div class="rank-badge '+(isTop3?badgeClasses[i]:'plain')+'">'+(isTop3?medals[i]:rank)+'</div>'+
+      '<div class="rank-player">'+
+        '<div class="rank-name">'+esc(s.player_name)+'</div>'+
+        '<div class="rank-meta"><span>'+esc(s.city_flag||'🇨🇦')+'</span><span>'+esc(s.city_reached||'Vancouver')+'</span><span>· '+(s.best_combo||0)+'× combo</span></div>'+
+      '</div>'+
+      '<div class="rank-right"><div class="rank-score">'+(s.score||0).toLocaleString()+'</div></div>';
     list.appendChild(row);
   });
 }
 
-// Countdown timer
-function getSecsUntilReset(resetAt){
-  const now=new Date(),reset=new Date(resetAt);
-  if(isNaN(reset)||reset<now){
-    // Default to midnight UTC
-    const midnight=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1));
-    return Math.floor((midnight-now)/1000);
-  }
-  return Math.floor((reset-now)/1000);
+function getSecsUntilUtcMidnight(){
+  const now=new Date();
+  const midnight=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1));
+  return Math.floor((midnight-now)/1000);
 }
-function fmt(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
+function fmt(s){s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
 
-let resetSeconds=0;
-setInterval(()=>{if(resetSeconds>0)resetSeconds--;document.getElementById('timerDisplay').textContent=fmt(resetSeconds);},1000);
+function updateTimerUi(){
+  const section=document.getElementById('timerSection');
+  const label=document.getElementById('timerLabel');
+  if(activeBoard==='daily'){
+    section.style.display='';
+    label.textContent='Resets in (UTC)';
+    document.getElementById('timerDisplay').textContent=fmt(getSecsUntilUtcMidnight());
+  }else{
+    section.style.display='none';
+  }
+}
 
-// Load everything
+async function refreshBoard(){
+  try{
+    if(activeBoard==='daily'){
+      const[scores,count]=await Promise.all([fetchDailyScores(),fetchTodayRunCount()]);
+      renderList(scores,'daily');
+      document.getElementById('runnerCount').textContent=count+' runner'+(count===1?'':'s')+' today';
+      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · UTC day';
+    }else{
+      const[scores,count]=await Promise.all([fetchEventScores(),fetchEventSubmissionCount()]);
+      renderList(scores,'event');
+      document.getElementById('runnerCount').textContent=count+' run'+(count===1?'':'s')+' (event total)';
+      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · All time';
+    }
+  }catch(e){
+    console.error(e);
+    document.getElementById('rankList').innerHTML='<div class="loading">Could not load leaderboard.</div>';
+  }
+}
+
+function setBoard(board){
+  activeBoard=board;
+  document.querySelectorAll('.board-toggle .toggle-btn').forEach(b=>{
+    const on=b.getAttribute('data-board')===board;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-selected',on?'true':'false');
+  });
+  const scope=document.getElementById('titleScope');
+  if(scope)scope.textContent=board==='daily'?'Daily':'Event';
+  updateTimerUi();
+  refreshBoard();
+}
+
+setInterval(updateTimerUi,1000);
+
+document.querySelectorAll('.board-toggle .toggle-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>setBoard(btn.getAttribute('data-board')));
+});
+
 (async()=>{
-  const[scores,settings,count]=await Promise.all([fetchScores(),fetchSettings(),fetchCount()]);
-  renderList(scores);
-  document.getElementById('runnerCount').textContent=count+' runner'+(count===1?'':'s')+' today';
-  document.getElementById('boardCount').textContent=`Top ${scores.length} · Resets Daily`;
-  const resetSetting=settings.find(s=>s.key==='leaderboard_reset_at');
-  resetSeconds=getSecsUntilReset(resetSetting?.value);
-  document.getElementById('timerDisplay').textContent=fmt(resetSeconds);
+  updateTimerUi();
+  await refreshBoard();
 })();
 
-// Auto-refresh every 30 seconds
-setInterval(async()=>{const scores=await fetchScores();renderList(scores);},30000);
+setInterval(()=>{refreshBoard();},30000);
 </script>
 <!-- Start of HubSpot Embed Code -->
 <script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/8513866.js"></script>
