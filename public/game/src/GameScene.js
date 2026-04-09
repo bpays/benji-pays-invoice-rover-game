@@ -172,7 +172,6 @@ class GameScene extends Phaser.Scene {
     const n = Math.random() < 0.28 ? 2 : 1;
     const lanes = [0,1,2].sort(() => Math.random()-0.5).slice(0, n);
     const types = [
-      { label:'📄', color:0xE84040, name:'CHECK'   },
       { label:'⚠️', color:0xff8800, name:'OVERDUE'  },
       { label:'😤', color:0xff5555, name:'CLIENT'   },
     ];

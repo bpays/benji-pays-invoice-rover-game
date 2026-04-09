@@ -39,6 +39,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .form-group input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:var(--white);font-family:'Barlow',sans-serif;font-size:16px;font-weight:500;padding:13px 15px;outline:none;transition:border-color .2s;width:100%;}
   .form-group input::placeholder{color:var(--muted);}
   .form-group input:focus{border-color:var(--cooper);}
+  #startFormError{display:none;font-size:12px;font-weight:600;color:var(--bad);text-align:center;width:88%;max-width:320px;margin:-2px auto 10px;line-height:1.4;position:relative;z-index:1;}
   .btn-play{background:linear-gradient(135deg,var(--cooper),#e89565);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:12px;padding:16px 0;cursor:pointer;width:88%;max-width:320px;box-shadow:0 4px 24px rgba(204,125,81,.35);transition:transform .1s;position:relative;z-index:1;}
   .btn-play:active{transform:scale(.97);}
   .hint-text{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:14px;position:relative;z-index:1;}
@@ -138,14 +139,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
     <div class="legend-strip">
       <div class="legend-card good"><span class="legend-icon">💸⚡💵🔄</span>COLLECT</div>
-      <div class="legend-card bad"><span class="legend-icon">📄⚠️😤</span>DODGE</div>
+      <div class="legend-card bad"><span class="legend-icon">⚠️😤</span>DODGE</div>
       <div class="legend-card pu"><span class="legend-icon" style="font-size:7px;font-weight:800;letter-spacing:0;line-height:1.25;display:block;">HaloPSA · ScalePad · Moneris · Elavon</span>PARTNER BOOSTS</div>
     </div>
     <div class="form-group">
-      <input type="text" id="playerName" placeholder="Your name" maxlength="30"/>
-      <input type="email" id="playerEmail" placeholder="Email (for leaderboard)"/>
+      <input type="text" id="playerName" placeholder="Your name" maxlength="30" required autocomplete="name"/>
+      <input type="email" id="playerEmail" placeholder="Work email (no Gmail, Yahoo…)" maxlength="255" required autocomplete="email"/>
     </div>
-    <button class="btn-play" id="playBtn">RUN WITH BENJI →</button>
+    <div id="startFormError" role="alert"></div>
+    <button class="btn-play" id="playBtn" type="button">RUN WITH BENJI →</button>
     <div id="gamepadIndicator" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:12px;background:rgba(77,201,122,0.1);border:1px solid rgba(77,201,122,0.35);border-radius:20px;padding:7px 16px;width:88%;max-width:320px;animation:gpPulse 2s ease-in-out infinite;"><span style="font-size:18px">🎮</span><span style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--good);">Controller Connected</span></div>
     <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;background:rgba(204,125,81,0.1);border:1px solid rgba(204,125,81,0.25);border-radius:20px;padding:7px 16px;width:88%;max-width:320px;"><span style="font-size:18px">🎧</span><span style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--cooper);">Headphones on for the full experience</span></div>
     <div style="margin-top:14px;width:88%;max-width:320px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;"><div style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">How to Play</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>👆</span>Tap to jump</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>👈👉</span>Swipe lanes</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>✅</span>Collect payments</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>❌</span>Dodge invoices</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>⚡</span>Grab power-ups</div><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(248,248,248,0.7);"><span>🔥</span>Build combo</div></div></div>
@@ -203,8 +205,19 @@ async function submitScore(data) {
       },
       body: JSON.stringify(data)
     });
-    return res.ok;
-  } catch(e) { console.warn('Score submit failed:', e); return false; }
+    let body = {};
+    try {
+      body = await res.json();
+    } catch (_) { /* non-JSON */ }
+    if (!res.ok) {
+      const msg = body && body.error ? String(body.error) : 'Could not submit.';
+      return { ok: false, code: body && body.code, error: msg };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.warn('Score submit failed:', e);
+    return { ok: false, code: 'network', error: 'Connection problem. Try again.' };
+  }
 }
 
 async function supaSelect(table, params='') {
@@ -217,6 +230,97 @@ async function supaSelect(table, params='') {
     });
     return res.ok ? await res.json() : [];
   } catch(e) { console.warn('Supabase select failed:', e); return []; }
+}
+
+/** Keep hostnames in sync with supabase/functions/submit-score/index.ts */
+const BP_BLOCKED_EMAIL_DOMAINS = new Set([
+  'gmail.com','googlemail.com','yahoo.com','yahoo.co.uk','yahoo.ca','yahoo.fr','yahoo.de',
+  'hotmail.com','hotmail.co.uk','outlook.com','live.com','msn.com','icloud.com','me.com','mac.com',
+  'aol.com','protonmail.com','proton.me','pm.me','gmx.com','gmx.de','gmx.net','mail.com',
+  'yandex.com','yandex.ru','qq.com','163.com','126.com','sina.com','inbox.com','hey.com',
+  'fastmail.com','tutanota.com','tutanota.de','mailfence.com'
+]);
+const BP_RESERVED_NAME_TOKENS = new Set([
+  'anonymous','admin','administrator','moderator','mod','root','null','undefined','benjipays','support','official'
+]);
+const BP_NAME_ALLOWED = /^[\p{L}\p{M}0-9\s.'-]+$/u;
+const BP_MIN_NAME = 2;
+const BP_MAX_NAME = 30;
+
+async function ensureProfanityChecker() {
+  if (window.__bpProfanityCheck) return window.__bpProfanityCheck;
+  try {
+    const { RegExpMatcher, englishDataset, englishRecommendedTransformers } = await import('https://esm.sh/obscenity@0.4.6');
+    const matcher = new RegExpMatcher({
+      ...englishDataset.build(),
+      ...englishRecommendedTransformers
+    });
+    window.__bpProfanityCheck = function (s) { return matcher.hasMatch(s); };
+  } catch (e) {
+    console.warn('Profanity checker load failed:', e);
+    window.__bpProfanityCheck = function () { return false; };
+  }
+  return window.__bpProfanityCheck;
+}
+
+async function validatePlayerForm() {
+  const nameRaw = document.getElementById('playerName').value;
+  const emailRaw = document.getElementById('playerEmail').value;
+  let name = nameRaw.normalize('NFKC').trim().replace(/\s+/g, ' ');
+  if (name.length < BP_MIN_NAME) {
+    return { ok: false, error: 'Please enter your name (at least 2 characters).' };
+  }
+  if (name.length > BP_MAX_NAME) {
+    return { ok: false, error: 'Name is too long.' };
+  }
+  if (!BP_NAME_ALLOWED.test(name)) {
+    return { ok: false, error: "Name can only use letters, numbers, spaces, and . ' -" };
+  }
+  const nl = name.toLowerCase();
+  if (nl.includes('http') || nl.includes('www.') || nl.includes('://') || nl.includes('<') || nl.includes('>') || nl.includes('@') || /[\r\n]/.test(name)) {
+    return { ok: false, error: 'That name isn’t allowed.' };
+  }
+  if (/(.)\1{7,}/u.test(name)) {
+    return { ok: false, error: 'That name isn’t allowed.' };
+  }
+  const lettersDigits = name.replace(/[^\p{L}\p{M}0-9]/gu, '');
+  if (lettersDigits.length > 0 && /^\d+$/u.test(lettersDigits)) {
+    return { ok: false, error: 'Please use your real name.' };
+  }
+  const tokens = name.toLowerCase().split(/[^\p{L}\p{M}0-9]+/u).filter(Boolean);
+  for (let i = 0; i < tokens.length; i++) {
+    if (BP_RESERVED_NAME_TOKENS.has(tokens[i])) {
+      return { ok: false, error: 'That name isn’t allowed.' };
+    }
+  }
+  const profanityCheck = await ensureProfanityChecker();
+  if (profanityCheck(name)) {
+    return { ok: false, error: 'That name isn’t allowed.' };
+  }
+  const email = emailRaw.trim();
+  if (!email) {
+    return { ok: false, error: 'Please enter your work email.' };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: 'That email doesn’t look valid.' };
+  }
+  const at = email.lastIndexOf('@');
+  const domain = at > 0 ? email.slice(at + 1).toLowerCase().trim() : '';
+  if (BP_BLOCKED_EMAIL_DOMAINS.has(domain)) {
+    return { ok: false, error: 'Please use your work email, not Gmail, Yahoo, etc.' };
+  }
+  return { ok: true, name: name, email: email };
+}
+
+function showStartFormError(msg) {
+  const el = document.getElementById('startFormError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function clearStartFormError() {
+  const el = document.getElementById('startFormError');
+  el.textContent = '';
+  el.style.display = 'none';
 }
 
 // Track if player lead already captured this session
@@ -265,7 +369,6 @@ const puImageCache={};
 PU_TYPES.forEach(t=>{if(!t.img)return;const im=new Image();im.src=t.img;puImageCache[t.id]=im;});
 const OBS_BADGE='/game/assets/obstacles/dodge.png';
 const OBS=[
-  {id:'paper',label:'📄',name:'PAPER CHECK',color:B.bad,size:34},
   {id:'overdue',label:'⚠️',name:'OVERDUE INVOICE',color:B.bad,size:33,img:'/game/assets/obstacles/overdue-invoice.png'},
   {id:'angry',label:'😤',name:'ANGRY CLIENT',color:B.bad,size:33,img:'/game/assets/obstacles/angry-client.png'}
 ];
@@ -747,7 +850,7 @@ function endGame(){
   state='over';const fs=Math.floor(score);
   const isNew=fs>highScore;if(isNew){highScore=fs;localStorage.setItem('benjiHS',String(highScore));}
   document.getElementById('hsBadge').style.display=isNew?'block':'none';
-  const n=playerName||'Anonymous';
+  const n=playerName;
   document.getElementById('finalScore').textContent=fs;
   document.getElementById('finalCombo').textContent=maxCombo;
   document.getElementById('finalCity').textContent=currentCity.flag+' '+currentCity.name;
@@ -755,16 +858,17 @@ function endGame(){
   document.getElementById('overCity').textContent='IN '+currentCity.name.toUpperCase();
   document.getElementById('shareCopy').textContent=n+' scored '+fs+' pts in Benji Pays: Invoice Rover! Reached '+currentCity.name+'. Can you beat me? 🐕💸 benjipays.com/run';
   document.getElementById('gameOverScreen').classList.remove('hidden');var osb=document.getElementById('overSoundBtn');if(osb)osb.textContent=soundOn?'🔊 Music On':'🔇 Music Off';playCount++;if(soundOn){try{const ac=getAC();[220,196,174,155].forEach((f,i)=>{setTimeout(()=>{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.4);o.start();o.stop(ac.currentTime+0.4);},i*120);});}catch(e){}}stopMusic(800);
-  // Submit score to Supabase
+  const emailField = document.getElementById('playerEmail');
+  const emailTrim = emailField && emailField.value ? emailField.value.trim() : '';
   submitScore({
     player_name: n,
-    email: document.getElementById('playerEmail').value.trim()||null,
+    email: emailTrim,
     score: fs,
     city_reached: currentCity.name,
     city_flag: currentCity.flag,
     best_combo: maxCombo,
     event_tag: 'nable-empower-2026'
-  });
+  }).then(function (r) { if (r && !r.ok) console.warn('Final score submit:', r.code, r.error); });
 }
 
 let txS=0,tyS=0,ttS=0;
@@ -791,26 +895,45 @@ function toggleSoundFromGameOver(){
   else stopMusic();
 }
 function doJump(){isJumping=true;jumpVy=JUMP*vScale();sJump();}
-function startGame(){
-  playerName=document.getElementById('playerName').value.trim()||'Anonymous';
-  const email=document.getElementById('playerEmail').value.trim();
-  // Save to localStorage for returning users
-  try{localStorage.setItem('bp_playerName',playerName);if(email)localStorage.setItem('bp_playerEmail',email);}catch(e){}
+async function startGame(){
+  const v = await validatePlayerForm();
+  if (!v.ok) {
+    showStartFormError(v.error);
+    return;
+  }
+  clearStartFormError();
+  playerName = v.name;
+  const email = v.email;
+  try {
+    localStorage.setItem('bp_playerName', v.name);
+    localStorage.setItem('bp_playerEmail', email);
+  } catch (e) { /* ignore */ }
+  if (!leadCaptured) {
+    leadCaptured = true;
+    const r = await submitScore({
+      player_name: v.name,
+      email: email,
+      score: 0,
+      city_reached: 'Vancouver',
+      city_flag: '🇨🇦',
+      best_combo: 0,
+      event_tag: 'nable-empower-2026'
+    });
+    if (!r.ok) {
+      leadCaptured = false;
+      showStartFormError(r.error || 'Could not save your info. Try again.');
+      return;
+    }
+  }
   document.getElementById('startScreen').classList.add('hidden');
   state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);
-  // Lead capture — write to Supabase on first play
-  if(!leadCaptured){
-    leadCaptured=true;
-    submitScore({player_name:playerName,email:email||null,score:0,city_reached:'Vancouver',city_flag:'🇨🇦',best_combo:0,event_tag:'nable-empower-2026'});
-  }
-  // Start game music — swapToDayMusic handles crossfade from title music
   if(soundOn) setTimeout(()=>swapToDayMusic('Vancouver'), 200);
 }
 // Restore saved name/email on page load
 try{const sn=localStorage.getItem('bp_playerName');const se=localStorage.getItem('bp_playerEmail');if(sn)document.getElementById('playerName').value=sn;if(se)document.getElementById('playerEmail').value=se;}catch(e){}
 // Title music starts on first interaction with Play button or sound toggle
 // Music during gameplay starts in startGame() directly
-document.getElementById('playBtn').addEventListener('click',()=>{ getAC(); startGame();});
+document.getElementById('playBtn').addEventListener('click',function(){ getAC(); void startGame(); });
 document.getElementById('retryBtn').addEventListener('click',()=>{
   document.getElementById('gameOverScreen').classList.add('hidden');
   if(playCount>=2){playCount=0;document.getElementById('ctaScreen').classList.remove('hidden');return;}
@@ -830,8 +953,10 @@ document.getElementById('soundBtn').addEventListener('click',()=>{
     stopMusic();
   }
 });
-document.getElementById('playerEmail').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
-document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('playerEmail').focus();});
+document.getElementById('playerEmail').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); getAC(); void startGame(); } });
+document.getElementById('playerName').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('playerEmail').focus(); } });
+document.getElementById('playerName').addEventListener('input',clearStartFormError);
+document.getElementById('playerEmail').addEventListener('input',clearStartFormError);
 document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
 document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();document.getElementById('ctaScreen').classList.add('hidden');state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');});
 
@@ -852,7 +977,7 @@ document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.pre
         if((p.buttons[0]&&p.buttons[0].pressed)||(p.buttons[3]&&p.buttons[3].pressed)||(p.buttons[9]&&p.buttons[9].pressed)){
           var ss=document.getElementById('startScreen');
           var cs=document.getElementById('ctaScreen');
-          if(ss&&!ss.classList.contains('hidden')){gpStartFired=true;getAC();startGame();break;}
+          if(ss&&!ss.classList.contains('hidden')){gpStartFired=true;getAC();void startGame();break;}
           if(cs&&!cs.classList.contains('hidden')){gpStartFired=true;document.getElementById('ctaSkipBtn').click();break;}
         }
       }
