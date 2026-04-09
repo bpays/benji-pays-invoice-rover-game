@@ -285,7 +285,7 @@ function validateDisplayName(raw: string): { ok: true; name: string } | {
     }
   }
 
-  if (profanityMatcher.hasMatch(name)) {
+  if (hasProfanity(name)) {
     return {
       ok: false,
       code: "invalid_name",
