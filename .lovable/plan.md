@@ -1,29 +1,16 @@
 
 
-## Cleanup Plan
+## Apply Database Migration
 
-### 1. Create `.gitignore`
-Add a `.gitignore` file with standard entries:
-- `node_modules/`, `.env`, `dist/`, `.DS_Store`, `tsconfig.tsbuildinfo`, etc.
-- This ensures `.env` and other sensitive/generated files won't be pushed to GitHub.
+Execute the SQL from `supabase/migrations/20260409180000_daily_event_leaderboard_rpcs.sql` to create three missing database functions:
 
-### 2. Delete unnecessary files
-| File/Folder | Reason |
-|---|---|
-| `netlify.toml` | Netlify-specific, not used |
-| `admin/` | Duplicate of `public/admin/` |
-| `game/` | Duplicate of `public/game/` |
-| `leaderboard/` | Duplicate of `public/leaderboard/` |
-| `strategy/` | Duplicate of `public/strategy/` |
-| `docs/` | Setup SQL notes, already applied |
-| `package-lock.json` | Redundant with `bun.lock` |
-| `tsconfig.tsbuildinfo` | Generated build cache |
+1. **`get_daily_leaderboard(p_event_tag, p_limit)`** — Returns best score per player for current UTC day, optional event filtering
+2. **`get_event_submission_count(p_event_tag)`** — Returns count of non-flagged submissions for an event
+3. **`reset_event_scores(p_event_tag)`** — Admin-only: deletes all scores for a given event tag
 
-### What stays
-- `public/` (all static assets served by Vite)
-- `src/`, `supabase/`, `.lovable/`
-- `index.html`, `vite.config.ts`, `tsconfig.json`, `package.json`, `bun.lock`
-- `README.md`, `.env` (kept locally but excluded from git)
+Permissions:
+- `anon` and `authenticated` get EXECUTE on the two read functions
+- Only `authenticated` gets EXECUTE on the reset function (with internal admin check)
 
-No functionality changes — the live site serves from `public/`.
+No table changes — only new functions and grants.
 
