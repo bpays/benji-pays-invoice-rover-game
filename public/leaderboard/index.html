@@ -1,15 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-57VP7RXX');</script>
+<!-- End Google Tag Manager -->
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Benji Pays: Invoice Rover — Leaderboard</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap');
 :root{--cerulean:#004777;--charcoal:#002843;--cooper:#CC7D51;--cameo:#D9B59D;--white:#F8F8F8;--good:#4DC97A;--muted:#7ba3be;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;min-height:100%;background:var(--charcoal);font-family:'Barlow',sans-serif;color:var(--white);}
-.page{max-width:480px;margin:0 auto;padding-bottom:40px;position:relative;}
+.page{max-width:480px;margin:0 auto;padding-bottom:max(120px,calc(72px + env(safe-area-inset-bottom,34px)));position:relative;}
 .bg{position:fixed;inset:0;z-index:0;pointer-events:none;}
 .bg-grad{position:absolute;inset:0;background:linear-gradient(180deg,#001e36 0%,var(--charcoal) 100%);}
 .orb1{position:absolute;width:300px;height:300px;background:var(--cerulean);border-radius:50%;filter:blur(80px);opacity:.1;top:-60px;right:-80px;}
@@ -38,8 +45,7 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
   .board-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
   .board-title{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
   .board-count{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.25);}
-  .rank-list{display:flex;flex-direction:column;gap:7px;padding-bottom:40px;}
-.rank-list{display:flex;flex-direction:column;gap:7px;}
+  .rank-list{display:flex;flex-direction:column;gap:7px;padding-bottom:max(48px,calc(24px + env(safe-area-inset-bottom,20px)));}
 .rank-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;background:linear-gradient(135deg,rgba(0,71,119,.14) 0%,rgba(0,40,67,.06) 100%);border:1px solid rgba(255,255,255,.07);position:relative;overflow:hidden;animation:rowIn .4s ease both;}
 @keyframes rowIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 .rank-row.r1{background:linear-gradient(135deg,rgba(255,215,0,.07) 0%,rgba(0,40,67,.08) 100%);border-color:rgba(255,215,0,.14);}
@@ -66,6 +72,10 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
 </style>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-57VP7RXX"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 <div class="bg"><div class="bg-grad"></div><div class="orb1"></div><div class="orb2"></div></div>
 <div class="page">
   <header>
@@ -202,5 +212,8 @@ setInterval(()=>{if(resetSeconds>0)resetSeconds--;document.getElementById('timer
 // Auto-refresh every 30 seconds
 setInterval(async()=>{const scores=await fetchScores();renderList(scores);},30000);
 </script>
+<!-- Start of HubSpot Embed Code -->
+<script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/8513866.js"></script>
+<!-- End of HubSpot Embed Code -->
 </body>
 </html>

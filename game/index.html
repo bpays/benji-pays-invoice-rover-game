@@ -1,8 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-57VP7RXX');</script>
+<!-- End Google Tag Manager -->
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Benji Pays: Invoice Rover</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap');
@@ -49,13 +56,13 @@
   .city-pill{background:linear-gradient(135deg,rgba(0,40,67,0.95),rgba(0,71,119,0.9));border:1px solid rgba(0,71,119,0.6);backdrop-filter:blur(12px);border-radius:30px;padding:10px 22px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:3px;text-transform:uppercase;color:#fff;box-shadow:0 4px 24px rgba(0,71,119,0.5),0 0 0 1px rgba(255,255,255,0.06);}  .city-pill .city-sub{display:block;font-size:9px;font-weight:700;letter-spacing:4px;color:rgba(204,125,81,0.9);margin-bottom:2px;}
   #powerupBanner{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) scale(.85);z-index:7;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-align:center;}
   #powerupBanner.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
-  .pu-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:var(--cooper);letter-spacing:2px;text-transform:uppercase;text-shadow:0 0 20px rgba(204,125,81,.7);}
+  .pu-name{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(14px,4.2vw,22px);color:var(--cooper);letter-spacing:1px;line-height:1.15;text-transform:uppercase;text-shadow:0 0 20px rgba(204,125,81,.7);}
   .pu-effect{font-size:11px;letter-spacing:2px;color:rgba(248,248,248,.6);text-transform:uppercase;margin-top:3px;}
   #soundBtn{position:absolute;bottom:16px;right:14px;z-index:8;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:#fff;transition:background .2s;}
   #nightOverlay{position:absolute;inset:0;background:rgba(0,10,28,.58);z-index:4;pointer-events:none;opacity:0;transition:opacity .9s ease;}
   .score-pop{position:absolute;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;pointer-events:none;z-index:9;animation:scorePop .85s ease-out forwards;}
   @keyframes scorePop{0%{opacity:1;transform:translateY(0) scale(1.1);}100%{opacity:0;transform:translateY(-48px) scale(.75);}}
-  #gameOverScreen{background:rgba(0,18,36,.96);backdrop-filter:blur(14px);justify-content:flex-start;padding-top:max(40px,env(safe-area-inset-top,40px));}
+  #gameOverScreen{background:rgba(0,18,36,.96);backdrop-filter:blur(14px);justify-content:flex-start;padding-top:max(40px,env(safe-area-inset-top,40px));padding-bottom:max(100px,calc(56px + env(safe-area-inset-bottom,34px)));touch-action:pan-y;}
   .over-logo{width:clamp(120px,36vw,160px);height:auto;margin-bottom:10px;}
   .over-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(46px,13vw,62px);color:var(--cooper);letter-spacing:1px;line-height:1;margin-bottom:3px;}
   .over-city{font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:22px;}
@@ -73,18 +80,26 @@
   .btn-share:active{transform:scale(.96);}
   .hs-badge{font-size:11px;color:var(--cooper);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;font-weight:800;}
   #ctaScreen{background:rgba(0,18,36,.97);backdrop-filter:blur(14px);}
-  .cta-logo{width:clamp(100px,30vw,140px);height:auto;margin-bottom:16px;}
+  .cta-logo{display:block;width:min(96%,420px);max-height:clamp(88px,22vw,132px);height:auto;margin-bottom:20px;object-fit:contain;object-position:center;}
   .cta-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(28px,8vw,38px);color:var(--white);letter-spacing:1px;text-align:center;line-height:1.15;margin-bottom:6px;}
   .cta-title em{font-style:normal;color:var(--cooper);}
   .cta-sub{font-size:13px;color:var(--muted);text-align:center;line-height:1.5;max-width:300px;margin-bottom:24px;}
-  .cta-btn{background:linear-gradient(135deg,var(--cooper),#e89565);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:12px;padding:16px 40px;cursor:pointer;box-shadow:0 4px 24px rgba(204,125,81,.35);transition:transform .1s;margin-bottom:12px;}
+  .cta-btn{display:flex;align-items:center;justify-content:center;width:88%;max-width:320px;margin-left:auto;margin-right:auto;text-decoration:none;background:linear-gradient(135deg,var(--cooper),#e89565);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:12px;padding:16px 40px;cursor:pointer;box-shadow:0 4px 24px rgba(204,125,81,.35);transition:transform .1s,opacity .15s;margin-bottom:12px;}
+  .cta-btn:hover{opacity:.95;}
   .cta-btn:active{transform:scale(.97);}
-  .cta-link{font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer;margin-bottom:20px;}
-  .cta-skip{font-size:11px;color:rgba(255,255,255,.35);cursor:pointer;letter-spacing:1px;text-transform:uppercase;}
+  .cta-link{display:inline-block;font-size:clamp(15px,4.2vw,18px);font-weight:600;color:var(--cameo);text-decoration:none;cursor:pointer;margin-bottom:22px;transition:color .15s,opacity .15s;}
+  .cta-link:hover{color:var(--white);opacity:.95;}
+  .cta-skip{display:flex;align-items:center;justify-content:center;width:88%;max-width:320px;margin:8px auto 0;font-size:clamp(14px,4vw,17px);font-family:'Barlow Condensed',sans-serif;font-weight:800;color:var(--white);cursor:pointer;letter-spacing:1.5px;text-transform:uppercase;padding:14px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.2);transition:background .15s,border-color .15s,transform .1s;}
+  .cta-skip:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);}
+  .cta-skip:active{transform:scale(.98);}
   @keyframes gpPulse{0%,100%{opacity:.85;}50%{opacity:1;}}
 </style>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-57VP7RXX"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 <div id="app"><div id="gameWrap">
   <canvas id="gameCanvas"></canvas>
   <div id="nightOverlay"></div>
@@ -121,7 +136,7 @@
     <div class="legend-strip">
       <div class="legend-card good"><span class="legend-icon">💸⚡💵🔄</span>COLLECT</div>
       <div class="legend-card bad"><span class="legend-icon">📄⚠️😤</span>DODGE</div>
-      <div class="legend-card pu"><span class="legend-icon">🛡️⚡🚫💫</span>POWER-UPS</div>
+      <div class="legend-card pu"><span class="legend-icon" style="font-size:7px;font-weight:800;letter-spacing:0;line-height:1.25;display:block;">HaloPSA · ScalePad · Moneris · Elavon</span>PARTNER BOOSTS</div>
     </div>
     <div class="form-group">
       <input type="text" id="playerName" placeholder="Your name" maxlength="30"/>
@@ -160,15 +175,12 @@
 
   <!-- CTA SCREEN -->
   <div class="screen hidden" id="ctaScreen">
-    <svg class="cta-logo" viewBox="100 155 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <g clip-path="url(#cc)"><path d="M250.228 178.284C248.008 178.325 245.87 178.867 244.019 180.199C241.758 181.782 240.606 183.947 240.771 186.737C241.593 199.771 246.404 209.848 255.08 219.467C255.944 220.425 256.314 221.341 256.273 222.59C256.191 225.963 256.232 229.295 256.273 232.668C256.273 233.625 255.944 233.875 254.998 233.958C253.6 234.042 252.819 233.542 252.079 232.293C244.8 220.05 234.438 211.763 220.992 207.474C212.768 204.851 204.338 204.393 195.826 205.767C195.703 205.809 195.538 205.809 195.415 205.85C193.441 206.267 192.989 207.433 194.017 209.182C195.703 212.138 197.43 215.095 198.951 218.135C201.295 222.84 202.899 227.795 204.132 232.876C204.338 233.667 204.091 233.958 203.31 233.958C201.007 233.958 198.704 233.917 196.443 233.958C195.456 234 195.127 233.584 194.798 232.668C193.4 228.67 192.249 224.506 190.439 220.716C184.271 207.724 174.772 197.897 162.19 191.109C152.362 185.821 141.876 183.197 130.732 183.239C128.8 183.239 126.826 183.197 124.893 183.239C123.989 183.281 123.413 182.906 123.043 182.073C122.138 180.158 121.151 175.785 120.247 173.911C119.63 172.62 120.165 171.704 121.604 171.704C125.058 171.663 128.512 171.663 131.966 171.704C133.282 171.788 137.682 169.081 139.08 167.207C139.614 166.499 140.231 166.166 141.095 166.208C142.411 166.249 143.685 166.249 145.001 166.208C146.07 166.166 146.934 166.582 147.674 167.332C149.113 168.789 149.812 170.58 149.936 172.62C150.224 177.326 153.76 180.741 158.242 180.657C161.449 180.616 164.451 178.45 165.603 175.244C165.89 174.494 166.26 174.161 167.042 174.244C167.535 174.286 168.07 174.244 168.563 174.244C205.448 174.244 219.758 174.244 256.643 174.244C257.095 174.244 257.794 174.078 258 174.494C258.206 174.952 257.548 175.41 257.219 175.744C256.273 176.618 254.587 178.2 250.228 178.284Z" fill="#CC7D51"/><path d="M178.185 207.599C177.651 207.683 177.157 207.807 176.705 207.849C172.84 208.182 168.933 208.474 165.068 208.765C163.341 208.89 162.313 209.265 162.272 210.223C162.231 211.014 162.765 211.347 164.287 211.972C165.52 212.513 166.754 213.013 168.029 213.512C169.303 213.97 168.81 216.469 168.481 217.26C168.152 218.051 167.987 219.009 166.754 218.468C163.341 217.052 159.846 215.636 156.433 214.179C155.98 213.97 154.788 212.929 154.5 212.471C153.965 211.68 153.349 211.305 153.349 208.849C153.965 203.56 162.436 200.687 169.015 200.229C169.55 200.187 175.924 203.56 178.103 206.891C178.144 207.058 178.144 207.224 178.185 207.599Z" fill="#CC7D51"/><path d="M154.007 165.042C154.706 165.042 155.446 164.917 156.104 165.083C156.885 165.291 157.79 165.583 158.242 166.124C160.298 168.581 161.408 169.456 163.3 172.037C163.67 172.537 163.793 173.495 163.588 174.078C162.683 176.909 160.092 178.45 157.255 178.034C154.5 177.659 152.156 175.202 152.033 172.371C151.951 169.622 151.293 168.706 149.977 166.333C149.442 165.333 149.853 165.042 150.799 165.042C151.622 165.042 153.225 165.042 154.007 165.042Z" fill="#CC7D51"/><path d="M221.485 210.972C222.554 210.431 226.173 212.138 229.504 214.179C230.408 214.72 231.395 215.803 231.724 216.885C233.122 221.091 234.232 225.422 235.631 229.669C236.494 232.334 235.959 233.667 232.999 233.5C230.984 233.417 229.791 234.167 228.928 231.793C226.707 225.505 224.734 221.299 222.266 215.136C221.609 213.512 220.539 211.43 221.485 210.972Z" fill="#CC7D51"/></g>
-      <defs><clipPath id="cc"><rect width="138" height="69" fill="white" transform="translate(120 165)"/></clipPath></defs>
-    </svg>
+    <img class="cta-logo" src="assets/ui/logo-white.svg" alt="Benji Pays" width="420" height="210" decoding="async" />
     <div class="cta-title">Stop Chasing <em>Invoices</em>.<br>Start Getting <em>Paid</em>.</div>
     <div class="cta-sub">Benji Pays automates your entire A/R — invoicing, reminders, collections, and reconciliation. All while keeping your processor.</div>
-    <a class="cta-btn" id="ctaBookBtn" href="https://benjipays.com/demo" target="_blank" rel="noopener">Book a Demo →</a>
-    <a class="cta-link" id="ctaLearnBtn" href="https://benjipays.com" target="_blank" rel="noopener">Learn more at benjipays.com</a>
-    <button class="cta-skip" id="ctaSkipBtn" type="button" style="background:none;border:none;padding:10px 20px;" onclick="document.getElementById('ctaScreen').classList.add('hidden');state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');">Play again ↩</button>
+    <a class="cta-btn" id="ctaBookBtn" href="https://calendly.com/d/cxs6-fc3-yyv/benji-pays-demo-n-able-empower" target="_blank" rel="noopener noreferrer">Book a Demo →</a>
+    <a class="cta-link" id="ctaLearnBtn" href="https://benjipays.com" target="_blank" rel="noopener noreferrer">Learn more at benjipays.com</a>
+    <button class="cta-skip" id="ctaSkipBtn" type="button" onclick="document.getElementById('ctaScreen').classList.add('hidden');state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');">Play again ↩</button>
   </div>
 </div></div>
 
@@ -240,7 +252,14 @@ const SKY={
   'Cyber City':[{x:.03,w:.05,h:.35},{x:.12,w:.04,h:.52},{x:.2,w:.07,h:.28},{x:.3,w:.03,h:.6,t:'antenna'},{x:.38,w:.06,h:.4},{x:.48,w:.05,h:.32},{x:.56,w:.08,h:.48},{x:.66,w:.04,h:.35},{x:.74,w:.06,h:.55},{x:.84,w:.05,h:.3},{x:.92,w:.04,h:.42}],
 };
 
-const PU_TYPES=[{name:'AUTO-PAY SHIELD',effect:'INVINCIBILITY · 15s',color:B.cerulean,emoji:'🛡️',dur:15*60},{name:'INSTANT PAY BOOST',effect:'SPEED + 2× SCORE · 12s',color:'#f5c842',emoji:'⚡',dur:12*60},{name:'PAID IN FULL',effect:'ALL OBSTACLES CLEARED 💰',color:B.cooper,emoji:'💰',dur:0},{name:'PAYMENT STREAK',effect:'DOUBLE POINTS · 15s',color:B.good,emoji:'💫',dur:15*60}];
+const PU_TYPES=[
+  {id:'halopsa',name:'HaloPSA Shield',effect:'INVINCIBILITY · 15s',color:B.cerulean,emoji:'🛡️',dur:15*60,img:'/game/assets/partners/halopsa.png'},
+  {id:'scalepad',name:'ScalePad Boost',effect:'2× SCORE · 12s',color:'#f5c842',emoji:'⚡',dur:12*60,img:'/game/assets/partners/scalepad.png'},
+  {id:'moneris',name:'Moneris Paid In Full',effect:'ALL OBSTACLES CLEARED',color:B.cooper,emoji:'💰',dur:0,img:'/game/assets/partners/moneris.png'},
+  {id:'elavon',name:'Elavon Payment Streak',effect:'DOUBLE POINTS · 15s',color:B.good,emoji:'💫',dur:15*60,img:'/game/assets/partners/elavon.png'}
+];
+const puImageCache={};
+PU_TYPES.forEach(t=>{if(!t.img)return;const im=new Image();im.src=t.img;puImageCache[t.id]=im;});
 const OBS=[{label:'📄',name:'PAPER CHECK',color:B.bad,size:34},{label:'⚠️',name:'OVERDUE INVOICE',color:B.bad,size:33},{label:'😤',name:'ANGRY CLIENT',color:B.bad,size:33}];
 const COL=[{label:'💸',name:'ACH',color:B.good,size:30,pts:20},{label:'⚡',name:'INSTANT',color:B.good,size:28,pts:30},{label:'💵',name:'DOLLAR',color:B.good,size:28,pts:15},{label:'🔄',name:'AUTO-PAY',color:B.good,size:28,pts:25}];
 
@@ -472,16 +491,34 @@ function activateNight(){
     else swapToDayMusic(currentCity.name, 800);
   }
 }
-function activatePU(t){sPU();document.getElementById('puName').textContent=t.emoji+' '+t.name;document.getElementById('puEffect').textContent=t.effect;const b=document.getElementById('powerupBanner');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2200);
-  if(t.name==='PAID IN FULL'){obstacles.forEach(o=>o.alive=false);burst(cssW()/2,cssH()/2,B.cooper,20);return;}
+function activatePU(t){sPU();document.getElementById('puName').textContent=t.name;document.getElementById('puEffect').textContent=t.effect;const b=document.getElementById('powerupBanner');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2200);
+  if(t.id==='moneris'){obstacles.forEach(o=>o.alive=false);burst(cssW()/2,cssH()/2,B.cooper,20);return;}
   activateNight();activePUName=t.name;activePUTimer=t.dur;puWarning=false;puFlashVisible=true;
-  if(t.name==='AUTO-PAY SHIELD'){shieldActive=true;shieldTimer=t.dur;}
-  if(t.name==='INSTANT PAY BOOST'){speedBoost=true;speedBoostTimer=t.dur;}
-  if(t.name==='PAYMENT STREAK'){doublePoints=true;doublePointsTimer=t.dur;}
+  if(t.id==='halopsa'){shieldActive=true;shieldTimer=t.dur;}
+  if(t.id==='scalepad'){doublePoints=true;doublePointsTimer=t.dur;}
+  if(t.id==='elavon'){doublePoints=true;doublePointsTimer=t.dur;}
 }
 function updateComboUI(){const b=document.getElementById('comboBadge'),m=document.getElementById('multiBadge');if(combo>0){b.textContent='🔥 '+combo+' COMBO';b.classList.add('active');b.classList.toggle('fire',combo>=3);}else b.classList.remove('active','fire');m.classList.toggle('active',multiplier>1);if(multiplier>1)m.textContent=multiplier+'× MULTIPLIER';}
 function showCityBanner(city){const b=document.getElementById('cityBanner');const txt=document.getElementById('cityPillText');if(txt)txt.textContent=city.flag+' '+city.name.toUpperCase();b.style.transition='opacity 0.15s ease';b.style.opacity='1';setTimeout(()=>{b.style.transition='opacity 0.6s ease';b.style.opacity='0';},1800);sCity();}
 function emoji(e,x,y,sz){ctx.font=`${sz}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(e,x,y);}
+function drawPUSprite(t,x,y,size){
+  const im=puImageCache[t.id];
+  const r=size*.72;
+  ctx.save();
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,.96)';ctx.fill();
+  ctx.strokeStyle=(t.color||B.cooper)+'55';ctx.lineWidth=2;ctx.stroke();
+  if(im&&im.complete&&im.naturalWidth){
+    ctx.save();
+    ctx.beginPath();ctx.arc(x,y,r*.92,0,Math.PI*2);ctx.clip();
+    const maxD=r*2*.9,sc=Math.min(maxD/im.width,maxD/im.height),sw=im.width*sc,sh=im.height*sc;
+    ctx.drawImage(im,x-sw/2,y-sh/2,sw,sh);
+    ctx.restore();
+  }else{
+    emoji(t.emoji||'✨',x,y,size*.85);
+  }
+  ctx.restore();
+}
 function label(x,y,text,bg){ctx.font='bold 9px Barlow,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';const tw=ctx.measureText(text).width,pw=tw+10,ph=14;ctx.fillStyle=bg;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x-pw/2,y-ph/2,pw,ph,4);else ctx.rect(x-pw/2,y-ph/2,pw,ph);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(text,x,y);}
 function darken(hex,f){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgb(${Math.round(r*(1-f))},${Math.round(g*(1-f))},${Math.round(b*(1-f))})`;}
 
@@ -643,7 +680,7 @@ function gameLoop(timestamp){
   powerups.forEach(p=>{if(!p.alive)return;const dx=p.x-bx,dy=p.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+p.size*.43){p.alive=false;activatePU(p.type);burst(p.x,p.y,B.cooper,14);benjiGlow=1;}});
   ctx.clearRect(0,0,cssW(),cssH());drawBG();
   collectibles.forEach(c=>{ctx.save();ctx.shadowBlur=14;ctx.shadowColor=B.goodGlow;emoji(c.type.label,c.x,c.y+Math.sin(c.w)*4,c.size);ctx.restore();label(c.x,c.y-c.size*.78,'✅ COLLECT','rgba(77,201,122,.82)');});
-  powerups.forEach(p=>{ctx.save();ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);emoji(p.type.emoji,p.x,p.y,p.size);ctx.restore();ctx.beginPath();ctx.arc(p.x,p.y,p.size*.72,0,Math.PI*2);ctx.strokeStyle=p.type.color+'44';ctx.lineWidth=2;ctx.stroke();label(p.x,p.y-p.size*.88,'⚡ POWER-UP','rgba(204,125,81,.82)');});
+  powerups.forEach(p=>{ctx.save();ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);drawPUSprite(p.type,p.x,p.y,p.size);ctx.restore();ctx.beginPath();ctx.arc(p.x,p.y,p.size*.72,0,Math.PI*2);ctx.strokeStyle=p.type.color+'44';ctx.lineWidth=2;ctx.stroke();label(p.x,p.y-p.size*.88,'PARTNER BOOST','rgba(204,125,81,.82)');});
   obstacles.forEach(o=>{ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;emoji(o.type.label,o.x,o.y,o.size);ctx.restore();label(o.x,o.y-o.size*.78,'❌ DODGE','rgba(232,64,64,.82)');});
   particles.forEach(p=>{ctx.save();ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();ctx.restore();});
   if((isClutch||puWarning)&&!puFlashVisible){/* skip drawing Benji for flash effect */}else{drawBenji(benjiX,benjiY,bs);}
@@ -738,7 +775,6 @@ document.getElementById('soundBtn').addEventListener('click',()=>{
 });
 document.getElementById('playerEmail').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
 document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('playerEmail').focus();});
-document.getElementById('ctaBookBtn').addEventListener('click',()=>{window.open('https://benjipays.com/demo','_blank');});
 document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
 document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();document.getElementById('ctaScreen').classList.add('hidden');state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');});
 
@@ -790,5 +826,8 @@ document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.pre
 })();
 
 </script>
+<!-- Start of HubSpot Embed Code -->
+<script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/8513866.js"></script>
+<!-- End of HubSpot Embed Code -->
 </body>
 </html>
