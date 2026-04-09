@@ -3,16 +3,6 @@
 A branded mobile endless runner game for Benji Pays.
 Browser-based, no app download. Scan a QR code and play instantly on any phone.
 
----
-
-## Live URLs
-
-| Page | URL |
-|------|-----|
-| Game | https://benji-pays-game.netlify.app |
-| Leaderboard | https://benji-pays-game.netlify.app/leaderboard |
-| Admin Panel | https://benji-pays-game.netlify.app/admin |
-| Strategy Page | https://benji-pays-game.netlify.app/strategy |
 
 ---
 
