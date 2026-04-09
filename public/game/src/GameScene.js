@@ -158,7 +158,12 @@ class GameScene extends Phaser.Scene {
   getSpeed() {
     const cfg = GAME_CONFIG;
     const t   = Math.min(this.score / cfg.SPEED_RAMP, 1);
-    const spd = cfg.SPEED_START + t * (cfg.SPEED_MAX - cfg.SPEED_START);
+    let spd = cfg.SPEED_START + t * (cfg.SPEED_MAX - cfg.SPEED_START);
+    // Slow endless ramp beyond Cyber City
+    if (this.score > cfg.SPEED_RAMP) {
+      const extra = ((this.score - cfg.SPEED_RAMP) / 1000) * (cfg.SPEED_ENDLESS_GAIN || 3);
+      spd = Math.min(spd + extra, cfg.SPEED_ENDLESS_CAP || 620);
+    }
     return (this.activePU === 'BOOST') ? spd * cfg.BOOST_SPEED_MULT : spd;
   }
 
@@ -541,7 +546,8 @@ class GameScene extends Phaser.Scene {
     }
 
     // ── Spawn ────────────────────────────────────
-    const spawnRate = Math.max(1400 - this.score*0.06, 600);
+    // Obstacle spawn — keeps tightening slightly past Cyber City (floor 450ms)
+    const spawnRate = Math.max(1400 - this.score*0.06, this.score > 13500 ? Math.max(600 - (this.score-13500)*0.008, 450) : 600);
     this.spawnTimer += delta;
     if (this.spawnTimer >= spawnRate) { this.spawnTimer=0; if(!this.isGrace) this.spawnObstacle(); }
 

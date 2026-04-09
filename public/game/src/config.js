@@ -13,6 +13,8 @@ const GAME_CONFIG = {
   SPEED_START:  220,   // px/sec at score 0
   SPEED_MAX:    500,   // px/sec at Cyber City
   SPEED_RAMP:   13500, // score at which max speed is reached
+  SPEED_ENDLESS_GAIN: 3,  // extra px/sec per 1000 score beyond SPEED_RAMP
+  SPEED_ENDLESS_CAP:  620, // absolute max speed (endless)
 
   // ── PHYSICS ────────────────────────────────────────
   GRAVITY:      800,
