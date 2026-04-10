@@ -145,7 +145,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
     <div class="title-block">
       <div class="eyebrow">Invoice Rover · High Velocity Fintech Ledger</div>
-      <div class="title" id="leaderTitle"><span id="titleScope">Balance</span><br><span class="acc">She</span>et</div>
+      <div class="title" id="leaderTitle"><span id="titleScope">Daily</span><br><span class="acc">Leader</span>board</div>
       <div style="display:flex;justify-content:center;">
         <div class="live-pill"><span class="pulse" style="margin:0;width:5px;height:5px;"></span><span id="runnerCount">Loading...</span></div>
       </div>
@@ -154,13 +154,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="divider"></div>
   <div class="your-rank-section">
     <a class="play-cta" href="#" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*');return false;">
-      <div><div class="play-cta-label">Your Rank</div><div class="play-cta-text">Play to see your rank 🐾</div></div>
-      <span style="font-size:32px">🐕</span>
+      <div><div class="play-cta-label">Your Rank</div><div class="play-cta-text">Play to see your rank</div></div>
     </a>
   </div>
   <div class="divider"></div>
   <div style="padding:16px 20px 0;position:relative;z-index:2;">
-    <button class="inline-cta" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*')">🐕 &nbsp;P(L)AY NOW</button>
+    <button class="inline-cta" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*')">P(L)AY NOW</button>
     <div class="board-toggle" style="margin-top:14px;" role="tablist" aria-label="Leaderboard type">
       <button type="button" class="toggle-btn active" data-board="daily" role="tab" aria-selected="true">Daily</button>
       <button type="button" class="toggle-btn" data-board="event" role="tab" aria-selected="false">All-Time</button>
@@ -227,7 +226,7 @@ function renderList(scores,mode){
   if(!scores.length){
     const title=mode==='daily'?'No runs yet today.':'No scores for this event yet.';
     const sub=mode==='daily'?'Be the first on the board! 🏁':'Play a run to land on the event board.';
-    list.innerHTML='<div class="empty-state"><div class="empty-dog">🐕</div><div class="empty-title">'+title+'</div><div class="empty-sub">'+sub+'</div></div>';
+    list.innerHTML='<div class="empty-state"><div class="empty-title">'+title+'</div><div class="empty-sub">'+sub+'</div></div>';
     return;
   }
   list.innerHTML='';
@@ -290,7 +289,7 @@ function setBoard(board){
     b.setAttribute('aria-selected',on?'true':'false');
   });
   const scope=document.getElementById('titleScope');
-  if(scope)scope.textContent='Balance';
+  if(scope)scope.textContent=board==='daily'?'Daily':'All-Time';
   updateTimerUi();
   refreshBoard();
 }
