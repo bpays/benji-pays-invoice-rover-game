@@ -1,46 +1,21 @@
 
 
-## UI and Copy Updates for Benji Pays Game
+## Plan: Secure CSV Export with Email Addresses
 
-### Summary of Changes
+### Problem
+The CSV export already includes an "Email" column, but when viewing the **Daily** leaderboard, emails are stripped out (set to `null` on line 583) because the daily view uses the `get_daily_leaderboard` RPC, which doesn't return email addresses.
 
-All changes are in `public/game/index.html`. The root `index.html` is fine as-is.
+The **Event** (all-time) view already fetches emails securely from the `scores` table using the admin's auth token and RLS.
 
-### 1. GTags and HubSpot Placement -- Already Correct
-- **GTM script** is in `<head>` (lines 4-10) -- correct
-- **GTM noscript** is in `<body>` (lines 103-106) -- correct
-- **HubSpot** is at end of `<body>` (lines 1011-1013) -- correct
-- Root `index.html` also has both in the right spots. No changes needed.
+### Solution
+When in **daily** board mode, instead of using the public RPC (which omits emails), query the `scores` table directly with a date filter — the same way the event mode works. Since the `scores` table has admin-only RLS on SELECT, this is already secure.
 
-### 2. Logo Links to benjipays.com
-- Wrap the `<svg class="logo-svg">` (line 125-137) inside an `<a href="https://benjipays.com" target="_blank">` tag
+### Changes
 
-### 3. Update "How to Play" Steps
-- Replace the current 6-item grid (line 153) with 5 items:
-  1. Tap to Jump
-  2. Collect payments, autopay and installments
-  3. Power up with integrations
-  4. Dodge excuses, delays and NSF
-  5. Build combinations
+**File: `public/admin/index.html`**
+- Modify the daily-mode branch of `loadScores()` to query the `scores` table directly (via the authenticated Supabase REST API) with a `created_at` filter for today (ET timezone), instead of calling the `get_daily_leaderboard` RPC
+- This ensures `allScores` always contains email addresses regardless of board mode
+- Remove the `email:null` override on line 583
 
-### 4. Play Button Text
-- Change `RUN WITH BENJI →` (line 150) to `P(L)AY NOW`
-
-### 5. Rename "Score"/"points" to "$ Collected"
-- HUD label (line 111): `Score` → `$ Collected`
-- HUD score display in JS (line 827): update `scoreDisplay` text
-- Game over stat label (line 167): `Final Score` → `$ Collected`
-- Share copy text (line 859): replace "scored X pts" with "collected $X"
-
-### 6. Bigger Final Score + New Copy
-- Make the `#finalScore` stat card span full width and increase font size
-- Change the game over title area to say: **Collected $X in Accounts Receivable** (larger text, replacing or augmenting the current "WIPED OUT" title)
-
-### 7. "Learn More About Benji Pays" Button
-- Add a prominent button between the music toggle (line 177) and leaderboard link (line 178) on the game over screen
-- Links to `https://benjipays.com/demo`
-- Styled as a large CTA button matching the game aesthetic
-
-### Files Modified
-- `public/game/index.html` (all changes in this single file)
+No database changes or new edge functions needed — the existing admin-only RLS on the `scores` table already secures this.
 
