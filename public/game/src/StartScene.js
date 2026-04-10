@@ -29,8 +29,14 @@ class StartScene extends Phaser.Scene {
       fontFamily: 'Arial Black', fontSize: '18px', color: '#F8F8F8'
     }).setOrigin(0.5);
 
+    playBtn.on('pointerover', () => playBtn.setFillStyle(0xb86d42));
+    playBtn.on('pointerout',  () => playBtn.setFillStyle(0xCC7D51));
     playBtn.on('pointerdown', () => {
-      this.scene.start('GameScene', { playerName: 'Player', playerEmail: '' });
+      playBtn.setFillStyle(0x995a35);
+      playBtnText.setText('LOADING...');
+      this.time.delayedCall(50, () => {
+        this.scene.start('GameScene', { playerName: 'Player', playerEmail: '' });
+      });
     });
   }
 }
