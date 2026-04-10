@@ -245,17 +245,21 @@ function updateTimerUi(){
 async function refreshBoard(){
   try{
     if(activeBoard==='daily'){
-      const[scores,count,clock]=await Promise.all([fetchDailyScores(),fetchTodayRunCount(),fetchDailyBoardClock()]);
-      renderList(scores,'daily');
+      const data=await fetchDailyDashboard();
+      renderList(data.scores||[],'daily');
+      const count=data.run_count||0;
       document.getElementById('runnerCount').textContent=count+' runner'+(count===1?'':'s')+' today';
-      if(clock&&typeof clock.timezone==='string')dailyClockTz=clock.timezone;
-      if(clock&&typeof clock.seconds_until_reset==='number')dailyResetSeconds=clock.seconds_until_reset;
-      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · '+dailyClockTz;
+      if(data.clock){
+        if(typeof data.clock.timezone==='string')dailyClockTz=data.clock.timezone;
+        if(typeof data.clock.seconds_until_reset==='number')dailyResetSeconds=data.clock.seconds_until_reset;
+      }
+      document.getElementById('boardCount').textContent='Top '+Math.min(10,(data.scores||[]).length)+' · '+dailyClockTz;
     }else{
-      const[scores,count]=await Promise.all([fetchEventScores(),fetchEventSubmissionCount()]);
-      renderList(scores,'event');
+      const data=await fetchEventDashboard();
+      renderList(data.scores||[],'event');
+      const count=data.submission_count||0;
       document.getElementById('runnerCount').textContent=count+' run'+(count===1?'':'s')+' (event total)';
-      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · All time';
+      document.getElementById('boardCount').textContent='Top '+Math.min(10,(data.scores||[]).length)+' · All time';
     }
   }catch(e){
     console.error(e);
