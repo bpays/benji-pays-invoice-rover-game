@@ -879,6 +879,7 @@ var gpPrevLeft=false,gpPrevRight=false,gpPrevLB=false,gpPrevRB=false,gpPrevJump=
 
 function gameLoop(timestamp){
   if(state!=='playing')return;requestAnimationFrame(gameLoop);
+  try{
   pollGamepad();
   const rawDelta=lastTime?Math.min(timestamp-lastTime,50):16.67;
   lastTime=timestamp;
@@ -906,6 +907,14 @@ function gameLoop(timestamp){
   spawnT+=delta;const sr=Math.max(72-Math.floor(score/150),34);if(spawnT>=sr){if(!spawnObs())spawnT=sr*.5;else spawnT=0;}
   const cr=Math.max(52-Math.floor(score/240),26);colT+=delta;if(colT>=cr){if(!spawnCol())colT=cr*.5;else colT=0;}
   puT+=delta;if(puT>=490){if(!spawnPU())puT=245;else puT=0;}
+  // Cap active objects to prevent memory issues at very high scores
+  const MAX_OBS=30,MAX_COL=20,MAX_PU=8,MAX_PART=80;
+  if(obstacles.length>MAX_OBS){obstacles.slice(0,obstacles.length-MAX_OBS).forEach(o=>{o.alive=false;});obstacles=obstacles.filter(o=>o.alive);}
+  if(collectibles.length>MAX_COL){collectibles.slice(0,collectibles.length-MAX_COL).forEach(c=>{c.alive=false;});collectibles=collectibles.filter(c=>c.alive);}
+  if(powerups.length>MAX_PU){powerups.slice(0,powerups.length-MAX_PU).forEach(p=>{p.alive=false;});powerups=powerups.filter(p=>p.alive);}
+  if(particles.length>MAX_PART)particles=particles.slice(particles.length-MAX_PART);
+  // Cap score-pop DOM elements
+  const pops=wrap.querySelectorAll('.score-pop');if(pops.length>12){for(let i=0;i<pops.length-12;i++)pops[i].remove();}
   obstacles=obstacles.filter(o=>{if(!o.alive)return false;o.y+=spd*delta;o.x=laneX(o.lane);return o.y<cssH()+70;});
   collectibles=collectibles.filter(c=>{if(!c.alive)return false;c.y+=spd*delta;c.w+=.07*delta;c.x=laneX(c.lane);return c.y<cssH()+70;});
   powerups=powerups.filter(p=>{if(!p.alive)return false;p.y+=spd*delta;p.pulse+=.09*delta;p.x=laneX(p.lane);return p.y<cssH()+70;});
@@ -921,6 +930,10 @@ function gameLoop(timestamp){
   obstacles.forEach(o=>{drawDodgeBadge(o.x,o.y,o.size);ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;drawObstacleSprite(o.type,o.x,o.y,o.size);ctx.restore();});
   particles.forEach(p=>{ctx.save();ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();ctx.restore();});
   if((isClutch||puWarning)&&!puFlashVisible){/* skip drawing Benji for flash effect */}else{drawBenji(benjiX,benjiY,bs);}
+  }catch(err){
+    console.error('Game loop crash:',err);
+    if(state==='playing')endGame();
+  }
 }
 
 function endGame(){
