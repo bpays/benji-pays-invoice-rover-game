@@ -69,7 +69,7 @@ class GameOverScene extends Phaser.Scene {
     // Run Again button
     const retryBtn = this.add.rectangle(width * 0.30, height * 0.78, width * 0.52, 50, 0xCC7D51)
       .setInteractive({ useHandCursor: true });
-    this.add.text(width * 0.30, height * 0.78, 'RUN AGAIN', {
+    this.add.text(width * 0.30, height * 0.78, 'P(L)AY NOW', {
       fontFamily: 'Arial Black', fontSize: '16px', color: '#F8F8F8', letterSpacing: 1
     }).setOrigin(0.5);
     retryBtn.on('pointerdown', () => {
