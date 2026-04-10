@@ -125,6 +125,10 @@
     </div>
     <div class="section">
       <div class="section-title">🏆 Scores — <span id="tableEventLabel">N-able Empower 2026</span></div>
+      <div class="board-toggle" style="display:flex;gap:0;margin-bottom:14px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.12);width:fit-content;">
+        <button class="btn btn-sm board-toggle-btn active" id="toggleEvent" onclick="setBoardMode('event')" style="border-radius:0;border:none;padding:8px 18px;font-weight:800;letter-spacing:1px;text-transform:uppercase;font-size:11px;">Event (All-Time)</button>
+        <button class="btn btn-sm board-toggle-btn" id="toggleDaily" onclick="setBoardMode('daily')" style="border-radius:0;border:none;padding:8px 18px;font-weight:800;letter-spacing:1px;text-transform:uppercase;font-size:11px;">Daily</button>
+      </div>
       <div class="table-controls">
         <input class="search-input" type="text" id="searchInput" placeholder="Search name or email..." oninput="filterScores()" />
         <button class="btn btn-ghost btn-sm" onclick="loadAll()">↻ Refresh</button>
@@ -276,7 +280,7 @@ const ALLOWED_DOMAIN='benjipays.com';
 const supaClient = supabase.createClient(SUPA_URL, SUPA_KEY);
 const PAGE_SIZE=25;
 const EVENTS={'all':{label:'All Events',tag:null},'nable-empower-2026':{label:'N-able Empower 2026',tag:'nable-empower-2026'}};
-let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026';
+let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026',boardMode='event';
 let accessToken=null;
 let mfaFactorId=null;
 
@@ -557,7 +561,29 @@ async function loadStats(){
   document.getElementById('statTopName').textContent=top.player_name||'—';
   document.getElementById('statTopCity').textContent=topCity?topCity[0]:'—';
 }
+function setBoardMode(mode){
+  boardMode=mode;
+  document.getElementById('toggleEvent').classList.toggle('active',mode==='event');
+  document.getElementById('toggleDaily').classList.toggle('active',mode==='daily');
+  loadScores();
+}
 async function loadScores(){
+  if(boardMode==='daily'){
+    const ev=EVENTS[currentEventKey];
+    const {data:{session}}=await supaClient.auth.getSession();
+    const token=session?.access_token||SUPA_KEY;
+    const body={p_limit:500};
+    if(ev.tag)body.p_event_tag=ev.tag;
+    const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_leaderboard',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=res.ok?await res.json():[];
+    allScores=data.map(s=>({...s,flagged:false,email:null}));
+    filterScores();
+    return;
+  }
   const ep=eventParams();
   const data=await api('GET','scores',null,`select=id,player_name,email,score,city_reached,city_flag,best_combo,flagged,event_tag,created_at${ep?'&'+ep:''}&order=score.desc`);
   if(!data)return;allScores=data;filterScores();
