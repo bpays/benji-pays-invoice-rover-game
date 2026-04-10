@@ -139,7 +139,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </svg>
       </div>
       <div class="timer-wrap" id="timerSection">
-        <div class="timer-lbl" id="timerLabel">Resets in (America/New_York)</div>
+        <div class="timer-lbl" id="timerLabel">Resets in (EST)</div>
         <div class="timer"><span class="pulse"></span><span id="timerDisplay">--:--:--</span></div>
       </div>
     </div>
@@ -254,7 +254,7 @@ function updateTimerUi(){
   const label=document.getElementById('timerLabel');
   if(activeBoard==='daily'){
     section.style.display='';
-    label.textContent='Resets in ('+dailyClockTz+')';
+    label.textContent='Resets in (EST)';
     document.getElementById('timerDisplay').textContent=fmt(dailyResetSeconds);
   }else{
     section.style.display='none';
