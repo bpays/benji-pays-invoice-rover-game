@@ -628,6 +628,37 @@ function exportCSV(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download=`invoice-rover-${currentEventKey}-${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV exported ✓');
 }
+async function loadTimezoneSetting(){
+  const res=await api('GET','settings',null,'key=eq.leaderboard_timezone&select=value');
+  const sel=document.getElementById('leaderboardTimezone');
+  if(!sel)return;
+  const errEl=document.getElementById('timezoneErr');
+  if(errEl){errEl.style.display='none';}
+  if(!res||!res[0]){sel.value='America/New_York';return;}
+  const v=String(res[0].value||'').trim();
+  const match=[...sel.options].find(o=>o.value===v);
+  if(match){sel.value=v;return;}
+  const opt=document.createElement('option');
+  opt.value=v;
+  opt.textContent=v+' (custom)';
+  sel.appendChild(opt);
+  sel.value=v;
+}
+async function saveLeaderboardTimezone(){
+  const sel=document.getElementById('leaderboardTimezone');
+  const errEl=document.getElementById('timezoneErr');
+  if(!sel)return;
+  const tz=sel.value.trim();
+  if(!tz){if(errEl){errEl.textContent='Select a timezone';errEl.style.display='block';}toast('Select a timezone','err');return;}
+  const res=await api('PATCH','settings',{value:tz,updated_at:new Date().toISOString()},'key=eq.leaderboard_timezone');
+  if(res){
+    if(errEl)errEl.style.display='none';
+    toast('Timezone saved ✓');
+  }else{
+    if(errEl){errEl.textContent='Could not save. Apply the latest database migration if this row is missing.';errEl.style.display='block';}
+    toast('Failed to save timezone','err');
+  }
+}
 setInterval(()=>{if(document.getElementById('adminApp').style.display!=='none')loadStats();},60000);
 
 // ── Admin Management ──
