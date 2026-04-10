@@ -280,7 +280,7 @@ const ALLOWED_DOMAIN='benjipays.com';
 const supaClient = supabase.createClient(SUPA_URL, SUPA_KEY);
 const PAGE_SIZE=25;
 const EVENTS={'all':{label:'All Events',tag:null},'nable-empower-2026':{label:'N-able Empower 2026',tag:'nable-empower-2026'}};
-let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026';
+let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026',boardMode='event';
 let accessToken=null;
 let mfaFactorId=null;
 
