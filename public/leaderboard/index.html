@@ -187,32 +187,14 @@ let activeBoard='daily';
 let dailyClockTz='America/New_York';
 let dailyResetSeconds=0;
 
-async function fetchDailyScores(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_leaderboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
-  return res.ok?await res.json():[];
+async function fetchDailyDashboard(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_dashboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
+  return res.ok?await res.json():{scores:[],run_count:0,clock:{timezone:'America/New_York',seconds_until_reset:0}};
 }
 
-async function fetchEventScores(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_leaderboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
-  return res.ok?await res.json():[];
-}
-
-async function fetchTodayRunCount(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_today_run_count',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG})});
-  return res.ok?await res.json():0;
-}
-
-async function fetchEventSubmissionCount(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_event_submission_count',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG})});
-  return res.ok?await res.json():0;
-}
-
-async function fetchDailyBoardClock(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_board_clock',{method:'POST',headers:rpcHeaders,body:'{}'});
-  if(!res.ok)return null;
-  const data=await res.json();
-  if(Array.isArray(data)&&data[0]&&typeof data[0]==='object')return data[0];
-  return data;
+async function fetchEventDashboard(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_event_dashboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
+  return res.ok?await res.json():{scores:[],submission_count:0};
 }
 
 const medals=['🥇','🥈','🥉'];
@@ -263,17 +245,21 @@ function updateTimerUi(){
 async function refreshBoard(){
   try{
     if(activeBoard==='daily'){
-      const[scores,count,clock]=await Promise.all([fetchDailyScores(),fetchTodayRunCount(),fetchDailyBoardClock()]);
-      renderList(scores,'daily');
+      const data=await fetchDailyDashboard();
+      renderList(data.scores||[],'daily');
+      const count=data.run_count||0;
       document.getElementById('runnerCount').textContent=count+' runner'+(count===1?'':'s')+' today';
-      if(clock&&typeof clock.timezone==='string')dailyClockTz=clock.timezone;
-      if(clock&&typeof clock.seconds_until_reset==='number')dailyResetSeconds=clock.seconds_until_reset;
-      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · '+dailyClockTz;
+      if(data.clock){
+        if(typeof data.clock.timezone==='string')dailyClockTz=data.clock.timezone;
+        if(typeof data.clock.seconds_until_reset==='number')dailyResetSeconds=data.clock.seconds_until_reset;
+      }
+      document.getElementById('boardCount').textContent='Top '+Math.min(10,(data.scores||[]).length)+' · '+dailyClockTz;
     }else{
-      const[scores,count]=await Promise.all([fetchEventScores(),fetchEventSubmissionCount()]);
-      renderList(scores,'event');
+      const data=await fetchEventDashboard();
+      renderList(data.scores||[],'event');
+      const count=data.submission_count||0;
       document.getElementById('runnerCount').textContent=count+' run'+(count===1?'':'s')+' (event total)';
-      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · All time';
+      document.getElementById('boardCount').textContent='Top '+Math.min(10,(data.scores||[]).length)+' · All time';
     }
   }catch(e){
     console.error(e);
@@ -308,7 +294,7 @@ document.querySelectorAll('.board-toggle .toggle-btn').forEach(btn=>{
   updateTimerUi();
 })();
 
-setInterval(()=>{refreshBoard();},30000);
+setInterval(()=>{refreshBoard();},60000);
 </script>
 <!-- Start of HubSpot Embed Code -->
 <script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/8513866.js"></script>

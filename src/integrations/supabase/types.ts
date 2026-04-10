@@ -160,6 +160,10 @@ export type Database = {
           timezone: string
         }[]
       }
+      get_daily_dashboard: {
+        Args: { p_event_tag?: string; p_limit?: number }
+        Returns: Json
+      }
       get_daily_leaderboard: {
         Args: { p_event_tag?: string; p_limit?: number }
         Returns: {
@@ -172,6 +176,10 @@ export type Database = {
           player_name: string
           score: number
         }[]
+      }
+      get_event_dashboard: {
+        Args: { p_event_tag?: string; p_limit?: number }
+        Returns: Json
       }
       get_event_submission_count: {
         Args: { p_event_tag?: string }
