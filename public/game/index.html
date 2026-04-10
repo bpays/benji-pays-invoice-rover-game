@@ -455,7 +455,7 @@ let state='start',score=0,combo=0,maxCombo=0,multiplier=1,isNight=false,nightTim
 let shieldActive=false,shieldTimer=0,speedBoost=false,speedBoostTimer=0,doublePoints=false,doublePointsTimer=0;
 let clutchUsed=false,isClutch=false,clutchTimer=0;
 let puWarning=false,puFlashTimer=0,puFlashVisible=true,activePUTimer=0,activePUName=null;
-let frameCount=0,benjiAnimT=0,distance=0,currentCity=CITIES[0],lastCity=null,soundOn=true,playerName='',playCount=0;
+let frameCount=0,benjiAnimT=0,distance=0,gameElapsed=0,currentCity=CITIES[0],lastCity=null,soundOn=true,playerName='',playCount=0;
 let targetLane=1,benjiX=0,benjiY=0,benjiBaseY=0,isJumping=false,jumpVy=0,benjiGlow=0;
 const GRAVITY=0.62,JUMP=-15;
 let obstacles=[],collectibles=[],powerups=[],particles=[],groundLines=[];
@@ -666,7 +666,7 @@ const laneX=l=>{const w=cssW(),lp=w*.08,lw=(w-lp*2)/3;return lp+lw*l+lw/2;};
 const groundY=()=>cssH()*.78;
 const benjiSz=()=>Math.min(cssW()*.13,48*vScale());
 
-function initGame(){score=0;combo=0;maxCombo=0;multiplier=1;isNight=false;nightTimer=0;shieldActive=false;shieldTimer=0;speedBoost=false;speedBoostTimer=0;doublePoints=false;doublePointsTimer=0;clutchUsed=false;isClutch=false;clutchTimer=0;puWarning=false;puFlashTimer=0;puFlashVisible=true;activePUTimer=0;activePUName=null;frameCount=0;benjiAnimT=0;distance=0;currentCity=CITIES[0];lastCity=null;targetLane=1;benjiX=laneX(1);benjiGlow=0;isJumping=false;jumpVy=0;benjiBaseY=groundY()-benjiSz()*.52;benjiY=benjiBaseY;obstacles=[];collectibles=[];powerups=[];particles=[];groundLines=[];spawnT=0;colT=0;puT=0;legendT=0;legendFaded=false;skylineOff=0;document.getElementById('ingameLegend').classList.remove('fade');document.getElementById('scoreDisplay').textContent='0';document.getElementById('nightOverlay').style.opacity='0';updateComboUI();const gy=groundY();for(let i=0;i<8;i++)groundLines.push({y:gy+Math.random()*cssH()*.2,speed:.35+Math.random()*.35});setTimeout(()=>showCityBanner(CITIES[0]),600);}
+function initGame(){score=0;combo=0;maxCombo=0;multiplier=1;isNight=false;nightTimer=0;shieldActive=false;shieldTimer=0;speedBoost=false;speedBoostTimer=0;doublePoints=false;doublePointsTimer=0;clutchUsed=false;isClutch=false;clutchTimer=0;puWarning=false;puFlashTimer=0;puFlashVisible=true;activePUTimer=0;activePUName=null;frameCount=0;benjiAnimT=0;distance=0;gameElapsed=0;currentCity=CITIES[0];lastCity=null;targetLane=1;benjiX=laneX(1);benjiGlow=0;isJumping=false;jumpVy=0;benjiBaseY=groundY()-benjiSz()*.52;benjiY=benjiBaseY;obstacles=[];collectibles=[];powerups=[];particles=[];groundLines=[];spawnT=0;colT=0;puT=0;legendT=0;legendFaded=false;skylineOff=0;document.getElementById('ingameLegend').classList.remove('fade');document.getElementById('scoreDisplay').textContent='0';document.getElementById('nightOverlay').style.opacity='0';updateComboUI();const gy=groundY();for(let i=0;i<8;i++)groundLines.push({y:gy+Math.random()*cssH()*.2,speed:.35+Math.random()*.35});setTimeout(()=>showCityBanner(CITIES[0]),600);};lastCity=null;targetLane=1;benjiX=laneX(1);benjiGlow=0;isJumping=false;jumpVy=0;benjiBaseY=groundY()-benjiSz()*.52;benjiY=benjiBaseY;obstacles=[];collectibles=[];powerups=[];particles=[];groundLines=[];spawnT=0;colT=0;puT=0;legendT=0;legendFaded=false;skylineOff=0;document.getElementById('ingameLegend').classList.remove('fade');document.getElementById('scoreDisplay').textContent='0';document.getElementById('nightOverlay').style.opacity='0';updateComboUI();const gy=groundY();for(let i=0;i<8;i++)groundLines.push({y:gy+Math.random()*cssH()*.2,speed:.35+Math.random()*.35});setTimeout(()=>showCityBanner(CITIES[0]),600);}
 
 const SPAWN_CLEAR_PAD=8;
 function entityClearanceRadius(e,isObs){return e.size*(isObs?0.38:0.43);}
@@ -886,7 +886,7 @@ function gameLoop(timestamp){
   const delta=rawDelta/16.67; // normalised: 1.0 = perfect 60fps
   frameCount++;
   benjiAnimT+=delta;
-  const gy=groundY(),bs=benjiSz(),vs=vScale(),baseSpd=2.2+Math.min(score/1800,2.8),spd=baseSpd*(speedBoost?1.5:1)*vs;
+  const gy=groundY(),bs=benjiSz(),vs=vScale();gameElapsed+=rawDelta/1000;const timeBonus=Math.min(gameElapsed/120,1.8);const baseSpd=2.2+Math.min(score/1800,2.8)+timeBonus,spd=baseSpd*(speedBoost?1.5:1)*vs;
   skylineOff+=spd*.8*delta;
   benjiX+=(laneX(targetLane)-benjiX)*.17*delta;benjiBaseY=gy-bs*.52;
   if(isJumping){jumpVy+=GRAVITY*vs*delta;benjiY+=jumpVy*delta;if(benjiY>=benjiBaseY){benjiY=benjiBaseY;isJumping=false;jumpVy=0;}}else benjiY=benjiBaseY;
