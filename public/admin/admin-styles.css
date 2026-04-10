@@ -665,3 +665,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
   color: var(--muted);
   font-style: italic;
 }
+
+.board-toggle-btn {
+  background: rgba(255,255,255,.04);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .2s, color .2s;
+}
+.board-toggle-btn:hover {
+  background: rgba(255,255,255,.08);
+}
+.board-toggle-btn.active {
+  background: var(--cerulean);
+  color: var(--white);
+}
