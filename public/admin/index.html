@@ -569,19 +569,16 @@ function setBoardMode(mode){
 }
 async function loadScores(){
   if(boardMode==='daily'){
+    const now=new Date();
+    const etDate=new Date(now.toLocaleString('en-US',{timeZone:'America/New_York'}));
+    const y=etDate.getFullYear(),m=String(etDate.getMonth()+1).padStart(2,'0'),d=String(etDate.getDate()).padStart(2,'0');
+    const dayStart=`${y}-${m}-${d}T00:00:00-04:00`;
     const ev=EVENTS[currentEventKey];
-    const {data:{session}}=await supaClient.auth.getSession();
-    const token=session?.access_token||SUPA_KEY;
-    const body={p_limit:500};
-    if(ev.tag)body.p_event_tag=ev.tag;
-    const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_leaderboard',{
-      method:'POST',
-      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    });
-    const data=res.ok?await res.json():[];
-    allScores=data.map(s=>({...s,flagged:false,email:null}));
-    filterScores();
+    let ep=`created_at=gte.${encodeURIComponent(dayStart)}`;
+    if(ev.tag)ep+=`&event_tag=eq.${encodeURIComponent(ev.tag)}`;
+    const data=await api('GET','scores',null,`select=id,player_name,email,score,city_reached,city_flag,best_combo,flagged,event_tag,created_at&${ep}&order=score.desc&limit=500`);
+    if(!data){allScores=[];filterScores();return;}
+    allScores=data;filterScores();
     return;
   }
   const ep=eventParams();
