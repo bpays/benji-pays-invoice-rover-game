@@ -153,6 +153,13 @@ export type Database = {
       }
     }
     Functions: {
+      get_daily_board_clock: {
+        Args: never
+        Returns: {
+          seconds_until_reset: number
+          timezone: string
+        }[]
+      }
       get_daily_leaderboard: {
         Args: { p_event_tag?: string; p_limit?: number }
         Returns: {
