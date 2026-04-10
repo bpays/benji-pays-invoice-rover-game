@@ -19,8 +19,12 @@ class GameOverScene extends Phaser.Scene {
     this.add.rectangle(width/2, height/2, width, height, 0x001224, 0.96);
 
     // Title
-    this.add.text(width/2, height * 0.12, 'WIPED OUT', {
-      fontFamily: 'Arial Black', fontSize: '52px', color: '#CC7D51'
+    this.add.text(width/2, height * 0.12, 'COLLECTED $' + Math.floor(this.finalScore).toLocaleString(), {
+      fontFamily: 'Arial Black', fontSize: '32px', color: '#CC7D51'
+    }).setOrigin(0.5);
+
+    this.add.text(width/2, height * 0.18, 'IN ACCOUNTS RECEIVABLE', {
+      fontFamily: 'Arial Black', fontSize: '16px', color: '#F8F8F8'
     }).setOrigin(0.5);
 
     this.add.text(width/2, height * 0.20,
@@ -31,7 +35,7 @@ class GameOverScene extends Phaser.Scene {
 
     // Stats grid
     const stats = [
-      { label: 'SCORE',      value: Math.floor(this.finalScore).toLocaleString() },
+      { label: '$ COLLECTED', value: '$' + Math.floor(this.finalScore).toLocaleString() },
       { label: 'BEST COMBO', value: this.maxCombo + 'x'                          },
       { label: 'MADE IT TO', value: this.cityFlag + ' ' + this.cityReached       },
       { label: 'DISTANCE',   value: Math.floor(this.distance / 60) + 'm'         },
@@ -54,7 +58,7 @@ class GameOverScene extends Phaser.Scene {
     });
 
     // Share copy
-    const shareText = `${this.playerName} scored ${Math.floor(this.finalScore).toLocaleString()} pts in Benji Pays: Invoice Rover! Reached ${this.cityReached}. Can you beat me? 🐕💸 benjipays.com/run`;
+    const shareText = `${this.playerName} collected $${Math.floor(this.finalScore).toLocaleString()} in Benji Pays: Invoice Rover! Reached ${this.cityReached}. Can you beat me? 🐕💸 benjipays.com/run`;
     const shareBox = this.add.rectangle(width/2, height * 0.64, width * 0.88, 65, 0x001a2e)
       .setStrokeStyle(1, 0xCC7D51, 0.4);
     this.add.text(width/2, height * 0.64, shareText, {
