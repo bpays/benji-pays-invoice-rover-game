@@ -187,32 +187,14 @@ let activeBoard='daily';
 let dailyClockTz='America/New_York';
 let dailyResetSeconds=0;
 
-async function fetchDailyScores(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_leaderboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
-  return res.ok?await res.json():[];
+async function fetchDailyDashboard(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_dashboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
+  return res.ok?await res.json():{scores:[],run_count:0,clock:{timezone:'America/New_York',seconds_until_reset:0}};
 }
 
-async function fetchEventScores(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_leaderboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
-  return res.ok?await res.json():[];
-}
-
-async function fetchTodayRunCount(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_today_run_count',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG})});
-  return res.ok?await res.json():0;
-}
-
-async function fetchEventSubmissionCount(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_event_submission_count',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG})});
-  return res.ok?await res.json():0;
-}
-
-async function fetchDailyBoardClock(){
-  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_board_clock',{method:'POST',headers:rpcHeaders,body:'{}'});
-  if(!res.ok)return null;
-  const data=await res.json();
-  if(Array.isArray(data)&&data[0]&&typeof data[0]==='object')return data[0];
-  return data;
+async function fetchEventDashboard(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_event_dashboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
+  return res.ok?await res.json():{scores:[],submission_count:0};
 }
 
 const medals=['🥇','🥈','🥉'];
