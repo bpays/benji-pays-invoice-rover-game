@@ -1,50 +1,23 @@
 
 
-## Plan: Update Leaderboard Title, Remove Dog Emojis, Fix Link Targets
+## Plan: Admin Page — Reset Confirmation + Remove Timer Section
 
-### 1. Change "Balance Sheet" to dynamic "Daily/All-Time Leaderboard"
+### 1. Add two-step safety confirmation to "Reset Event Scores" button
 
-**File: `public/leaderboard/index.html`**
-- Line 148: Change title from `Balance / Sheet` to `Daily / Leaderboard` with dynamic scope
-- Line 293: Update `setBoard()` to set titleScope to "Daily" or "All-Time" based on active board
+**File: `public/admin/index.html`** (~line 497)
 
-### 2. Remove dog emojis from all pages
+Replace the simple `confirm()` with:
+1. A strongly worded `confirm()` warning that this permanently deletes all scores and should only be done after the event ends and all data (CSV exports, etc.) has been collected
+2. A `prompt()` requiring the user to type the exact event name to proceed; abort with a toast if it doesn't match
 
-**`public/leaderboard/index.html`**
-- Line 157: Remove 🐾 from "Play to see your rank"
-- Line 158: Remove the `<span>🐕</span>` element
-- Line 163: Remove 🐕 from "P(L)AY NOW" button
-- Line 230: Remove 🐕 from empty state
+### 2. Remove the Leaderboard Reset Timer section
 
-**`public/game/index.html`**
-- Line 251: Remove 🐕 from "Learn More About Benji Pays" link
-- Line 950: Remove 🐕 from share text
+**File: `public/admin/index.html`**
 
-**`public/game/src/GameOverScene.js`**
-- Line 61: Remove 🐕 from share text
+- **HTML** (lines 78-95): Remove the entire "Leaderboard Reset Timer" section div (countdown display, date picker, +24h/+8h/+4h buttons, Reset Now button)
+- **JS** (line 283): Remove `resetSeconds` and `timerInterval` variables
+- **JS** (line 528): Remove `loadTimerSetting()` and `startTimer()` calls from `init()`
+- **JS** (lines 647-694): Remove functions `loadTimerSetting()`, `startTimer()`, `setTimer()`, `setTimerHours()`, and `resetNow()`
 
-**`public/strategy/index.html`**
-- Line 170: Remove 🐕 from badge
-- Line 292: Remove 🐕 from "Play Invoice Rover" button
-
-**`public/admin/index.html`**
-- Line 15: Remove 🐕 from login logo
-
-### 3. Keep internal links in same tab, external links in new tab
-
-**`public/game/index.html`**
-- Line 196: `benjipays.com` logo link — keep `target="_blank"` (external site)
-- Line 211: `benjipays.com/invoice-rover/` link — keep `target="_blank"` (external)
-- Line 251: `benjipays.com/demo` link — keep `target="_blank"` (external)
-- Line 1051: `window.open('https://benjipays.com','_blank')` — keep as-is (external)
-
-**`public/strategy/index.html`**
-- Lines 157, 292, 293: Change `benji-pays-game.netlify.app` links to use `postMessage` navigation (these are internal game/leaderboard links that should stay in-tab)
-- Line 294: `suno.com` playlist link — keep `target="_blank"` (external)
-
-All `postMessage`-based navigation already stays in the same tab, so no changes needed for those.
-
-### Technical details
-- The strategy page currently links to `benji-pays-game.netlify.app` which appears to be an old deployment URL. These will be changed to use `postMessage` navigation to `/game` and `/leaderboard` routes to stay in the same tab.
-- No database or backend changes needed.
+The daily leaderboard resets automatically at midnight ET via the `get_daily_leaderboard` RPC — no manual timer is needed. The event reset button (with the new safety confirmation) remains for post-event cleanup.
 
