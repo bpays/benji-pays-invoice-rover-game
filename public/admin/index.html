@@ -76,24 +76,6 @@
       <div class="stat-card"><div class="stat-val" id="statTopCity">—</div><div class="stat-lbl">Top City</div><div class="stat-sub">most reached</div></div>
     </div>
     <div class="section">
-      <div class="section-title">⏱ Leaderboard Reset Timer</div>
-      <div class="timer-grid">
-        <div>
-          <div class="current-lbl">Countdown</div>
-          <div class="current-timer" id="adminTimer">--:--:--</div>
-          <div class="reset-at" id="resetAtDisplay">Loading...</div>
-        </div>
-        <div>
-          <div class="field"><label>Set Reset Date &amp; Time</label><input type="datetime-local" id="newResetAt" /></div>
-          <div class="btn-row">
-            <button class="btn btn-primary" onclick="setTimer()">Set Timer</button>
-            <button class="btn btn-ghost" onclick="setTimerHours(24)">+24h</button>
-            <button class="btn btn-ghost" onclick="setTimerHours(8)">+8h</button>
-            <button class="btn btn-ghost" onclick="setTimerHours(4)">+4h</button>
-            <button class="btn btn-danger" onclick="resetNow()">Reset Now</button>
-          </div>
-        </div>
-      </div>
       <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);max-width:640px;">
         <div class="section-label" style="margin-bottom:10px;">Daily leaderboard timezone</div>
         <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;">“Daily” board and run counts use midnight in this zone. Default is US Eastern (America/New_York).</p>
@@ -280,7 +262,7 @@ const ALLOWED_DOMAIN='benjipays.com';
 const supaClient = supabase.createClient(SUPA_URL, SUPA_KEY);
 const PAGE_SIZE=25;
 const EVENTS={'all':{label:'All Events',tag:null},'nable-empower-2026':{label:'N-able Empower 2026',tag:'nable-empower-2026'}};
-let allScores=[],filteredScores=[],currentPage=0,editingId=null,resetSeconds=0,timerInterval=null,currentEventKey='nable-empower-2026',boardMode='event';
+let allScores=[],filteredScores=[],currentPage=0,editingId=null,currentEventKey='nable-empower-2026',boardMode='event';
 let accessToken=null;
 let mfaFactorId=null;
 
@@ -494,7 +476,9 @@ async function resetEventLeaderboard(){
     toast('No event tag for selection','err');
     return;
   }
-  if(!confirm('Delete ALL scores for '+ev.label+'? This cannot be undone.'))return;
+  if(!confirm('⚠️ WARNING: You are about to permanently delete ALL scores for "'+ev.label+'".\n\nThis action CANNOT be undone.\n\nThis should ONLY be done:\n• AFTER the event has ended\n• AFTER all data has been collected (CSV exports, screenshots, etc.)\n\nAre you sure you want to proceed?'))return;
+  const typed=prompt('FINAL CONFIRMATION\n\nTo confirm deletion, type the exact event name below:\n\n'+ev.tag);
+  if(typed!==ev.tag){toast('Reset cancelled — event name did not match','err');return;}
   const {data:{session}}=await supaClient.auth.getSession();
   const token=session?.access_token;
   if(!token){
@@ -525,7 +509,7 @@ async function resetEventLeaderboard(){
   await loadAll();
 }
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>t.className='',2500);}
-async function init(){await loadAll();await loadTimerSetting();await loadTimezoneSetting();startTimer();}
+async function init(){await loadAll();await loadTimezoneSetting();}
 async function loadAll(){await Promise.all([loadScores(),loadStats()]);}
 function onEventChange(){
   currentEventKey=document.getElementById('eventSelector').value;
@@ -643,58 +627,6 @@ function exportCSV(){
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download=`invoice-rover-${currentEventKey}-${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV exported ✓');
-}
-async function loadTimerSetting(){
-  const res=await api('GET','settings',null,'key=eq.leaderboard_reset_at&select=value');
-  if(res&&res[0]){const d=new Date(res[0].value);document.getElementById('resetAtDisplay').textContent='Resets: '+d.toLocaleString();resetSeconds=Math.max(0,Math.floor((d-new Date())/1000));}
-}
-async function loadTimezoneSetting(){
-  const res=await api('GET','settings',null,'key=eq.leaderboard_timezone&select=value');
-  const sel=document.getElementById('leaderboardTimezone');
-  if(!sel)return;
-  const errEl=document.getElementById('timezoneErr');
-  if(errEl){errEl.style.display='none';}
-  if(!res||!res[0]){sel.value='America/New_York';return;}
-  const v=String(res[0].value||'').trim();
-  const match=[...sel.options].find(o=>o.value===v);
-  if(match){sel.value=v;return;}
-  const opt=document.createElement('option');
-  opt.value=v;
-  opt.textContent=v+' (custom)';
-  sel.appendChild(opt);
-  sel.value=v;
-}
-async function saveLeaderboardTimezone(){
-  const sel=document.getElementById('leaderboardTimezone');
-  const errEl=document.getElementById('timezoneErr');
-  if(!sel)return;
-  const tz=sel.value.trim();
-  if(!tz){if(errEl){errEl.textContent='Select a timezone';errEl.style.display='block';}toast('Select a timezone','err');return;}
-  const res=await api('PATCH','settings',{value:tz,updated_at:new Date().toISOString()},'key=eq.leaderboard_timezone');
-  if(res){
-    if(errEl)errEl.style.display='none';
-    toast('Timezone saved ✓');
-  }else{
-    if(errEl){errEl.textContent='Could not save. Apply the latest database migration if this row is missing.';errEl.style.display='block';}
-    toast('Failed to save timezone','err');
-  }
-}
-function startTimer(){
-  if(timerInterval)clearInterval(timerInterval);
-  timerInterval=setInterval(()=>{if(resetSeconds>0)resetSeconds--;const h=Math.floor(resetSeconds/3600),m=Math.floor((resetSeconds%3600)/60),s=resetSeconds%60;document.getElementById('adminTimer').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;},1000);
-}
-async function setTimer(){
-  const val=document.getElementById('newResetAt').value;if(!val)return toast('Pick a date and time first','err');
-  const dt=new Date(val).toISOString();
-  const res=await api('PATCH','settings',{value:dt,updated_at:new Date().toISOString()},'key=eq.leaderboard_reset_at');
-  if(res){document.getElementById('resetAtDisplay').textContent='Resets: '+new Date(val).toLocaleString();resetSeconds=Math.max(0,Math.floor((new Date(val)-new Date())/1000));toast('Timer set ✓');}else toast('Failed','err');
-}
-function setTimerHours(h){const dt=new Date(Date.now()+h*3600*1000);const local=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);document.getElementById('newResetAt').value=local;setTimer();}
-async function resetNow(){
-  if(!confirm('Reset leaderboard NOW?'))return;
-  const dt=new Date().toISOString();
-  const res=await api('PATCH','settings',{value:dt,updated_at:dt},'key=eq.leaderboard_reset_at');
-  if(res){resetSeconds=0;document.getElementById('resetAtDisplay').textContent='Reset just now';toast('Leaderboard reset ✓');}else toast('Reset failed','err');
 }
 setInterval(()=>{if(document.getElementById('adminApp').style.display!=='none')loadStats();},60000);
 
