@@ -254,7 +254,7 @@ function updateTimerUi(){
   const label=document.getElementById('timerLabel');
   if(activeBoard==='daily'){
     section.style.display='';
-    label.textContent='Resets in ('+dailyClockTz+')';
+    label.textContent='Resets in (EST)';
     document.getElementById('timerDisplay').textContent=fmt(dailyResetSeconds);
   }else{
     section.style.display='none';
