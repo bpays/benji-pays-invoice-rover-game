@@ -25,12 +25,18 @@ class StartScene extends Phaser.Scene {
     // Play button (DOM element for form — will be replaced with proper HTML overlay)
     const playBtn = this.add.rectangle(width/2, height * 0.68, 280, 52, 0xCC7D51, 1)
       .setInteractive({ useHandCursor: true });
-    this.add.text(width/2, height * 0.68, 'P(L)AY NOW', {
+    const playBtnText = this.add.text(width/2, height * 0.68, 'P(L)AY NOW', {
       fontFamily: 'Arial Black', fontSize: '18px', color: '#F8F8F8'
     }).setOrigin(0.5);
 
+    playBtn.on('pointerover', () => playBtn.setFillStyle(0xb86d42));
+    playBtn.on('pointerout',  () => playBtn.setFillStyle(0xCC7D51));
     playBtn.on('pointerdown', () => {
-      this.scene.start('GameScene', { playerName: 'Player', playerEmail: '' });
+      playBtn.setFillStyle(0x995a35);
+      playBtnText.setText('LOADING...');
+      this.time.delayedCall(50, () => {
+        this.scene.start('GameScene', { playerName: 'Player', playerEmail: '' });
+      });
     });
   }
 }
