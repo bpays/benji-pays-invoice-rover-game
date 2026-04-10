@@ -290,7 +290,7 @@ function setBoard(board){
     b.setAttribute('aria-selected',on?'true':'false');
   });
   const scope=document.getElementById('titleScope');
-  if(scope)scope.textContent=board==='daily'?'Daily':'Event';
+  if(scope)scope.textContent='Balance';
   updateTimerUi();
   refreshBoard();
 }
