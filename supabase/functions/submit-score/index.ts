@@ -125,6 +125,17 @@ function jsonErr(
   });
 }
 
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first.slice(0, 128);
+  }
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim().slice(0, 128);
+  return "unknown";
+}
+
 function parseCommaList(key: string): string[] {
   const raw = Deno.env.get(key);
   if (!raw) return [];
@@ -381,6 +392,26 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  const { data: rateOk, error: rateErr } = await adminClient.rpc(
+    "check_submit_score_rate_limit",
+    {
+      p_ip_key: getClientIp(req),
+      p_email_key: cleanEmail,
+      p_max_ip: 25,
+      p_max_email: 10,
+      p_window_secs: 60,
+    },
+  );
+  if (rateErr) {
+    console.error("Rate limit check failed:", rateErr);
+  } else if (rateOk === false) {
+    return jsonErr(
+      429,
+      "rate_limited",
+      "Too many submissions. Try again in a minute.",
+    );
+  }
 
   const { error: insertError } = await adminClient.from("scores").insert({
     player_name: cleanName,

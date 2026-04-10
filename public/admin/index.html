@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice Rover — Admin</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <link rel="stylesheet" href="admin-styles.css">
 </head>
 <body>
@@ -91,6 +93,29 @@
             <button class="btn btn-danger" onclick="resetNow()">Reset Now</button>
           </div>
         </div>
+      </div>
+      <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);max-width:640px;">
+        <div class="section-label" style="margin-bottom:10px;">Daily leaderboard timezone</div>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;">“Daily” board and run counts use midnight in this zone. Default is US Eastern (America/New_York).</p>
+        <div class="field"><label for="leaderboardTimezone">IANA timezone</label>
+          <select id="leaderboardTimezone" style="width:100%;max-width:400px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.25);color:var(--white);border:1px solid rgba(255,255,255,.12);font-size:14px;">
+            <option value="America/New_York">Eastern — America/New_York</option>
+            <option value="America/Chicago">Central — America/Chicago</option>
+            <option value="America/Denver">Mountain — America/Denver</option>
+            <option value="America/Los_Angeles">Pacific — America/Los_Angeles</option>
+            <option value="America/Phoenix">Arizona — America/Phoenix</option>
+            <option value="America/Toronto">Toronto — America/Toronto</option>
+            <option value="America/Vancouver">Vancouver — America/Vancouver</option>
+            <option value="Pacific/Honolulu">Honolulu — Pacific/Honolulu</option>
+            <option value="UTC">UTC</option>
+            <option value="Europe/London">London — Europe/London</option>
+            <option value="Australia/Sydney">Sydney — Australia/Sydney</option>
+          </select>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button type="button" class="btn btn-primary" onclick="saveLeaderboardTimezone()">Save timezone</button>
+        </div>
+        <div class="login-err" id="timezoneErr" style="display:none;text-align:left;margin-top:10px;"></div>
       </div>
     </div>
     <div class="section">
@@ -496,7 +521,7 @@ async function resetEventLeaderboard(){
   await loadAll();
 }
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>t.className='',2500);}
-async function init(){await loadAll();await loadTimerSetting();startTimer();}
+async function init(){await loadAll();await loadTimerSetting();await loadTimezoneSetting();startTimer();}
 async function loadAll(){await Promise.all([loadScores(),loadStats()]);}
 function onEventChange(){
   currentEventKey=document.getElementById('eventSelector').value;
@@ -599,6 +624,37 @@ function exportCSV(){
 async function loadTimerSetting(){
   const res=await api('GET','settings',null,'key=eq.leaderboard_reset_at&select=value');
   if(res&&res[0]){const d=new Date(res[0].value);document.getElementById('resetAtDisplay').textContent='Resets: '+d.toLocaleString();resetSeconds=Math.max(0,Math.floor((d-new Date())/1000));}
+}
+async function loadTimezoneSetting(){
+  const res=await api('GET','settings',null,'key=eq.leaderboard_timezone&select=value');
+  const sel=document.getElementById('leaderboardTimezone');
+  if(!sel)return;
+  const errEl=document.getElementById('timezoneErr');
+  if(errEl){errEl.style.display='none';}
+  if(!res||!res[0]){sel.value='America/New_York';return;}
+  const v=String(res[0].value||'').trim();
+  const match=[...sel.options].find(o=>o.value===v);
+  if(match){sel.value=v;return;}
+  const opt=document.createElement('option');
+  opt.value=v;
+  opt.textContent=v+' (custom)';
+  sel.appendChild(opt);
+  sel.value=v;
+}
+async function saveLeaderboardTimezone(){
+  const sel=document.getElementById('leaderboardTimezone');
+  const errEl=document.getElementById('timezoneErr');
+  if(!sel)return;
+  const tz=sel.value.trim();
+  if(!tz){if(errEl){errEl.textContent='Select a timezone';errEl.style.display='block';}toast('Select a timezone','err');return;}
+  const res=await api('PATCH','settings',{value:tz,updated_at:new Date().toISOString()},'key=eq.leaderboard_timezone');
+  if(res){
+    if(errEl)errEl.style.display='none';
+    toast('Timezone saved ✓');
+  }else{
+    if(errEl){errEl.textContent='Could not save. Apply the latest database migration if this row is missing.';errEl.style.display='block';}
+    toast('Failed to save timezone','err');
+  }
 }
 function startTimer(){
   if(timerInterval)clearInterval(timerInterval);

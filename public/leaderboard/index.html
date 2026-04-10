@@ -11,6 +11,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Benji Pays: Invoice Rover — Leaderboard</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap');
 :root{--cerulean:#004777;--charcoal:#002843;--cooper:#CC7D51;--cameo:#D9B59D;--white:#F8F8F8;--good:#4DC97A;--muted:#7ba3be;}
@@ -67,7 +69,40 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
 @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
 .empty-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;text-align:center;}
 .empty-sub{font-size:13px;color:var(--muted);text-align:center;}
-  .inline-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--cooper),#004777);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:18px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 28px rgba(204,125,81,.3);}
+  .inline-cta{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    padding:17px 20px;
+    border:none;
+    border-radius:14px;
+    background:linear-gradient(135deg,var(--cooper) 0%,#e89565 55%,#d4a574 100%);
+    color:var(--white);
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:900;
+    font-size:18px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    cursor:pointer;
+    box-shadow:0 6px 28px rgba(204,125,81,.42),0 2px 8px rgba(0,0,0,.2);
+    transition:transform .12s ease,box-shadow .2s ease,filter .2s ease;
+  }
+  .inline-cta:hover{
+    filter:brightness(1.06);
+    box-shadow:0 8px 32px rgba(204,125,81,.5),0 3px 10px rgba(0,0,0,.22);
+  }
+  .inline-cta:active{
+    transform:scale(.98);
+    filter:brightness(.96);
+    box-shadow:0 3px 16px rgba(204,125,81,.35),0 1px 4px rgba(0,0,0,.18);
+  }
+  .inline-cta:focus{outline:none;}
+  .inline-cta:focus-visible{
+    outline:2px solid var(--white);
+    outline-offset:3px;
+  }
   .board-toggle{display:flex;gap:0;padding:4px;border-radius:12px;background:rgba(0,40,67,.5);border:1px solid rgba(255,255,255,.1);}
   .board-toggle .toggle-btn{flex:1;padding:12px 14px;border:none;border-radius:9px;background:transparent;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s;}
   .board-toggle .toggle-btn.active{background:rgba(204,125,81,.25);color:var(--white);box-shadow:0 2px 12px rgba(0,0,0,.2);}
@@ -104,7 +139,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </svg>
       </div>
       <div class="timer-wrap" id="timerSection">
-        <div class="timer-lbl" id="timerLabel">Resets in (UTC)</div>
+        <div class="timer-lbl" id="timerLabel">Resets in (America/New_York)</div>
         <div class="timer"><span class="pulse"></span><span id="timerDisplay">--:--:--</span></div>
       </div>
     </div>
@@ -150,6 +185,8 @@ const EVENT_TAG='nable-empower-2026';
 const rpcHeaders={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'};
 
 let activeBoard='daily';
+let dailyClockTz='America/New_York';
+let dailyResetSeconds=0;
 
 async function fetchDailyScores(){
   const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_leaderboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
@@ -169,6 +206,14 @@ async function fetchTodayRunCount(){
 async function fetchEventSubmissionCount(){
   const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_event_submission_count',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG})});
   return res.ok?await res.json():0;
+}
+
+async function fetchDailyBoardClock(){
+  const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_board_clock',{method:'POST',headers:rpcHeaders,body:'{}'});
+  if(!res.ok)return null;
+  const data=await res.json();
+  if(Array.isArray(data)&&data[0]&&typeof data[0]==='object')return data[0];
+  return data;
 }
 
 const medals=['🥇','🥈','🥉'];
@@ -202,11 +247,6 @@ function renderList(scores,mode){
   });
 }
 
-function getSecsUntilUtcMidnight(){
-  const now=new Date();
-  const midnight=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1));
-  return Math.floor((midnight-now)/1000);
-}
 function fmt(s){s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
 
 function updateTimerUi(){
@@ -214,8 +254,8 @@ function updateTimerUi(){
   const label=document.getElementById('timerLabel');
   if(activeBoard==='daily'){
     section.style.display='';
-    label.textContent='Resets in (UTC)';
-    document.getElementById('timerDisplay').textContent=fmt(getSecsUntilUtcMidnight());
+    label.textContent='Resets in ('+dailyClockTz+')';
+    document.getElementById('timerDisplay').textContent=fmt(dailyResetSeconds);
   }else{
     section.style.display='none';
   }
@@ -224,10 +264,12 @@ function updateTimerUi(){
 async function refreshBoard(){
   try{
     if(activeBoard==='daily'){
-      const[scores,count]=await Promise.all([fetchDailyScores(),fetchTodayRunCount()]);
+      const[scores,count,clock]=await Promise.all([fetchDailyScores(),fetchTodayRunCount(),fetchDailyBoardClock()]);
       renderList(scores,'daily');
       document.getElementById('runnerCount').textContent=count+' runner'+(count===1?'':'s')+' today';
-      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · UTC day';
+      if(clock&&typeof clock.timezone==='string')dailyClockTz=clock.timezone;
+      if(clock&&typeof clock.seconds_until_reset==='number')dailyResetSeconds=clock.seconds_until_reset;
+      document.getElementById('boardCount').textContent='Top '+Math.min(10,scores.length)+' · '+dailyClockTz;
     }else{
       const[scores,count]=await Promise.all([fetchEventScores(),fetchEventSubmissionCount()]);
       renderList(scores,'event');
@@ -253,15 +295,18 @@ function setBoard(board){
   refreshBoard();
 }
 
-setInterval(updateTimerUi,1000);
+setInterval(()=>{
+  if(activeBoard==='daily'&&dailyResetSeconds>0)dailyResetSeconds--;
+  updateTimerUi();
+},1000);
 
 document.querySelectorAll('.board-toggle .toggle-btn').forEach(btn=>{
   btn.addEventListener('click',()=>setBoard(btn.getAttribute('data-board')));
 });
 
 (async()=>{
-  updateTimerUi();
   await refreshBoard();
+  updateTimerUi();
 })();
 
 setInterval(()=>{refreshBoard();},30000);
