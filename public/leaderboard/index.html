@@ -145,7 +145,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
     <div class="title-block">
       <div class="eyebrow">Invoice Rover · High Velocity Fintech Ledger</div>
-      <div class="title" id="leaderTitle"><span id="titleScope">Daily</span><br><span class="acc">Leader</span>board</div>
+      <div class="title" id="leaderTitle"><span id="titleScope">Balance</span><br><span class="acc">She</span>et</div>
       <div style="display:flex;justify-content:center;">
         <div class="live-pill"><span class="pulse" style="margin:0;width:5px;height:5px;"></span><span id="runnerCount">Loading...</span></div>
       </div>
@@ -163,7 +163,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <button class="inline-cta" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*')">🐕 &nbsp;P(L)AY NOW</button>
     <div class="board-toggle" style="margin-top:14px;" role="tablist" aria-label="Leaderboard type">
       <button type="button" class="toggle-btn active" data-board="daily" role="tab" aria-selected="true">Daily</button>
-      <button type="button" class="toggle-btn" data-board="event" role="tab" aria-selected="false">Event</button>
+      <button type="button" class="toggle-btn" data-board="event" role="tab" aria-selected="false">All-Time</button>
     </div>
   </div>
   <div class="divider"></div>
@@ -290,7 +290,7 @@ function setBoard(board){
     b.setAttribute('aria-selected',on?'true':'false');
   });
   const scope=document.getElementById('titleScope');
-  if(scope)scope.textContent=board==='daily'?'Daily':'Event';
+  if(scope)scope.textContent='Balance';
   updateTimerUi();
   refreshBoard();
 }
