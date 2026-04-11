@@ -191,6 +191,8 @@ const rpcHeaders={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-
 let activeBoard='daily';
 let dailyClockTz='America/New_York';
 let dailyResetSeconds=0;
+let currentPlayerName='';
+try{currentPlayerName=(localStorage.getItem('bp_playerName')||'').trim();}catch(e){}
 
 async function fetchDailyDashboard(){
   const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_dashboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
