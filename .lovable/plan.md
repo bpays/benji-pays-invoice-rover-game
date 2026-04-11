@@ -1,23 +1,41 @@
 
 
-## Plan: Admin Page — Reset Confirmation + Remove Timer Section
+## Plan: Replace hardcoded profanity filter with `bad-words` npm package
 
-### 1. Add two-step safety confirmation to "Reset Event Scores" button
+### Current state
+The `submit-score` edge function has a manually curated ~70-word `PROFANITY_WORDS` set with basic whole-word matching. This misses compound words, leet-speak, and non-English profanity.
 
-**File: `public/admin/index.html`** (~line 497)
+### Approach
+Replace the custom filter with the [`bad-words`](https://www.npmjs.com/package/bad-words) package (or its maintained fork `leo-profanity`). Since edge functions run on Deno, we import via `npm:` specifier — no build step needed.
 
-Replace the simple `confirm()` with:
-1. A strongly worded `confirm()` warning that this permanently deletes all scores and should only be done after the event ends and all data (CSV exports, etc.) has been collected
-2. A `prompt()` requiring the user to type the exact event name to proceed; abort with a toast if it doesn't match
+**Recommended package: `leo-profanity`** — actively maintained, supports multiple languages, works well via `npm:leo-profanity`.
 
-### 2. Remove the Leaderboard Reset Timer section
+### Changes
 
-**File: `public/admin/index.html`**
+**File: `supabase/functions/submit-score/index.ts`**
 
-- **HTML** (lines 78-95): Remove the entire "Leaderboard Reset Timer" section div (countdown display, date picker, +24h/+8h/+4h buttons, Reset Now button)
-- **JS** (line 283): Remove `resetSeconds` and `timerInterval` variables
-- **JS** (line 528): Remove `loadTimerSetting()` and `startTimer()` calls from `init()`
-- **JS** (lines 647-694): Remove functions `loadTimerSetting()`, `startTimer()`, `setTimer()`, `setTimerHours()`, and `resetNow()`
+1. Add import at the top:
+   ```typescript
+   import filter from "npm:leo-profanity@1";
+   ```
+2. Remove the entire `PROFANITY_WORDS` set and the `hasProfanity()` function.
+3. Replace the profanity check inside `validateDisplayName` with:
+   ```typescript
+   if (filter.check(name)) {
+     return { ok: false, code: "invalid_name", error: "That name isn't allowed." };
+   }
+   ```
+4. Optionally add extra words from `EXTRA_BLOCKED_NAME_TOKENS` env var to the filter:
+   ```typescript
+   const extraWords = parseCommaList("EXTRA_BLOCKED_NAME_TOKENS");
+   if (extraWords.length) filter.add(extraWords);
+   ```
 
-The daily leaderboard resets automatically at midnight ET via the `get_daily_leaderboard` RPC — no manual timer is needed. The event reset button (with the new safety confirmation) remains for post-event cleanup.
+5. Redeploy the edge function.
+
+### Benefits
+- Much larger built-in word list (~800+ words)
+- Handles partial/substring matches
+- Multi-language support available
+- Maintained by community — no manual curation needed
 
