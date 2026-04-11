@@ -41,8 +41,12 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
 .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);margin:16px 20px 0;position:relative;z-index:2;}
 .your-rank-section{position:relative;z-index:2;padding:16px 20px 0;}
 .play-cta{border-radius:14px;padding:16px 20px;background:rgba(0,71,119,.12);border:1.5px dashed rgba(204,125,81,.35);display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;text-decoration:none;}
+.play-cta.has-rank{border-style:solid;border-color:rgba(204,125,81,.5);background:linear-gradient(135deg,rgba(204,125,81,.1) 0%,rgba(0,71,119,.12) 100%);}
 .play-cta-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
 .play-cta-text{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;color:var(--cameo);}
+.play-cta-rank{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;color:var(--cooper);line-height:1;}
+.rank-row.current-player{border-color:rgba(204,125,81,.4);background:linear-gradient(135deg,rgba(204,125,81,.12) 0%,rgba(0,40,67,.1) 100%);box-shadow:0 0 16px rgba(204,125,81,.15);}
+.rank-row.current-player .rank-name{color:var(--cooper);}
   .board-section{position:relative;z-index:2;padding:18px 20px 0;}
   .board-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
   .board-title{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
