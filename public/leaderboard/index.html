@@ -156,9 +156,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
   </header>
   <div class="divider"></div>
-  <div class="your-rank-section">
-    <a class="play-cta" href="#" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*');return false;">
-      <div><div class="play-cta-label">Your Rank</div><div class="play-cta-text">Play to see your rank</div></div>
+  <div class="your-rank-section" id="yourRankSection">
+    <a class="play-cta" id="yourRankCta" href="#" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*');return false;">
+      <div><div class="play-cta-label" id="yourRankLabel">Your Rank</div><div class="play-cta-text" id="yourRankText">Play to see your rank</div></div>
+      <div class="play-cta-rank" id="yourRankBadge" style="display:none;"></div>
     </a>
   </div>
   <div class="divider"></div>
