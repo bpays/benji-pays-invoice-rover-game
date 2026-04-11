@@ -279,6 +279,19 @@ function validateDisplayName(raw: string): { ok: true; name: string } | {
     };
   }
 
+  // Substring scan: catch profanity embedded inside compound words
+  const nameLower = name.toLowerCase().replace(/[^a-z]/g, "");
+  const allWords: string[] = filter.list();
+  for (const word of allWords) {
+    if (word.length >= 3 && nameLower.includes(word)) {
+      return {
+        ok: false,
+        code: "invalid_name",
+        error: "That name isn't allowed.",
+      };
+    }
+  }
+
   return { ok: true, name };
 }
 
