@@ -41,8 +41,12 @@ header{position:relative;z-index:2;padding:18px 20px 0;}
 .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);margin:16px 20px 0;position:relative;z-index:2;}
 .your-rank-section{position:relative;z-index:2;padding:16px 20px 0;}
 .play-cta{border-radius:14px;padding:16px 20px;background:rgba(0,71,119,.12);border:1.5px dashed rgba(204,125,81,.35);display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;text-decoration:none;}
+.play-cta.has-rank{border-style:solid;border-color:rgba(204,125,81,.5);background:linear-gradient(135deg,rgba(204,125,81,.1) 0%,rgba(0,71,119,.12) 100%);}
 .play-cta-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
 .play-cta-text{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;color:var(--cameo);}
+.play-cta-rank{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:28px;color:var(--cooper);line-height:1;}
+.rank-row.current-player{border-color:rgba(204,125,81,.4);background:linear-gradient(135deg,rgba(204,125,81,.12) 0%,rgba(0,40,67,.1) 100%);box-shadow:0 0 16px rgba(204,125,81,.15);}
+.rank-row.current-player .rank-name{color:var(--cooper);}
   .board-section{position:relative;z-index:2;padding:18px 20px 0;}
   .board-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
   .board-title{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
@@ -152,9 +156,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
   </header>
   <div class="divider"></div>
-  <div class="your-rank-section">
-    <a class="play-cta" href="#" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*');return false;">
-      <div><div class="play-cta-label">Your Rank</div><div class="play-cta-text">Play to see your rank</div></div>
+  <div class="your-rank-section" id="yourRankSection">
+    <a class="play-cta" id="yourRankCta" href="#" onclick="window.parent.postMessage({type:'navigate',path:'/game'},'*');return false;">
+      <div><div class="play-cta-label" id="yourRankLabel">Your Rank</div><div class="play-cta-text" id="yourRankText">Play to see your rank</div></div>
+      <div class="play-cta-rank" id="yourRankBadge" style="display:none;"></div>
     </a>
   </div>
   <div class="divider"></div>
@@ -186,6 +191,8 @@ const rpcHeaders={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-
 let activeBoard='daily';
 let dailyClockTz='America/New_York';
 let dailyResetSeconds=0;
+let currentPlayerName='';
+try{currentPlayerName=(localStorage.getItem('bp_playerName')||'').trim();}catch(e){}
 
 async function fetchDailyDashboard(){
   const res=await fetch(SUPA_URL+'/rest/v1/rpc/get_daily_dashboard',{method:'POST',headers:rpcHeaders,body:JSON.stringify({p_event_tag:EVENT_TAG,p_limit:10})});
@@ -209,23 +216,55 @@ function renderList(scores,mode){
     const title=mode==='daily'?'No runs yet today.':'No scores for this event yet.';
     const sub=mode==='daily'?'Be the first on the board! 🏁':'Play a run to land on the event board.';
     list.innerHTML='<div class="empty-state"><div class="empty-title">'+title+'</div><div class="empty-sub">'+sub+'</div></div>';
+    updateYourRank(-1,null);
     return;
   }
   list.innerHTML='';
+  let playerRank=-1,playerScore=null;
+  const cpLower=currentPlayerName.toLowerCase();
   scores.forEach((s,i)=>{
     const rank=i+1,isTop3=rank<=3;
+    const isMe=cpLower&&(s.player_name||'').toLowerCase()===cpLower;
+    if(isMe){playerRank=rank;playerScore=s;}
     const row=document.createElement('div');
-    row.className='rank-row'+(rClasses[i]?' '+rClasses[i]:'');
+    row.className='rank-row'+(rClasses[i]?' '+rClasses[i]:'')+(isMe?' current-player':'');
     row.style.animationDelay=(i*0.05)+'s';
     row.innerHTML=
       '<div class="rank-badge '+(isTop3?badgeClasses[i]:'plain')+'">'+(isTop3?medals[i]:rank)+'</div>'+
       '<div class="rank-player">'+
-        '<div class="rank-name">'+esc(s.player_name)+'</div>'+
+        '<div class="rank-name">'+esc(s.player_name)+(isMe?' <span style="font-size:10px;color:var(--cooper);font-family:Barlow;font-weight:600;">(You)</span>':'')+'</div>'+
         '<div class="rank-meta"><span>'+esc(s.city_flag||'🇨🇦')+'</span><span>'+esc(s.city_reached||'Vancouver')+'</span><span>· '+(s.best_combo||0)+'× combo</span></div>'+
       '</div>'+
       '<div class="rank-right"><div class="rank-score">'+(s.score||0).toLocaleString()+'</div></div>';
     list.appendChild(row);
   });
+  updateYourRank(playerRank,playerScore);
+}
+
+function updateYourRank(rank,scoreData){
+  const cta=document.getElementById('yourRankCta');
+  const label=document.getElementById('yourRankLabel');
+  const text=document.getElementById('yourRankText');
+  const badge=document.getElementById('yourRankBadge');
+  if(!currentPlayerName){
+    label.textContent='Your Rank';
+    text.textContent='Play to see your rank';
+    badge.style.display='none';
+    cta.classList.remove('has-rank');
+    return;
+  }
+  if(rank>0&&scoreData){
+    cta.classList.add('has-rank');
+    label.textContent=currentPlayerName+' · '+(activeBoard==='daily'?'Today':'All-Time');
+    text.textContent='$'+(scoreData.score||0).toLocaleString()+' · '+(scoreData.city_reached||'Vancouver');
+    badge.textContent='#'+rank;
+    badge.style.display='';
+  }else{
+    cta.classList.remove('has-rank');
+    label.textContent=currentPlayerName;
+    text.textContent=activeBoard==='daily'?'No runs today — play now!':'Play to get on the board!';
+    badge.style.display='none';
+  }
 }
 
 function fmt(s){s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
