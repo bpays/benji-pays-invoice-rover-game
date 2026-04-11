@@ -58,7 +58,7 @@ class GameOverScene extends Phaser.Scene {
     });
 
     // Share copy
-    const shareText = `${this.playerName} collected $${Math.floor(this.finalScore).toLocaleString()} in Benji Pays: Invoice Rover! Reached ${this.cityReached}. Can you beat me? 💸 benjipays.com/run`;
+    const shareText = `${this.playerName} collected $${Math.floor(this.finalScore).toLocaleString()} in Benji Pays: Invoice Rover! Reached ${this.cityReached}. Can you beat me? 💸 benjigame.com`;
     const shareBox = this.add.rectangle(width/2, height * 0.64, width * 0.88, 65, 0x001a2e)
       .setStrokeStyle(1, 0xCC7D51, 0.4);
     this.add.text(width/2, height * 0.64, shareText, {
