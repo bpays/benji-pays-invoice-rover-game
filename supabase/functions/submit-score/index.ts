@@ -267,11 +267,15 @@ function validateDisplayName(raw: string): { ok: true; name: string } | {
     }
   }
 
-  if (hasProfanity(name)) {
+  // leo-profanity filter with extra blocked words from env
+  const extraBlocked = parseCommaList("EXTRA_BLOCKED_NAME_TOKENS");
+  if (extraBlocked.length) filter.add(extraBlocked);
+
+  if (filter.check(name)) {
     return {
       ok: false,
       code: "invalid_name",
-      error: "That name isn’t allowed.",
+      error: "That name isn't allowed.",
     };
   }
 
