@@ -947,7 +947,7 @@ function endGame(){
   document.getElementById('finalCity').textContent=currentCity.flag+' '+currentCity.name;
   document.getElementById('finalDistance').textContent=Math.floor(distance/60)+'m';
   document.getElementById('overCity').textContent='IN '+currentCity.name.toUpperCase();
-  document.getElementById('shareCopy').textContent=n+' collected $'+fs.toLocaleString()+' in Benji Pays: Invoice Rover! Reached '+currentCity.name+'. Can you beat me? 💸 benjipays.com/run';
+  document.getElementById('shareCopy').textContent=n+' collected $'+fs.toLocaleString()+' in Benji Pays: Invoice Rover! Reached '+currentCity.name+'. Can you beat me? 💸 benjigame.com';
   document.getElementById('gameOverScreen').classList.remove('hidden');var osb=document.getElementById('overSoundBtn');if(osb)osb.textContent=soundOn?'🔊 Music On':'🔇 Music Off';playCount++;if(soundOn){try{const ac=getAC();[220,196,174,155].forEach((f,i)=>{setTimeout(()=>{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.4);o.start();o.stop(ac.currentTime+0.4);},i*120);});}catch(e){}}stopMusic(800);
   const emailField = document.getElementById('playerEmail');
   const emailTrim = emailField && emailField.value ? emailField.value.trim() : '';
