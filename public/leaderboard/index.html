@@ -216,23 +216,55 @@ function renderList(scores,mode){
     const title=mode==='daily'?'No runs yet today.':'No scores for this event yet.';
     const sub=mode==='daily'?'Be the first on the board! 🏁':'Play a run to land on the event board.';
     list.innerHTML='<div class="empty-state"><div class="empty-title">'+title+'</div><div class="empty-sub">'+sub+'</div></div>';
+    updateYourRank(-1,null);
     return;
   }
   list.innerHTML='';
+  let playerRank=-1,playerScore=null;
+  const cpLower=currentPlayerName.toLowerCase();
   scores.forEach((s,i)=>{
     const rank=i+1,isTop3=rank<=3;
+    const isMe=cpLower&&(s.player_name||'').toLowerCase()===cpLower;
+    if(isMe){playerRank=rank;playerScore=s;}
     const row=document.createElement('div');
-    row.className='rank-row'+(rClasses[i]?' '+rClasses[i]:'');
+    row.className='rank-row'+(rClasses[i]?' '+rClasses[i]:'')+(isMe?' current-player':'');
     row.style.animationDelay=(i*0.05)+'s';
     row.innerHTML=
       '<div class="rank-badge '+(isTop3?badgeClasses[i]:'plain')+'">'+(isTop3?medals[i]:rank)+'</div>'+
       '<div class="rank-player">'+
-        '<div class="rank-name">'+esc(s.player_name)+'</div>'+
+        '<div class="rank-name">'+esc(s.player_name)+(isMe?' <span style="font-size:10px;color:var(--cooper);font-family:Barlow;font-weight:600;">(You)</span>':'')+'</div>'+
         '<div class="rank-meta"><span>'+esc(s.city_flag||'🇨🇦')+'</span><span>'+esc(s.city_reached||'Vancouver')+'</span><span>· '+(s.best_combo||0)+'× combo</span></div>'+
       '</div>'+
       '<div class="rank-right"><div class="rank-score">'+(s.score||0).toLocaleString()+'</div></div>';
     list.appendChild(row);
   });
+  updateYourRank(playerRank,playerScore);
+}
+
+function updateYourRank(rank,scoreData){
+  const cta=document.getElementById('yourRankCta');
+  const label=document.getElementById('yourRankLabel');
+  const text=document.getElementById('yourRankText');
+  const badge=document.getElementById('yourRankBadge');
+  if(!currentPlayerName){
+    label.textContent='Your Rank';
+    text.textContent='Play to see your rank';
+    badge.style.display='none';
+    cta.classList.remove('has-rank');
+    return;
+  }
+  if(rank>0&&scoreData){
+    cta.classList.add('has-rank');
+    label.textContent=currentPlayerName+' · '+(activeBoard==='daily'?'Today':'All-Time');
+    text.textContent='$'+(scoreData.score||0).toLocaleString()+' · '+(scoreData.city_reached||'Vancouver');
+    badge.textContent='#'+rank;
+    badge.style.display='';
+  }else{
+    cta.classList.remove('has-rank');
+    label.textContent=currentPlayerName;
+    text.textContent=activeBoard==='daily'?'No runs today — play now!':'Play to get on the board!';
+    badge.style.display='none';
+  }
 }
 
 function fmt(s){s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
