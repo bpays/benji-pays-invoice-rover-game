@@ -1,40 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import filter from "npm:leo-profanity@1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-/** Inline profanity word list — keeps the edge function free of npm deps. */
-const PROFANITY_WORDS = new Set([
-  "anal","anus","arse","ass","asshole","ballsack","balls","bastard","bitch",
-  "biatch","bloody","blowjob","bollock","bollok","boner","boob","bugger",
-  "bum","butt","buttplug","clitoris","cock","coon","crap","cunt","damn",
-  "dick","dildo","dyke","fag","feck","fellate","fellatio","felching",
-  "fuck","fudgepacker","flange","goddamn","hell","homo","jerk","jizz",
-  "knobend","labia","lmao","lmfao","muff","nigger","nigga","omg","penis",
-  "piss","poop","prick","pube","pussy","queer","scrotum","sex","shit",
-  "sh1t","slut","smegma","spunk","tit","tosser","turd","twat","vagina",
-  "wank","whore","wtf",
-]);
-
-/**
- * Check whether `text` contains a profane word (whole-word boundary match).
- * Normalises: lowercase, replaces non-alpha with spaces, collapses whitespace.
- */
-function hasProfanity(text: string): boolean {
-  const normalised = text
-    .toLowerCase()
-    .replace(/[^a-z]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const tokens = normalised.split(" ");
-  for (const t of tokens) {
-    if (PROFANITY_WORDS.has(t)) return true;
-  }
-  return false;
-}
 
 /** Lowercase hostnames — consumer / free mail (tradeshow work-email gate). */
 const BLOCKED_EMAIL_DOMAINS = new Set([
