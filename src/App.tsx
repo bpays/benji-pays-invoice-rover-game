@@ -1,6 +1,13 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 
+const Redirect = ({ to }: { to: string }) => {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return null;
+};
+
 const IframePage = ({ src, title }: { src: string; title: string }) => {
   const navigate = useNavigate();
 
@@ -32,9 +39,9 @@ const App = () => {
       <Routes>
         <Route path="/" element={<IframePage src="/game/index.html" title="Benji Pays: Invoice Rover" />} />
         <Route path="/game" element={<IframePage src="/game/index.html" title="Benji Pays: Invoice Rover" />} />
-        <Route path="/leaderboard" element={<IframePage src="/leaderboard/index.html" title="Leaderboard" />} />
-        <Route path="/admin" element={<IframePage src="/admin/index.html" title="Admin Panel" />} />
-        <Route path="/strategy" element={<IframePage src="/strategy/index.html" title="Strategy" />} />
+        <Route path="/leaderboard" element={<Redirect to="/leaderboard/index.html" />} />
+        <Route path="/admin" element={<Redirect to="/admin/index.html" />} />
+        <Route path="/strategy" element={<Redirect to="/strategy/index.html" />} />
       </Routes>
     </BrowserRouter>
   );
