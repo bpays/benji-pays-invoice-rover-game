@@ -5,6 +5,7 @@
     "": {
       "name": "benjipays-invoice-rover",
       "dependencies": {
+        "@lovable.dev/cloud-auth-js": "^1.1.0",
         "@supabase/supabase-js": "^2.102.1",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
@@ -21,6 +22,8 @@
   },
   "packages": {
     "@esbuild/linux-x64": ["@esbuild/linux-x64@0.21.5", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@esbuild/linux-x64/-/linux-x64-0.21.5.tgz", { "os": "linux", "cpu": "x64" }, ""],
+
+    "@lovable.dev/cloud-auth-js": ["@lovable.dev/cloud-auth-js@1.1.1", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@lovable.dev/cloud-auth-js/-/cloud-auth-js-1.1.1.tgz", {}, "sha512-80elU8dSJG6bho0Xnfj2oy53wp883nYXrG1Wy948LC/ZUaUQ0i9EGXQFmwTLOBFrWqxb6aNaOlZUvQ8BVGhjMQ=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-beta.27", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@rolldown/pluginutils/-/pluginutils-1.0.0-beta.27.tgz", {}, ""],
 
