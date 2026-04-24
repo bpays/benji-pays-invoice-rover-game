@@ -220,7 +220,7 @@ const SKY={
 };
 
 const PU_TYPES=[
-  {id:'halopsa',name:'Shield',effect:'INVINCIBILITY · 15s',color:B.cerulean,emoji:'🛡️',dur:15*60,img:'/game/assets/powerups/shield.png'},
+  {id:'halopsa',name:'Shield',effect:'INVINCIBILITY · 7.5s',color:B.cerulean,emoji:'🛡️',dur:7.5*60,img:'/game/assets/powerups/shield.png'},
   {id:'scalepad',name:'Boost',effect:'2× SCORE · 12s',color:'#f5c842',emoji:'⚡',dur:12*60,img:'/game/assets/powerups/instant-pay.png'},
   {id:'moneris',name:'Paid In Full',effect:'ALL OBSTACLES CLEARED',color:B.cooper,emoji:'💰',dur:0,img:'/game/assets/powerups/shield.png'},
   {id:'elavon',name:'Payment Streak',effect:'DOUBLE POINTS · 15s',color:B.good,emoji:'💫',dur:15*60,img:'/game/assets/powerups/instant-pay.png'}
@@ -602,20 +602,12 @@ function drawCollectBadge(x,y,size){
 function drawPartnerBoostBadge(x,y,size){
   const by=y-size*0.78;
   if(!puBoostBadgeImg||!puBoostBadgeImg.complete||!puBoostBadgeImg.naturalWidth){
-    label(x,by,'PARTNER BOOST','#ffffff',B.cooper,2);
     return;
   }
   const keyed=getPartnerBoostBadgeKeyOut();
   const aw=keyed?keyed.width:puBoostBadgeImg.naturalWidth;
   const ah=keyed?keyed.height:puBoostBadgeImg.naturalHeight;
   const maxW=size*2.35,maxH=size*0.42,sc=Math.min(maxW/aw,maxH/ah),sw=aw*sc,sh=ah*sc;
-  const pad=collectBadgeImagePadding(size);
-  const rw=sw+2*pad.h,rh=sh+2*pad.v;
-  ctx.beginPath();
-  if(ctx.roundRect)ctx.roundRect(x-rw/2,by-rh/2,rw,rh,5);
-  else ctx.rect(x-rw/2,by-rh/2,rw,rh);
-  ctx.fillStyle='#ffffff';
-  ctx.fill();
   ctx.drawImage(keyed||puBoostBadgeImg,x-sw/2,by-sh/2,sw,sh);
 }
 function drawCollectibleSprite(t,x,y,size){
@@ -628,20 +620,12 @@ function drawCollectibleSprite(t,x,y,size){
 function drawPUSprite(t,x,y,size){
   const im=puImageCache[t.id];
   const r=size*.72;
-  ctx.save();
-  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
-  ctx.fillStyle='rgba(255,255,255,.96)';ctx.fill();
-  ctx.strokeStyle=(t.color||B.cooper)+'55';ctx.lineWidth=2;ctx.stroke();
   if(im&&im.complete&&im.naturalWidth){
-    ctx.save();
-    ctx.beginPath();ctx.arc(x,y,r*.92,0,Math.PI*2);ctx.clip();
-    const maxD=r*2*.9,sc=Math.min(maxD/im.width,maxD/im.height),sw=im.width*sc,sh=im.height*sc;
+    const maxD=r*2,sc=Math.min(maxD/im.width,maxD/im.height),sw=im.width*sc,sh=im.height*sc;
     ctx.drawImage(im,x-sw/2,y-sh/2,sw,sh);
-    ctx.restore();
   }else{
     emoji(t.emoji||'✨',x,y,size*.85);
   }
-  ctx.restore();
 }
 function label(x,y,text,bg,textColor,extraPadW){
   ctx.font='bold 9px Barlow,sans-serif';
@@ -843,7 +827,7 @@ function gameLoop(timestamp){
   powerups.forEach(p=>{if(!p.alive)return;const dx=p.x-bx,dy=p.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+p.size*.43){p.alive=false;activatePU(p.type);burst(p.x,p.y,B.cooper,14);benjiGlow=1;}});
   ctx.clearRect(0,0,cssW(),cssH());drawBG();
   collectibles.forEach(c=>{const cy=c.y+Math.sin(c.w)*4;drawCollectBadge(c.x,cy,c.size);ctx.save();ctx.shadowBlur=14;ctx.shadowColor=B.goodGlow;drawCollectibleSprite(c.type,c.x,cy,c.size);ctx.restore();});
-  powerups.forEach(p=>{ctx.save();ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);drawPUSprite(p.type,p.x,p.y,p.size);ctx.restore();ctx.beginPath();ctx.arc(p.x,p.y,p.size*.72,0,Math.PI*2);ctx.strokeStyle=p.type.color+'44';ctx.lineWidth=2;ctx.stroke();drawPartnerBoostBadge(p.x,p.y,p.size);});
+  powerups.forEach(p=>{ctx.save();ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);drawPUSprite(p.type,p.x,p.y,p.size);ctx.restore();drawPartnerBoostBadge(p.x,p.y,p.size);});
   obstacles.forEach(o=>{drawDodgeBadge(o.x,o.y,o.size);ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;drawObstacleSprite(o.type,o.x,o.y,o.size);ctx.restore();});
   particles.forEach(p=>{ctx.save();ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();ctx.restore();});
   if((isClutch||puWarning)&&!puFlashVisible){/* skip drawing Benji for flash effect */}else{drawBenji(benjiX,benjiY,bs);}
