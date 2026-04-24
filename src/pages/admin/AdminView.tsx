@@ -119,7 +119,7 @@ export function AdminView() {
   const loadStats = useCallback(async () => {
     const ev = EVENTS[currentEventKey];
     const { data, error } = await supabase.rpc('get_admin_stats', {
-      p_event_tag: ev.tag,
+      p_event_tag: ev.tag ?? undefined,
     });
     if (error || !data) return;
     const s = data as {
