@@ -153,6 +153,7 @@ export type Database = {
       }
     }
     Functions: {
+      get_admin_stats: { Args: { p_event_tag?: string }; Returns: Json }
       get_daily_board_clock: {
         Args: never
         Returns: {
