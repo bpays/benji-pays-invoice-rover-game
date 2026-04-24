@@ -19,11 +19,11 @@ export function getTotpFactors(factorData: {
 }
 
 export async function restApi(
-  method: 'GET' | 'PATCH' | 'DELETE' | 'POST',
+  method: 'GET' | 'PATCH' | 'POST',
   table: string,
   body: Record<string, unknown> | null,
   params: string
-): Promise<unknown[] | null | boolean> {
+): Promise<unknown[] | null> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -38,8 +38,7 @@ export async function restApi(
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (method === 'DELETE') return res.ok;
-  return res.ok ? (await res.json() as unknown[]) : null;
+  return res.ok ? ((await res.json()) as unknown[]) : null;
 }
 
 export async function inviteEdgeFn(postBody: Record<string, unknown>): Promise<Record<string, unknown>> {

@@ -490,44 +490,6 @@ export function AdminView() {
   const page = filteredScores.slice(start, end);
   const totalF = filteredScores.length;
 
-  const onResetEvent = async () => {
-    if (currentEventKey === 'all') {
-      toastMsg('Select a specific event in the header', 'err');
-      return;
-    }
-    const ev = EVENTS[currentEventKey];
-    if (!ev?.tag) return;
-    if (!window.confirm('This permanently deletes all scores for this event. Continue?')) return;
-    const typed = window.prompt(`Type the event tag to confirm:\n${ev.tag}`);
-    if (typed !== ev.tag) {
-      toastMsg('Reset cancelled', 'err');
-      return;
-    }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      toastMsg('You must be signed in', 'err');
-      return;
-    }
-    const res = await fetch(`${SUPA_URL}/rest/v1/rpc/reset_event_scores`, {
-      method: 'POST',
-      headers: {
-        apikey: SUPA_KEY,
-        Authorization: `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ p_event_tag: ev.tag }),
-    });
-    if (!res.ok) {
-      toastMsg('Reset failed', 'err');
-      return;
-    }
-    const txt = await res.text();
-    toastMsg(`Deleted ${parseInt(txt, 10) || 0} row(s)`);
-    await loadAll();
-  };
-
   const onSaveTz = async () => {
     setTimezoneErr('');
     if (!timezoneVal) {
