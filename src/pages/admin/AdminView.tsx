@@ -239,7 +239,10 @@ export function AdminView() {
   const handleMfaFlow = useCallback(async () => {
     const { data, error } = await supabase.auth.mfa.listFactors();
     if (error) {
-      await enterApp();
+      // Fail closed: do not enter the app if we can't verify MFA factors.
+      setMfaEnrollErr('Unable to verify MFA status. Please sign in again.');
+      await supabase.auth.signOut();
+      setScreen('login');
       return;
     }
     const totpFactors = getTotpFactors(
