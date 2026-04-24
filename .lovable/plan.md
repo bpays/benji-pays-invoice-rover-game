@@ -1,41 +1,36 @@
+## What's wrong
 
+Your app code is fine. The Vite dev server in the sandbox is crash-looping because of a known npm bug ([npm/cli#4828](https://github.com/npm/cli/issues/4828)) with Rollup's optional native binaries:
 
-## Plan: Replace hardcoded profanity filter with `bad-words` npm package
+```
+Error: Cannot find module @rollup/rollup-linux-x64-gnu
+```
 
-### Current state
-The `submit-score` edge function has a manually curated ~70-word `PROFANITY_WORDS` set with basic whole-word matching. This misses compound words, leet-speak, and non-English profanity.
+After a large change, `package-lock.json` got out of sync and npm skipped installing the Linux-specific Rollup binary that Vite needs to start. Result: blank preview.
 
-### Approach
-Replace the custom filter with the [`bad-words`](https://www.npmjs.com/package/bad-words) package (or its maintained fork `leo-profanity`). Since edge functions run on Deno, we import via `npm:` specifier — no build step needed.
+This is **not** related to:
+- Your Supabase env variables (those are still set)
+- Your edge functions (`submit-score`, `admin-invite`)
+- Your React/routing code
+- The recent profanity-filter / leo-profanity work
 
-**Recommended package: `leo-profanity`** — actively maintained, supports multiple languages, works well via `npm:leo-profanity`.
+## Fix
 
-### Changes
+Two small steps, both in the sandbox — no app code changes:
 
-**File: `supabase/functions/submit-score/index.ts`**
+1. **Reset the broken install**
+   - Delete `node_modules/` and `package-lock.json`
+   - Run a clean `npm install` so npm correctly picks up `@rollup/rollup-linux-x64-gnu` as an optional dep for the Linux sandbox
 
-1. Add import at the top:
-   ```typescript
-   import filter from "npm:leo-profanity@1";
-   ```
-2. Remove the entire `PROFANITY_WORDS` set and the `hasProfanity()` function.
-3. Replace the profanity check inside `validateDisplayName` with:
-   ```typescript
-   if (filter.check(name)) {
-     return { ok: false, code: "invalid_name", error: "That name isn't allowed." };
-   }
-   ```
-4. Optionally add extra words from `EXTRA_BLOCKED_NAME_TOKENS` env var to the filter:
-   ```typescript
-   const extraWords = parseCommaList("EXTRA_BLOCKED_NAME_TOKENS");
-   if (extraWords.length) filter.add(extraWords);
-   ```
+2. **Verify Vite boots**
+   - Tail `/tmp/dev-server-logs/dev-server.log` and confirm Vite starts on port 8080 with no rollup error
+   - Reload the preview to confirm `/`, `/leaderboard`, and `/admin` render
 
-5. Redeploy the edge function.
+## Why nothing else needs to change
 
-### Benefits
-- Much larger built-in word list (~800+ words)
-- Handles partial/substring matches
-- Multi-language support available
-- Maintained by community — no manual curation needed
+- `package.json` itself is fine — this is purely an install-state bug
+- No need to pin or downgrade Rollup/Vite; the clean reinstall resolves it
+- Env vars (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`) are unaffected — they only matter once Vite is actually running
+- Edge functions are deployed independently and aren't impacted
 
+Approve and I'll run the reinstall and verify the preview comes back up.
