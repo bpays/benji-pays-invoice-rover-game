@@ -1,0 +1,8 @@
+# SPA: deep links (e.g. /admin) serve the Vite app
+/*    /index.html   200
+
+# Legacy static HTML bookmarks → unified routes
+/game/index.html          /game 301
+/leaderboard/index.html  /leaderboard 301
+/admin/index.html         /admin 301
+/strategy/index.html     /strategy 301

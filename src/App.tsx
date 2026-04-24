@@ -1,47 +1,22 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
-
-const Redirect = ({ to }: { to: string }) => {
-  useEffect(() => {
-    window.location.replace(to);
-  }, [to]);
-  return null;
-};
-
-const IframePage = ({ src, title }: { src: string; title: string }) => {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'navigate' && typeof e.data.path === 'string') {
-        navigate(e.data.path);
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [navigate]);
-
-  return (
-    <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', background: '#002843' }}>
-      <iframe
-        src={src}
-        style={{ width: '100%', height: '100%', border: 'none' }}
-        title={title}
-        allow="autoplay"
-      />
-    </div>
-  );
-};
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { GamePage } from './pages/GamePage';
+import { LeaderboardPage } from './pages/LeaderboardPage';
+import { AdminPage } from './pages/AdminPage';
+import { StrategyEmbedPage } from './pages/StrategyEmbedPage';
+import { NavigationMessageBridge } from './components/NavigationMessageBridge';
+import { LovableOauthRedirect } from './components/LovableOauthRedirect';
 
 const App = () => {
   return (
     <BrowserRouter>
+      <NavigationMessageBridge />
       <Routes>
-        <Route path="/" element={<IframePage src="/game/index.html" title="Benji Pays: Invoice Rover" />} />
-        <Route path="/game" element={<IframePage src="/game/index.html" title="Benji Pays: Invoice Rover" />} />
-        <Route path="/leaderboard" element={<Redirect to="/leaderboard/index.html" />} />
-        <Route path="/admin" element={<Redirect to="/admin/index.html" />} />
-        <Route path="/strategy" element={<Redirect to="/strategy/index.html" />} />
+        <Route path="/" element={<GamePage />} />
+        <Route path="/game" element={<GamePage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/~oauth/*" element={<LovableOauthRedirect />} />
+        <Route path="/strategy" element={<StrategyEmbedPage />} />
       </Routes>
     </BrowserRouter>
   );
