@@ -1,27 +1,41 @@
-# Remove white power-up backgrounds & shorten Shield duration
+## Goal
 
-Three small changes to `src/features/game/shellRuntime.ts`:
+Make score data permanent. No admin action (UI or DB) can ever delete a row in `public.scores`. Replace destructive controls with soft-hide ("Remove from leaderboard") via the existing `flagged` flag, which already excludes rows from every public leaderboard RPC.
 
-## 1. Remove the white circle behind in-game power-up sprites
+## What to remove
 
-In `drawPUSprite` (around lines 628–645), drop the white-fill circle and the colored ring around it. Just draw the sprite directly so the transparent PNG (Shield / Instant Pay) sits cleanly on the playfield.
+**Admin UI (`src/pages/admin/AdminView.tsx`)**
+- Remove the per-row red "Del" button and its DELETE call (lines ~907–920).
+- Remove the entire "Reset event leaderboard" section and the `onResetEvent` handler (lines ~493–529, ~785–798).
 
-Replace the white-circle block with a no-op — keep the clipping/scaling so the icon still sizes correctly, or simply draw the image at the computed size with no backdrop.
+**Admin API helper (`src/pages/admin/adminApi.ts`)**
+- Drop `'DELETE'` from the `restApi` method union and remove the `if (method === 'DELETE')` branch, so the helper can no longer issue deletes against `scores`.
 
-## 2. Remove the white pill behind the "POWER-UP" label
+**Database (migration)**
+- `DROP FUNCTION public.reset_event_scores(text);` — removes the only server-side bulk-delete path.
+- Drop the existing "Admins can delete scores" RLS policy on `public.scores`.
+- Add a `RESTRICTIVE` RLS policy `"No deletes on scores"` for `DELETE` with `USING (false)` for all roles, so even a future admin token cannot delete a score row via PostgREST.
+- Leave `admin_invites` / `user_roles` / `submit_rate_buckets` delete policies untouched (admin management and rate-bucket cleanup still need them).
 
-In `drawPartnerBoostBadge` (around lines 602–620), remove the white rounded-rect fill and just draw the keyed-out label image. The image already has its own styled lettering, so no plate is needed.
+## What to add
 
-(Same treatment is intentionally NOT applied to the COLLECT/DODGE labels — those keep their existing white plate.)
+**Admin UI**
+- Replace the deleted "Del" button with a single **"Remove from leaderboard"** button (uses existing flag PATCH already wired on line ~894). The current Flag/Unflag toggle stays, just relabeled to make intent clear:
+  - When `flagged === false`: button label `Remove from leaderboard` (sets `flagged = true`).
+  - When `flagged === true`: button label `Restore to leaderboard` (sets `flagged = false`).
+- Add a small helper line under the Scores section: "Removed scores stay in the database for audit — they only disappear from public leaderboards."
+- Confirm dialog text updated to: "Hide this score from public leaderboards? The row will be kept in the database."
 
-## 3. Shield duration: 15s → 7.5s
+## Why this is safe
 
-In `PU_TYPES` (line 223), change the `halopsa` (Shield) entry:
-- `dur: 15*60` → `dur: 7.5*60`
-- `effect: 'INVINCIBILITY · 15s'` → `'INVINCIBILITY · 7.5s'`
-
-Other power-up durations stay the same.
+- All public leaderboard reads (`get_daily_dashboard`, `get_event_dashboard`, `get_leaderboard`, `get_today_run_count`, `get_event_submission_count`, `get_admin_stats`) already filter `flagged = false`. Flagging a row removes it from every player-visible surface immediately.
+- With the new restrictive `DELETE` policy + dropped `reset_event_scores` function, there is no remaining code path — client, edge function, or RPC — that can remove a row from `public.scores`.
+- CSV export still includes flagged rows when "Show flagged" is on, preserving full audit access for admins.
 
 ## Files touched
 
-- `src/features/game/shellRuntime.ts` only.
+- `src/pages/admin/AdminView.tsx` — remove Del button, remove Reset section + handler, relabel flag button, update confirm text.
+- `src/pages/admin/adminApi.ts` — narrow `restApi` to `'GET' | 'PATCH' | 'POST'`.
+- new migration — drop `reset_event_scores`, drop admin delete policy on `scores`, add restrictive deny-delete policy.
+
+No changes needed to the `submit-score` edge function, leaderboard page, or game runtime.

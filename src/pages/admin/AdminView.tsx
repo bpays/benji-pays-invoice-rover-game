@@ -490,44 +490,6 @@ export function AdminView() {
   const page = filteredScores.slice(start, end);
   const totalF = filteredScores.length;
 
-  const onResetEvent = async () => {
-    if (currentEventKey === 'all') {
-      toastMsg('Select a specific event in the header', 'err');
-      return;
-    }
-    const ev = EVENTS[currentEventKey];
-    if (!ev?.tag) return;
-    if (!window.confirm('This permanently deletes all scores for this event. Continue?')) return;
-    const typed = window.prompt(`Type the event tag to confirm:\n${ev.tag}`);
-    if (typed !== ev.tag) {
-      toastMsg('Reset cancelled', 'err');
-      return;
-    }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      toastMsg('You must be signed in', 'err');
-      return;
-    }
-    const res = await fetch(`${SUPA_URL}/rest/v1/rpc/reset_event_scores`, {
-      method: 'POST',
-      headers: {
-        apikey: SUPA_KEY,
-        Authorization: `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ p_event_tag: ev.tag }),
-    });
-    if (!res.ok) {
-      toastMsg('Reset failed', 'err');
-      return;
-    }
-    const txt = await res.text();
-    toastMsg(`Deleted ${parseInt(txt, 10) || 0} row(s)`);
-    await loadAll();
-  };
-
   const onSaveTz = async () => {
     setTimezoneErr('');
     if (!timezoneVal) {
@@ -782,23 +744,13 @@ export function AdminView() {
               )}
             </div>
 
-            <div className="section">
-              <div className="section-title">Reset event leaderboard</div>
-              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640 }}>
-                Deletes all score rows for the event selected. Cannot be undone.
-              </p>
-              <button
-                type="button"
-                className="btn btn-danger"
-                disabled={currentEventKey === 'all'}
-                onClick={() => void onResetEvent()}
-              >
-                Reset event scores
-              </button>
-            </div>
+
 
             <div className="section">
               <div className="section-title">Scores — {evLabel}</div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640, marginBottom: 12 }}>
+                Removed scores stay in the database for audit — they only disappear from public leaderboards.
+              </p>
               <div
                 className="board-toggle"
                 style={{ display: 'flex', marginBottom: 14, width: 'fit-content', border: '1px solid rgba(255,255,255,.12)' }}
@@ -895,28 +847,20 @@ export function AdminView() {
                                 type="button"
                                 className={`btn btn-sm flag-btn ${s.flagged ? 'unflag' : 'flag'}`}
                                 onClick={async () => {
+                                  const confirmMsg = s.flagged
+                                    ? 'Restore this score to public leaderboards?'
+                                    : 'Hide this score from public leaderboards? The row will be kept in the database.';
+                                  if (!window.confirm(confirmMsg)) return;
                                   const r = await restApi('PATCH', 'scores', { flagged: !s.flagged }, `id=eq.${s.id}`);
                                   if (r) {
                                     void loadAll();
-                                    toastMsg(s.flagged ? 'Unflagged' : 'Flagged');
+                                    toastMsg(s.flagged ? 'Restored to leaderboard' : 'Removed from leaderboard');
+                                  } else {
+                                    toastMsg('Update failed', 'err');
                                   }
                                 }}
                               >
-                                {s.flagged ? 'Unflag' : 'Flag'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-sm"
-                                onClick={async () => {
-                                  if (!window.confirm('Delete permanently?')) return;
-                                  const ok = (await restApi('DELETE', 'scores', null, `id=eq.${s.id}`)) as boolean;
-                                  if (ok) {
-                                    void loadAll();
-                                    toastMsg('Deleted');
-                                  }
-                                }}
-                              >
-                                Del
+                                {s.flagged ? 'Restore to leaderboard' : 'Remove from leaderboard'}
                               </button>
                             </div>
                           </td>

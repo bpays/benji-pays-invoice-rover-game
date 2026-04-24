@@ -235,7 +235,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      reset_event_scores: { Args: { p_event_tag: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
