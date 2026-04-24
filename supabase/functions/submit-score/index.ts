@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import filter from "npm:leo-profanity@1";
+import filter from "https://esm.sh/leo-profanity@1.7.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
