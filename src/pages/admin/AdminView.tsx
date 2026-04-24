@@ -744,20 +744,7 @@ export function AdminView() {
               )}
             </div>
 
-            <div className="section">
-              <div className="section-title">Reset event leaderboard</div>
-              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640 }}>
-                Deletes all score rows for the event selected. Cannot be undone.
-              </p>
-              <button
-                type="button"
-                className="btn btn-danger"
-                disabled={currentEventKey === 'all'}
-                onClick={() => void onResetEvent()}
-              >
-                Reset event scores
-              </button>
-            </div>
+
 
             <div className="section">
               <div className="section-title">Scores — {evLabel}</div>
