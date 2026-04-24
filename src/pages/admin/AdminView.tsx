@@ -116,61 +116,33 @@ export function AdminView() {
     return ev.tag ? `event_tag=eq.${ev.tag}` : '';
   }, [currentEventKey]);
 
-  const loadStats = useCallback(
-    async (dataOverride?: Score[]) => {
-      const ep = eventParams();
-      let data = dataOverride;
-      if (!data) {
-        const d = (await restApi('GET', 'scores', null, `select=id,score,email,city_reached,player_name,created_at,flagged${ep ? `&${ep}` : ''}&order=score.desc`)) as Score[] | null;
-        if (!d) return;
-        data = d;
-      }
-      if (!data.length) {
-        setStats((s) => ({
-          ...s,
-          total: 0,
-          today: 0,
-          active: 0,
-          leads: 0,
-          avg: 0,
-          topScore: 0,
-          topName: '—',
-          topCity: '—',
-        }));
-        return;
-      }
-      const now = new Date();
-      const today = new Date(now);
-      today.setHours(0, 0, 0, 0);
-      const fifteenAgo = new Date(now.getTime() - 15 * 60 * 1000);
-      const todayRuns = data.filter((x) => new Date(x.created_at || 0) >= today).length;
-      const active = data.filter((x) => new Date(x.created_at || 0) >= fifteenAgo).length;
-      const leads = new Set(data.map((s) => s.email).filter(Boolean)).size;
-      const nonZero = data.filter((s) => s.score > 0);
-      const avg = nonZero.length
-        ? Math.round(nonZero.reduce((a, b) => a + b.score, 0) / nonZero.length)
-        : 0;
-      const top = data[0];
-      const cities: Record<string, number> = {};
-      data.forEach((s) => {
-        if (s.city_reached && s.score > 0) {
-          cities[s.city_reached] = (cities[s.city_reached] || 0) + 1;
-        }
-      });
-      const topCity = Object.entries(cities).sort((a, b) => b[1] - a[1])[0];
-      setStats({
-        total: data.length,
-        today: todayRuns,
-        active,
-        leads,
-        avg,
-        topScore: top?.score || 0,
-        topName: top?.player_name || '—',
-        topCity: topCity ? topCity[0] : '—',
-      });
-    },
-    [eventParams]
-  );
+  const loadStats = useCallback(async () => {
+    const ev = EVENTS[currentEventKey];
+    const { data, error } = await supabase.rpc('get_admin_stats', {
+      p_event_tag: ev.tag,
+    });
+    if (error || !data) return;
+    const s = data as {
+      total: number;
+      today: number;
+      active: number;
+      leads: number;
+      avg: number;
+      topScore: number;
+      topName: string;
+      topCity: string;
+    };
+    setStats({
+      total: s.total ?? 0,
+      today: s.today ?? 0,
+      active: s.active ?? 0,
+      leads: s.leads ?? 0,
+      avg: s.avg ?? 0,
+      topScore: s.topScore ?? 0,
+      topName: s.topName ?? '—',
+      topCity: s.topCity ?? '—',
+    });
+  }, [currentEventKey]);
 
   const loadScores = useCallback(async () => {
     if (boardMode === 'daily') {
