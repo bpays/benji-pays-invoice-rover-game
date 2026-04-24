@@ -47,9 +47,9 @@ export const GAME_APP_INNER_HTML = `<div id="gameViewportBg" class="game-viewpor
         <span class="legend-icon legend-dodge-icons" aria-hidden="true"><img src="/game/assets/obstacles/overdue-invoice.png" alt="" width="72" height="72" decoding="async"/><img src="/game/assets/obstacles/angry-client.png" alt="" width="72" height="72" decoding="async"/></span>
         <img class="legend-title-img" src="/game/assets/obstacles/dodge.png" alt="Dodge" width="120" height="30" decoding="async"/>
       </div>
-      <div class="legend-card pu" role="group" aria-label="Partner boosts: HaloPSA, ScalePad, Moneris, Elavon">
-        <span class="legend-icon legend-partner-icons" aria-hidden="true"><img src="/game/assets/partners/halopsa.png" alt="" width="64" height="64" decoding="async"/><img src="/game/assets/partners/scalepad.png" alt="" width="64" height="64" decoding="async"/><img src="/game/assets/partners/moneris.png" alt="" width="64" height="64" decoding="async"/><img src="/game/assets/partners/elavon.png" alt="" width="64" height="64" decoding="async"/></span>
-        <img class="legend-title-img legend-title-partner" src="/game/assets/partner/partner-boost-label.png" alt="Partner boost" width="200" height="32" decoding="async"/>
+      <div class="legend-card pu" role="group" aria-label="Power-ups: Shield and Instant Pay">
+        <span class="legend-icon legend-powerup-icons" aria-hidden="true"><img src="/game/assets/powerups/shield.png" alt="" width="72" height="72" decoding="async"/><img src="/game/assets/powerups/instant-pay.png" alt="" width="72" height="72" decoding="async"/></span>
+        <img class="legend-title-img" src="/game/assets/powerups/power-up-label.png" alt="Power-up" width="120" height="30" decoding="async"/>
       </div>
     </div>
     <div class="form-group">
