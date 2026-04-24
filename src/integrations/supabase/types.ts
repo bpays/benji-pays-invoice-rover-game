@@ -95,6 +95,24 @@ export type Database = {
         }
         Relationships: []
       }
+      submit_rate_buckets: {
+        Row: {
+          bucket_key: string
+          hit_count: number
+          window_id: number
+        }
+        Insert: {
+          bucket_key: string
+          hit_count?: number
+          window_id: number
+        }
+        Update: {
+          bucket_key?: string
+          hit_count?: number
+          window_id?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -153,6 +171,16 @@ export type Database = {
       }
     }
     Functions: {
+      check_submit_score_rate_limit: {
+        Args: {
+          p_email_key: string
+          p_ip_key: string
+          p_max_email?: number
+          p_max_ip?: number
+          p_window_secs?: number
+        }
+        Returns: boolean
+      }
       get_admin_stats: { Args: { p_event_tag?: string }; Returns: Json }
       get_daily_board_clock: {
         Args: never
