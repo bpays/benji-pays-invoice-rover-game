@@ -618,11 +618,11 @@ export function AdminView() {
       rows.push([
         i + 1,
         s.player_name,
-        s.email,
+        s.email ?? '',
         s.score,
         `${s.city_flag || ''} ${s.city_reached || ''}`,
-        s.best_combo,
-        s.event_tag,
+        s.best_combo ?? 0,
+        s.event_tag ?? '',
         new Date(s.created_at || '').toLocaleString(),
       ]);
     });
