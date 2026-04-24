@@ -264,7 +264,7 @@ function getCollectBadgeKeyOut(){
   return colBadgeNoBgCanvas;
 }
 colBadgeImg.onload = function () { getCollectBadgeKeyOut(); };
-const PARTNER_BOOST_BADGE='/game/assets/partner/partner-boost-label.png';
+const PARTNER_BOOST_BADGE='/game/assets/powerups/power-up-label.png';
 const puBoostBadgeImg=new Image();puBoostBadgeImg.src=PARTNER_BOOST_BADGE;
 let puBoostNoBgCanvas=null;
 function getPartnerBoostBadgeKeyOut(){
