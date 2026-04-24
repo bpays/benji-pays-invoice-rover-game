@@ -220,10 +220,10 @@ const SKY={
 };
 
 const PU_TYPES=[
-  {id:'halopsa',name:'HaloPSA Shield',effect:'INVINCIBILITY · 15s',color:B.cerulean,emoji:'🛡️',dur:15*60,img:'/game/assets/partners/halopsa.png'},
-  {id:'scalepad',name:'ScalePad Boost',effect:'2× SCORE · 12s',color:'#f5c842',emoji:'⚡',dur:12*60,img:'/game/assets/partners/scalepad.png'},
-  {id:'moneris',name:'Moneris Paid In Full',effect:'ALL OBSTACLES CLEARED',color:B.cooper,emoji:'💰',dur:0,img:'/game/assets/partners/moneris.png'},
-  {id:'elavon',name:'Elavon Payment Streak',effect:'DOUBLE POINTS · 15s',color:B.good,emoji:'💫',dur:15*60,img:'/game/assets/partners/elavon.png'}
+  {id:'halopsa',name:'Shield',effect:'INVINCIBILITY · 15s',color:B.cerulean,emoji:'🛡️',dur:15*60,img:'/game/assets/powerups/shield.png'},
+  {id:'scalepad',name:'Boost',effect:'2× SCORE · 12s',color:'#f5c842',emoji:'⚡',dur:12*60,img:'/game/assets/powerups/instant-pay.png'},
+  {id:'moneris',name:'Paid In Full',effect:'ALL OBSTACLES CLEARED',color:B.cooper,emoji:'💰',dur:0,img:'/game/assets/powerups/shield.png'},
+  {id:'elavon',name:'Payment Streak',effect:'DOUBLE POINTS · 15s',color:B.good,emoji:'💫',dur:15*60,img:'/game/assets/powerups/instant-pay.png'}
 ];
 const puImageCache={};
 PU_TYPES.forEach(t=>{if(!t.img)return;const im=new Image();im.src=t.img;puImageCache[t.id]=im;});
