@@ -182,16 +182,8 @@ export function AdminView() {
   }, [boardMode, currentEventKey, eventParams, runFilter]);
 
   const loadAll = useCallback(async () => {
-    const ep = eventParams();
-    const st = (await restApi(
-      'GET',
-      'scores',
-      null,
-      `select=id,score,email,city_reached,player_name,created_at,flagged${ep ? `&${ep}` : ''}&order=score.desc`
-    )) as Score[] | null;
-    if (st) await loadStats(st);
-    await loadScores();
-  }, [eventParams, loadStats, loadScores]);
+    await Promise.all([loadStats(), loadScores()]);
+  }, [loadStats, loadScores]);
 
   const loadTimezone = useCallback(async () => {
     const res = (await restApi('GET', 'settings', null, 'key=eq.leaderboard_timezone&select=value')) as
@@ -485,19 +477,10 @@ export function AdminView() {
   useEffect(() => {
     if (screen !== 'app') return;
     const t = setInterval(() => {
-      const ep = eventParams();
-      void (async () => {
-        const data = (await restApi(
-          'GET',
-          'scores',
-          null,
-          `select=id,score,email,city_reached,player_name,created_at,flagged${ep ? `&${ep}` : ''}&order=score.desc`
-        )) as Score[] | null;
-        if (data) await loadStats(data);
-      })();
+      void loadStats();
     }, 60000);
     return () => clearInterval(t);
-  }, [eventParams, loadStats, screen]);
+  }, [loadStats, screen]);
 
   const start = currentPage * PAGE_SIZE;
   const end = start + PAGE_SIZE;
