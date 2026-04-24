@@ -1,19 +1,28 @@
-## Problem
+## Fix submit-score edge function build error
 
-The runtime error `Uncaught Error: supabaseUrl is required.` happens because `src/integrations/supabase/client.ts` reads `import.meta.env.VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, but the project's `.env` file is missing from the sandbox (only `.env.example` exists). `.env` is in `.gitignore`, so when the recent large change reset the workspace, the managed `.env` was lost and Vite built/served the app with `undefined` for both values — which crashes `createClient()` immediately on load.
+**Problem:** `npm:leo-profanity@1` isn't resolvable by edge-runtime, so the `submit-score` function fails to deploy.
 
-## Fix
+**Fix:** Switch to the esm.sh specifier which resolves reliably in Deno edge-runtime, and pin a concrete version.
 
-1. Recreate `/dev-server/.env` with the known-good Lovable Cloud values:
-   - `VITE_SUPABASE_URL=https://wowzqjrvmgkcustjdxpo.supabase.co`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY=<the project's publishable anon key>`
-   - `VITE_SUPABASE_PROJECT_ID=wowzqjrvmgkcustjdxpo`
-2. Restart the Vite dev server so the new env is picked up by the preview.
-3. Verify the preview loads (no `supabaseUrl is required` error, Supabase requests succeed).
-4. Once preview is healthy, the user should republish so `invoicerovergame.lovable.app` (and the custom domains) get a build with the env baked in.
+### Change
 
-## Notes
+In `supabase/functions/submit-score/index.ts`, replace:
 
-- No app code changes are needed — the client code is correct.
-- `.env` stays gitignored; it is regenerated/managed by the Lovable Cloud integration.
-- If after restart the preview still fails, the next step is to refresh the Lovable Cloud integration so it re-emits `.env`.
+```ts
+import filter from "npm:leo-profanity@1";
+```
+
+with:
+
+```ts
+import filter from "https://esm.sh/leo-profanity@1.7.0";
+```
+
+No other code changes needed — the `filter.add()`, `filter.check()`, and `filter.list()` API surface is identical.
+
+### Validation
+
+1. Deploy `submit-score`.
+2. Check function logs for successful boot (no module resolution errors).
+3. Curl the function with a test payload (valid name + work email + score) and confirm a 200 response.
+4. Curl with a profane name and confirm a 400 `invalid_name`.
