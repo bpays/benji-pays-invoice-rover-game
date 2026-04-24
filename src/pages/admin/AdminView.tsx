@@ -761,6 +761,9 @@ export function AdminView() {
 
             <div className="section">
               <div className="section-title">Scores — {evLabel}</div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640, marginBottom: 12 }}>
+                Removed scores stay in the database for audit — they only disappear from public leaderboards.
+              </p>
               <div
                 className="board-toggle"
                 style={{ display: 'flex', marginBottom: 14, width: 'fit-content', border: '1px solid rgba(255,255,255,.12)' }}
@@ -857,28 +860,20 @@ export function AdminView() {
                                 type="button"
                                 className={`btn btn-sm flag-btn ${s.flagged ? 'unflag' : 'flag'}`}
                                 onClick={async () => {
+                                  const confirmMsg = s.flagged
+                                    ? 'Restore this score to public leaderboards?'
+                                    : 'Hide this score from public leaderboards? The row will be kept in the database.';
+                                  if (!window.confirm(confirmMsg)) return;
                                   const r = await restApi('PATCH', 'scores', { flagged: !s.flagged }, `id=eq.${s.id}`);
                                   if (r) {
                                     void loadAll();
-                                    toastMsg(s.flagged ? 'Unflagged' : 'Flagged');
+                                    toastMsg(s.flagged ? 'Restored to leaderboard' : 'Removed from leaderboard');
+                                  } else {
+                                    toastMsg('Update failed', 'err');
                                   }
                                 }}
                               >
-                                {s.flagged ? 'Unflag' : 'Flag'}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-sm"
-                                onClick={async () => {
-                                  if (!window.confirm('Delete permanently?')) return;
-                                  const ok = (await restApi('DELETE', 'scores', null, `id=eq.${s.id}`)) as boolean;
-                                  if (ok) {
-                                    void loadAll();
-                                    toastMsg('Deleted');
-                                  }
-                                }}
-                              >
-                                Del
+                                {s.flagged ? 'Restore to leaderboard' : 'Remove from leaderboard'}
                               </button>
                             </div>
                           </td>
