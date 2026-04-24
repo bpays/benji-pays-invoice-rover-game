@@ -1,36 +1,58 @@
-## What's wrong
+# Fix: Admin page hammering the database
 
-Your app code is fine. The Vite dev server in the sandbox is crash-looping because of a known npm bug ([npm/cli#4828](https://github.com/npm/cli/issues/4828)) with Rollup's optional native binaries:
+## Diagnosis (from `pg_stat_statements`)
 
-```
-Error: Cannot find module @rollup/rollup-linux-x64-gnu
-```
+The single most expensive query on your backend is the admin page's full-table `scores` fetch:
 
-After a large change, `package-lock.json` got out of sync and npm skipped installing the Linux-specific Rollup binary that Vite needs to start. Result: blank preview.
+- **7,867 calls** of `SELECT id, score, email, city_reached, player_name, created_at, flagged FROM public.scores ... ORDER BY score DESC` — ~39s total exec time, returning every row each call.
+- Source: `src/pages/admin/AdminView.tsx`
+  - **Line 515**: `setInterval(..., 60000)` auto-refreshes the whole table every minute while admin is open.
+  - **Line 124**: initial load + re-runs on filter changes do the same unbounded query.
+- With one or more admin tabs left open at events/stations, this drives the database to 100%.
 
-This is **not** related to:
-- Your Supabase env variables (those are still set)
-- Your edge functions (`submit-score`, `admin-invite`)
-- Your React/routing code
-- The recent profanity-filter / leo-profanity work
+The public leaderboard RPCs (`get_daily_dashboard`, `get_event_dashboard`) are cheap (~2-3ms) and not the problem.
 
-## Fix
+A secondary minor offender: the timezone settings dropdown loads the entire `pg_timezone_names` view (~60k rows × 50 calls).
 
-Two small steps, both in the sandbox — no app code changes:
+## Changes
 
-1. **Reset the broken install**
-   - Delete `node_modules/` and `package-lock.json`
-   - Run a clean `npm install` so npm correctly picks up `@rollup/rollup-linux-x64-gnu` as an optional dep for the Linux sandbox
+### 1. Stop the admin auto-poll from refetching all scores
 
-2. **Verify Vite boots**
-   - Tail `/tmp/dev-server-logs/dev-server.log` and confirm Vite starts on port 8080 with no rollup error
-   - Reload the preview to confirm `/`, `/leaderboard`, and `/admin` render
+In `src/pages/admin/AdminView.tsx`:
 
-## Why nothing else needs to change
+- **Remove the 60s `setInterval` at line 513-528** that re-fetches `scores`. Replace with a manual "Refresh" button in the admin header so refreshes are intentional. Keep the existing initial load.
+- Alternatively, if live updates are desired, raise the interval to 5 minutes AND change the query to use a lightweight stats RPC (see step 2) instead of pulling rows.
 
-- `package.json` itself is fine — this is purely an install-state bug
-- No need to pin or downgrade Rollup/Vite; the clean reinstall resolves it
-- Env vars (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`) are unaffected — they only matter once Vite is actually running
-- Edge functions are deployed independently and aren't impacted
+### 2. Add server-side pagination + a stats RPC
 
-Approve and I'll run the reinstall and verify the preview comes back up.
+The admin currently downloads every score to compute `total / today / active / leads / avg / topScore` client-side. This is the real waste.
+
+- Create a new SECURITY DEFINER RPC `get_admin_stats(p_event_tag text)` that returns the aggregates in a single JSON object (count, today count, active-15-min, distinct emails, avg score, top score/name/city). Returns ~1 row instead of all rows.
+- Replace the admin "stats" fetch (line 119-141 `loadStats`, line 124 query, and the polled query at 522) with a call to this RPC.
+- For the score list/table view, switch to paginated fetches: add `limit=50&offset=...` to the REST query, plus `order=score.desc`. Already paginated client-side via `PAGE_SIZE` (line 530), so the data was being downloaded entirely for nothing — fetch only the visible page.
+- Add a search-mode fetch that uses `ilike` on `player_name`/`email` server-side instead of filtering in JS.
+
+### 3. Stop fetching `email` for list rendering
+
+The list view does not need to display every player email on first load. Drop `email` from the `select=` for the list query; only fetch it when the admin opens a specific row's detail/edit modal. This reduces row size and avoids unnecessary PII transfer.
+
+### 4. Cache the timezone dropdown
+
+In whatever admin component loads `pg_timezone_names` for the leaderboard timezone selector, fetch once on mount and cache in module scope (or hardcode the small list of supported zones — `America/New_York`, `America/Los_Angeles`, `America/Chicago`, `America/Denver`, `Europe/London`, etc.). Avoids repeated 60k-row reads.
+
+### 5. Add an index to support paginated reads (optional)
+
+`CREATE INDEX IF NOT EXISTS scores_event_score_idx ON public.scores (event_tag, score DESC) WHERE flagged = false;`
+Speeds up the per-event paginated admin list and the leaderboard RPCs.
+
+## Expected impact
+
+The polled full-table SELECT becomes a single small JSON aggregate every minute (or zero if the poll is removed entirely), and list reads return at most 50 rows instead of every row. Database CPU should drop to near-idle when admin tabs are open.
+
+## Files touched
+
+- `src/pages/admin/AdminView.tsx` — remove/lengthen poll, switch stats to RPC, paginate list query, drop `email` from list select.
+- `supabase/migrations/<new>.sql` — add `get_admin_stats` RPC and the optional index.
+- Admin timezone selector component (locate during implementation) — cache the timezone list.
+
+No schema-breaking changes; existing data and RLS unaffected.
