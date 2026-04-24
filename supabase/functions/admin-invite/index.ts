@@ -41,7 +41,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Enforce MFA (aal2) for all admin actions except the initial role claim
     const { action, email, role, user_id } = await req.json();
+
+    if (action !== "claim") {
+      const { data: aalData, error: aalErr } = await callerClient.auth.mfa
+        .getAuthenticatorAssuranceLevel();
+      if (aalErr || aalData?.currentLevel !== "aal2") {
+        return new Response(
+          JSON.stringify({ error: "MFA (aal2) required" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
 
     // ── INVITE: insert into admin_invites ──
     if (action === "invite") {
@@ -274,7 +289,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    console.error("admin-invite unhandled error:", err);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
