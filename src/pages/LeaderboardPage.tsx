@@ -65,6 +65,13 @@ export function LeaderboardPage() {
     }
   }, []);
 
+  useEffect(() => {
+    document.documentElement.classList.add('benji-leaderboard-page');
+    return () => {
+      document.documentElement.classList.remove('benji-leaderboard-page');
+    };
+  }, []);
+
   const fetchDailyDashboard = useCallback(async (): Promise<DailyRes> => {
     const res = await fetch(`${supa}/rest/v1/rpc/get_daily_dashboard`, {
       method: 'POST',
@@ -137,9 +144,17 @@ export function LeaderboardPage() {
 
   useEffect(() => {
     const t = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       void refreshBoard();
     }, 60000);
-    return () => clearInterval(t);
+    const onVis = () => {
+      if (!document.hidden) void refreshBoard();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [refreshBoard]);
 
   const { playerRank, playerRow } = useMemo(() => {
