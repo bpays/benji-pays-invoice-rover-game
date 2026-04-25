@@ -566,7 +566,12 @@ class GameScene extends Phaser.Scene {
       const total = cfg.POWERUP_DURATIONS[this.activePU];
       const pct   = Math.max(this.puTimer / total, 0);
       this.puBar.setScale(pct, 1);
-      this.puBar.setFillStyle(pct < 0.3 ? 0xE84040 : 0xCC7D51);
+      // Only swap fill color when crossing the warning threshold, not every frame.
+      const wantWarnColor = pct < 0.3;
+      if (wantWarnColor !== this._puBarWarn) {
+        this.puBar.setFillStyle(wantWarnColor ? 0xE84040 : 0xCC7D51);
+        this._puBarWarn = wantWarnColor;
+      }
 
       if (this.puTimer <= cfg.POWERUP_WARNING_MS && !this.puWarning) {
         this.puWarning  = true;
@@ -580,6 +585,7 @@ class GameScene extends Phaser.Scene {
         this.puBarBg.setVisible(false);
         this.puBar.setVisible(false);
         this.shieldRing.setStrokeStyle(0);
+        this._puBarWarn = false;
         if (this.isNight) this.activateNight();
       }
     }
@@ -614,18 +620,21 @@ class GameScene extends Phaser.Scene {
 
     this.obstacles = this.obstacles.filter(o => {
       if (!o.alive) return false;
-      o.body.y  += move; o.label.y += move; o.badge.y += move;
+      o.body.y  += move; o.label.y += move;
+      if (o.badge) o.badge.y += move;
       // Collision
       if (!this.isClutch && o.body.y > this.benjiY-40 && o.body.y < this.benjiY+40 &&
           Math.abs(o.body.x - this.benjiX) < HR+16) {
         o.alive = false;
         this.burst(o.body.x, o.body.y, 0xE84040, 8);
-        o.body.destroy(); o.label.destroy(); o.badge.destroy();
+        o.body.destroy(); o.label.destroy();
+        if (o.badge) o.badge.destroy();
         this.handleHit();
         return false;
       }
       if (o.body.y > this.H+60) {
-        o.body.destroy(); o.label.destroy(); o.badge.destroy();
+        o.body.destroy(); o.label.destroy();
+        if (o.badge) o.badge.destroy();
         return false;
       }
       return true;
@@ -633,7 +642,8 @@ class GameScene extends Phaser.Scene {
 
     this.collectibles = this.collectibles.filter(c => {
       if (!c.alive) return false;
-      c.glow.y  += move; c.emoji.y += move; c.badge.y += move;
+      c.glow.y  += move; c.emoji.y += move;
+      if (c.badge) c.badge.y += move;
       c.wobble  += 0.06;
       c.emoji.x  = this.laneX[c.lane] + Math.sin(c.wobble)*3;
       c.glow.x   = c.emoji.x;
@@ -655,13 +665,15 @@ class GameScene extends Phaser.Scene {
         this.burst(c.emoji.x, c.emoji.y, 0x4DC97A, 6);
         this.scorePop(c.emoji.x, c.emoji.y, '+'+Math.floor(pts));
         this.updateHUD();
-        c.glow.destroy(); c.emoji.destroy(); c.badge.destroy();
+        c.glow.destroy(); c.emoji.destroy();
+        if (c.badge) c.badge.destroy();
         return false;
       }
       if (c.emoji.y > this.H+60) {
         // Missed collectible — reset combo
         this.combo=0; this.multiplier=1; this.updateHUD();
-        c.glow.destroy(); c.emoji.destroy(); c.badge.destroy();
+        c.glow.destroy(); c.emoji.destroy();
+        if (c.badge) c.badge.destroy();
         return false;
       }
       return true;
@@ -669,7 +681,8 @@ class GameScene extends Phaser.Scene {
 
     this.powerups = this.powerups.filter(p => {
       if (!p.alive) return false;
-      p.ring.y  += move; p.emoji.y += move; p.badge.y += move;
+      p.ring.y  += move; p.emoji.y += move;
+      if (p.badge) p.badge.y += move;
       p.pulse   += 0.08;
       const sc   = 1 + Math.sin(p.pulse)*0.07;
       p.emoji.setScale(sc);
@@ -679,11 +692,13 @@ class GameScene extends Phaser.Scene {
         p.alive = false;
         this.activatePowerup(p.type);
         this.burst(p.ring.x, p.ring.y, 0xCC7D51, 12);
-        p.ring.destroy(); p.emoji.destroy(); p.badge.destroy();
+        p.ring.destroy(); p.emoji.destroy();
+        if (p.badge) p.badge.destroy();
         return false;
       }
       if (p.emoji.y > this.H+60) {
-        p.ring.destroy(); p.emoji.destroy(); p.badge.destroy();
+        p.ring.destroy(); p.emoji.destroy();
+        if (p.badge) p.badge.destroy();
         return false;
       }
       return true;
