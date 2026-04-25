@@ -350,8 +350,10 @@ class GameScene extends Phaser.Scene {
 
   // ── PARTICLE BURST ────────────────────────────────
   burst(x, y, color, count=8) {
-    for (let i=0; i<count; i++) {
-      const angle = (Math.PI*2*i)/count + Math.random()*0.4;
+    // Cap particle count on mobile to keep GC and tween count low.
+    const n = Math.min(count, this.maxBurstParticles);
+    for (let i=0; i<n; i++) {
+      const angle = (Math.PI*2*i)/n + Math.random()*0.4;
       const speed = 80 + Math.random()*120;
       const p = this.add.circle(x, y, 3+Math.random()*3, color, 1).setDepth(7);
       this.tweens.add({
