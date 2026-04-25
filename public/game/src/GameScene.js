@@ -520,18 +520,21 @@ class GameScene extends Phaser.Scene {
     this.benjiGroup.y = this.benjiY;
 
     // ── Benji Animate ────────────────────────────
-    const bounce = this.isJumping ? 0 : Math.sin(time * 0.008) * 2;
-    this.benjiBody.y = bounce;
-    this.benjiLeg1.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012)*6);
-    this.benjiLeg2.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012+Math.PI)*6);
-    this.benjiTail.rotation = Math.sin(time*0.01)*0.3;
+    // On mobile, run the cosmetic bounce/leg sway every other frame to halve
+    // the per-frame transform updates. Doesn't affect gameplay or hitboxes.
+    this._frame = (this._frame + 1) | 0;
+    if (!this.isMobile || (this._frame & 1) === 0) {
+      const bounce = this.isJumping ? 0 : Math.sin(time * 0.008) * 2;
+      this.benjiBody.y = bounce;
+      this.benjiLeg1.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012)*6);
+      this.benjiLeg2.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012+Math.PI)*6);
+      this.benjiTail.rotation = Math.sin(time*0.01)*0.3;
+    }
 
-    // Shield ring follows Benji
+    // Shield ring follows Benji (position only — stroke style is set once on
+    // activation/deactivation to avoid per-frame GPU state churn).
     this.shieldRing.x = this.benjiX;
     this.shieldRing.y = this.benjiY;
-    if (this.activePU === 'SHIELD') {
-      this.shieldRing.setStrokeStyle(3, 0x004777, 0.4+Math.sin(time*0.008)*0.3);
-    }
 
     // ── Flash (clutch / power-up warning) ────────
     if (this.isClutch || this.puWarning) {
@@ -541,7 +544,7 @@ class GameScene extends Phaser.Scene {
         this.flashVisible = !this.flashVisible;
         this.benjiGroup.setAlpha(this.flashVisible ? 1 : 0.2);
       }
-    } else {
+    } else if (this.benjiGroup.alpha !== 1) {
       this.benjiGroup.setAlpha(1);
     }
 
