@@ -416,17 +416,44 @@ class GameScene extends Phaser.Scene {
   }
 
   // ── HUD UPDATE ────────────────────────────────────
+  // Cache strings/visibility — only mutate Phaser Text when value actually
+  // changed. Each setText recreates a canvas texture, which is one of the
+  // hottest paths on mobile.
   updateHUD() {
-    this.hudScore.setText('SCORE\n' + Math.floor(this.score).toLocaleString());
-    if (this.combo > 0) {
-      this.hudCombo.setText('🔥 ' + this.combo + ' COMBO').setVisible(true);
-    } else {
-      this.hudCombo.setVisible(false);
+    const scoreStr = 'SCORE\n' + Math.floor(this.score).toLocaleString();
+    if (scoreStr !== this._hudScoreCache) {
+      this.hudScore.setText(scoreStr);
+      this._hudScoreCache = scoreStr;
     }
+
+    if (this.combo > 0) {
+      const comboStr = '🔥 ' + this.combo + ' COMBO';
+      if (comboStr !== this._hudComboCache) {
+        this.hudCombo.setText(comboStr);
+        this._hudComboCache = comboStr;
+      }
+      if (!this._hudComboVisible) {
+        this.hudCombo.setVisible(true);
+        this._hudComboVisible = true;
+      }
+    } else if (this._hudComboVisible) {
+      this.hudCombo.setVisible(false);
+      this._hudComboVisible = false;
+    }
+
     if (this.multiplier > 1) {
-      this.hudMulti.setText(this.multiplier + '× MULTIPLIER').setVisible(true);
-    } else {
+      const mStr = this.multiplier + '× MULTIPLIER';
+      if (mStr !== this._hudMultiCache) {
+        this.hudMulti.setText(mStr);
+        this._hudMultiCache = mStr;
+      }
+      if (!this._hudMultiVisible) {
+        this.hudMulti.setVisible(true);
+        this._hudMultiVisible = true;
+      }
+    } else if (this._hudMultiVisible) {
       this.hudMulti.setVisible(false);
+      this._hudMultiVisible = false;
     }
   }
 
