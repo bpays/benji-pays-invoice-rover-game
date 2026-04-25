@@ -44,6 +44,19 @@ class GameScene extends Phaser.Scene {
     const H = this.scale.height;
     const C = GAME_CONFIG.COLORS;
 
+    // ── PERF FLAGS ──────────────────────────────────
+    this.isMobile = !!window.__BP_IS_MOBILE__;
+    // Cap particle bursts and skip cosmetic badges on mobile.
+    this.maxBurstParticles = this.isMobile ? 4 : 12;
+    this.showSpawnBadges   = !this.isMobile;
+    // Cached HUD strings to avoid re-uploading text textures every tick.
+    this._hudScoreCache = '';
+    this._hudComboCache = '';
+    this._hudMultiCache = '';
+    this._hudComboVisible = false;
+    this._hudMultiVisible = false;
+    this._frame = 0;
+
     // ── LAYOUT ──────────────────────────────────────
     const lp  = W * GAME_CONFIG.LANE_PADDING;
     const lw  = (W - lp * 2) / 3;
@@ -180,10 +193,12 @@ class GameScene extends Phaser.Scene {
       const x = this.laneX[lane];
       const body = this.add.rectangle(x, -40, 38, 38, t.color, 0.9).setDepth(4);
       const label = this.add.text(x, -40, t.label, {fontSize:'22px'}).setOrigin(0.5).setDepth(4);
-      const badge = this.add.text(x, -62, '❌ DODGE', {
-        fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
-        backgroundColor:'#E84040', padding:{x:4,y:2}
-      }).setOrigin(0.5).setDepth(4);
+      const badge = this.showSpawnBadges
+        ? this.add.text(x, -62, '❌ DODGE', {
+            fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
+            backgroundColor:'#E84040', padding:{x:4,y:2}
+          }).setOrigin(0.5).setDepth(4)
+        : null;
       this.obstacles.push({ body, label, badge, lane, alive:true });
     });
   }
@@ -200,10 +215,12 @@ class GameScene extends Phaser.Scene {
     const x = this.laneX[lane];
     const glow  = this.add.circle(x, -40, 22, 0x4DC97A, 0.18).setDepth(3);
     const emoji = this.add.text(x, -40, t.label, {fontSize:'24px'}).setOrigin(0.5).setDepth(4);
-    const badge = this.add.text(x, -62, '✅ COLLECT', {
-      fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
-      backgroundColor:'#4DC97A', padding:{x:4,y:2}
-    }).setOrigin(0.5).setDepth(4);
+    const badge = this.showSpawnBadges
+      ? this.add.text(x, -62, '✅ COLLECT', {
+          fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
+          backgroundColor:'#4DC97A', padding:{x:4,y:2}
+        }).setOrigin(0.5).setDepth(4)
+      : null;
     this.collectibles.push({ glow, emoji, badge, lane, alive:true, wobble:Math.random()*Math.PI*2, pts:t.pts });
   }
 
@@ -219,10 +236,12 @@ class GameScene extends Phaser.Scene {
     const x = this.laneX[lane];
     const ring  = this.add.circle(x, -50, 26, t.color, 0.15).setStrokeStyle(2, t.color, 0.6).setDepth(3);
     const emoji = this.add.text(x, -50, t.label, {fontSize:'28px'}).setOrigin(0.5).setDepth(4);
-    const badge = this.add.text(x, -76, '⚡ POWER-UP', {
-      fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
-      backgroundColor:'#CC7D51', padding:{x:4,y:2}
-    }).setOrigin(0.5).setDepth(4);
+    const badge = this.showSpawnBadges
+      ? this.add.text(x, -76, '⚡ POWER-UP', {
+          fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
+          backgroundColor:'#CC7D51', padding:{x:4,y:2}
+        }).setOrigin(0.5).setDepth(4)
+      : null;
     this.powerups.push({ ring, emoji, badge, lane, alive:true, type:t, pulse:0 });
   }
 
@@ -268,7 +287,8 @@ class GameScene extends Phaser.Scene {
       if (!o.alive) return;
       o.alive = false;
       this.burst(o.body.x, o.body.y, 0xE84040, 8);
-      o.body.destroy(); o.label.destroy(); o.badge.destroy();
+      o.body.destroy(); o.label.destroy();
+      if (o.badge) o.badge.destroy();
     });
     this.obstacles = this.obstacles.filter(o => o.alive);
   }
@@ -330,8 +350,10 @@ class GameScene extends Phaser.Scene {
 
   // ── PARTICLE BURST ────────────────────────────────
   burst(x, y, color, count=8) {
-    for (let i=0; i<count; i++) {
-      const angle = (Math.PI*2*i)/count + Math.random()*0.4;
+    // Cap particle count on mobile to keep GC and tween count low.
+    const n = Math.min(count, this.maxBurstParticles);
+    for (let i=0; i<n; i++) {
+      const angle = (Math.PI*2*i)/n + Math.random()*0.4;
       const speed = 80 + Math.random()*120;
       const p = this.add.circle(x, y, 3+Math.random()*3, color, 1).setDepth(7);
       this.tweens.add({
@@ -394,17 +416,44 @@ class GameScene extends Phaser.Scene {
   }
 
   // ── HUD UPDATE ────────────────────────────────────
+  // Cache strings/visibility — only mutate Phaser Text when value actually
+  // changed. Each setText recreates a canvas texture, which is one of the
+  // hottest paths on mobile.
   updateHUD() {
-    this.hudScore.setText('SCORE\n' + Math.floor(this.score).toLocaleString());
-    if (this.combo > 0) {
-      this.hudCombo.setText('🔥 ' + this.combo + ' COMBO').setVisible(true);
-    } else {
-      this.hudCombo.setVisible(false);
+    const scoreStr = 'SCORE\n' + Math.floor(this.score).toLocaleString();
+    if (scoreStr !== this._hudScoreCache) {
+      this.hudScore.setText(scoreStr);
+      this._hudScoreCache = scoreStr;
     }
+
+    if (this.combo > 0) {
+      const comboStr = '🔥 ' + this.combo + ' COMBO';
+      if (comboStr !== this._hudComboCache) {
+        this.hudCombo.setText(comboStr);
+        this._hudComboCache = comboStr;
+      }
+      if (!this._hudComboVisible) {
+        this.hudCombo.setVisible(true);
+        this._hudComboVisible = true;
+      }
+    } else if (this._hudComboVisible) {
+      this.hudCombo.setVisible(false);
+      this._hudComboVisible = false;
+    }
+
     if (this.multiplier > 1) {
-      this.hudMulti.setText(this.multiplier + '× MULTIPLIER').setVisible(true);
-    } else {
+      const mStr = this.multiplier + '× MULTIPLIER';
+      if (mStr !== this._hudMultiCache) {
+        this.hudMulti.setText(mStr);
+        this._hudMultiCache = mStr;
+      }
+      if (!this._hudMultiVisible) {
+        this.hudMulti.setVisible(true);
+        this._hudMultiVisible = true;
+      }
+    } else if (this._hudMultiVisible) {
       this.hudMulti.setVisible(false);
+      this._hudMultiVisible = false;
     }
   }
 
@@ -471,18 +520,21 @@ class GameScene extends Phaser.Scene {
     this.benjiGroup.y = this.benjiY;
 
     // ── Benji Animate ────────────────────────────
-    const bounce = this.isJumping ? 0 : Math.sin(time * 0.008) * 2;
-    this.benjiBody.y = bounce;
-    this.benjiLeg1.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012)*6);
-    this.benjiLeg2.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012+Math.PI)*6);
-    this.benjiTail.rotation = Math.sin(time*0.01)*0.3;
+    // On mobile, run the cosmetic bounce/leg sway every other frame to halve
+    // the per-frame transform updates. Doesn't affect gameplay or hitboxes.
+    this._frame = (this._frame + 1) | 0;
+    if (!this.isMobile || (this._frame & 1) === 0) {
+      const bounce = this.isJumping ? 0 : Math.sin(time * 0.008) * 2;
+      this.benjiBody.y = bounce;
+      this.benjiLeg1.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012)*6);
+      this.benjiLeg2.y = 28 + (this.isJumping ? 0 : Math.sin(time*0.012+Math.PI)*6);
+      this.benjiTail.rotation = Math.sin(time*0.01)*0.3;
+    }
 
-    // Shield ring follows Benji
+    // Shield ring follows Benji (position only — stroke style is set once on
+    // activation/deactivation to avoid per-frame GPU state churn).
     this.shieldRing.x = this.benjiX;
     this.shieldRing.y = this.benjiY;
-    if (this.activePU === 'SHIELD') {
-      this.shieldRing.setStrokeStyle(3, 0x004777, 0.4+Math.sin(time*0.008)*0.3);
-    }
 
     // ── Flash (clutch / power-up warning) ────────
     if (this.isClutch || this.puWarning) {
@@ -492,7 +544,7 @@ class GameScene extends Phaser.Scene {
         this.flashVisible = !this.flashVisible;
         this.benjiGroup.setAlpha(this.flashVisible ? 1 : 0.2);
       }
-    } else {
+    } else if (this.benjiGroup.alpha !== 1) {
       this.benjiGroup.setAlpha(1);
     }
 
@@ -514,7 +566,12 @@ class GameScene extends Phaser.Scene {
       const total = cfg.POWERUP_DURATIONS[this.activePU];
       const pct   = Math.max(this.puTimer / total, 0);
       this.puBar.setScale(pct, 1);
-      this.puBar.setFillStyle(pct < 0.3 ? 0xE84040 : 0xCC7D51);
+      // Only swap fill color when crossing the warning threshold, not every frame.
+      const wantWarnColor = pct < 0.3;
+      if (wantWarnColor !== this._puBarWarn) {
+        this.puBar.setFillStyle(wantWarnColor ? 0xE84040 : 0xCC7D51);
+        this._puBarWarn = wantWarnColor;
+      }
 
       if (this.puTimer <= cfg.POWERUP_WARNING_MS && !this.puWarning) {
         this.puWarning  = true;
@@ -528,6 +585,7 @@ class GameScene extends Phaser.Scene {
         this.puBarBg.setVisible(false);
         this.puBar.setVisible(false);
         this.shieldRing.setStrokeStyle(0);
+        this._puBarWarn = false;
         if (this.isNight) this.activateNight();
       }
     }
@@ -562,18 +620,21 @@ class GameScene extends Phaser.Scene {
 
     this.obstacles = this.obstacles.filter(o => {
       if (!o.alive) return false;
-      o.body.y  += move; o.label.y += move; o.badge.y += move;
+      o.body.y  += move; o.label.y += move;
+      if (o.badge) o.badge.y += move;
       // Collision
       if (!this.isClutch && o.body.y > this.benjiY-40 && o.body.y < this.benjiY+40 &&
           Math.abs(o.body.x - this.benjiX) < HR+16) {
         o.alive = false;
         this.burst(o.body.x, o.body.y, 0xE84040, 8);
-        o.body.destroy(); o.label.destroy(); o.badge.destroy();
+        o.body.destroy(); o.label.destroy();
+        if (o.badge) o.badge.destroy();
         this.handleHit();
         return false;
       }
       if (o.body.y > this.H+60) {
-        o.body.destroy(); o.label.destroy(); o.badge.destroy();
+        o.body.destroy(); o.label.destroy();
+        if (o.badge) o.badge.destroy();
         return false;
       }
       return true;
@@ -581,7 +642,8 @@ class GameScene extends Phaser.Scene {
 
     this.collectibles = this.collectibles.filter(c => {
       if (!c.alive) return false;
-      c.glow.y  += move; c.emoji.y += move; c.badge.y += move;
+      c.glow.y  += move; c.emoji.y += move;
+      if (c.badge) c.badge.y += move;
       c.wobble  += 0.06;
       c.emoji.x  = this.laneX[c.lane] + Math.sin(c.wobble)*3;
       c.glow.x   = c.emoji.x;
@@ -603,13 +665,15 @@ class GameScene extends Phaser.Scene {
         this.burst(c.emoji.x, c.emoji.y, 0x4DC97A, 6);
         this.scorePop(c.emoji.x, c.emoji.y, '+'+Math.floor(pts));
         this.updateHUD();
-        c.glow.destroy(); c.emoji.destroy(); c.badge.destroy();
+        c.glow.destroy(); c.emoji.destroy();
+        if (c.badge) c.badge.destroy();
         return false;
       }
       if (c.emoji.y > this.H+60) {
         // Missed collectible — reset combo
         this.combo=0; this.multiplier=1; this.updateHUD();
-        c.glow.destroy(); c.emoji.destroy(); c.badge.destroy();
+        c.glow.destroy(); c.emoji.destroy();
+        if (c.badge) c.badge.destroy();
         return false;
       }
       return true;
@@ -617,7 +681,8 @@ class GameScene extends Phaser.Scene {
 
     this.powerups = this.powerups.filter(p => {
       if (!p.alive) return false;
-      p.ring.y  += move; p.emoji.y += move; p.badge.y += move;
+      p.ring.y  += move; p.emoji.y += move;
+      if (p.badge) p.badge.y += move;
       p.pulse   += 0.08;
       const sc   = 1 + Math.sin(p.pulse)*0.07;
       p.emoji.setScale(sc);
@@ -627,11 +692,13 @@ class GameScene extends Phaser.Scene {
         p.alive = false;
         this.activatePowerup(p.type);
         this.burst(p.ring.x, p.ring.y, 0xCC7D51, 12);
-        p.ring.destroy(); p.emoji.destroy(); p.badge.destroy();
+        p.ring.destroy(); p.emoji.destroy();
+        if (p.badge) p.badge.destroy();
         return false;
       }
       if (p.emoji.y > this.H+60) {
-        p.ring.destroy(); p.emoji.destroy(); p.badge.destroy();
+        p.ring.destroy(); p.emoji.destroy();
+        if (p.badge) p.badge.destroy();
         return false;
       }
       return true;
