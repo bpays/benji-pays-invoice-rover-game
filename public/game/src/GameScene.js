@@ -287,7 +287,8 @@ class GameScene extends Phaser.Scene {
       if (!o.alive) return;
       o.alive = false;
       this.burst(o.body.x, o.body.y, 0xE84040, 8);
-      o.body.destroy(); o.label.destroy(); o.badge.destroy();
+      o.body.destroy(); o.label.destroy();
+      if (o.badge) o.badge.destroy();
     });
     this.obstacles = this.obstacles.filter(o => o.alive);
   }
