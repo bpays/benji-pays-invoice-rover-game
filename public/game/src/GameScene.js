@@ -44,6 +44,19 @@ class GameScene extends Phaser.Scene {
     const H = this.scale.height;
     const C = GAME_CONFIG.COLORS;
 
+    // ── PERF FLAGS ──────────────────────────────────
+    this.isMobile = !!window.__BP_IS_MOBILE__;
+    // Cap particle bursts and skip cosmetic badges on mobile.
+    this.maxBurstParticles = this.isMobile ? 4 : 12;
+    this.showSpawnBadges   = !this.isMobile;
+    // Cached HUD strings to avoid re-uploading text textures every tick.
+    this._hudScoreCache = '';
+    this._hudComboCache = '';
+    this._hudMultiCache = '';
+    this._hudComboVisible = false;
+    this._hudMultiVisible = false;
+    this._frame = 0;
+
     // ── LAYOUT ──────────────────────────────────────
     const lp  = W * GAME_CONFIG.LANE_PADDING;
     const lw  = (W - lp * 2) / 3;
@@ -180,10 +193,12 @@ class GameScene extends Phaser.Scene {
       const x = this.laneX[lane];
       const body = this.add.rectangle(x, -40, 38, 38, t.color, 0.9).setDepth(4);
       const label = this.add.text(x, -40, t.label, {fontSize:'22px'}).setOrigin(0.5).setDepth(4);
-      const badge = this.add.text(x, -62, '❌ DODGE', {
-        fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
-        backgroundColor:'#E84040', padding:{x:4,y:2}
-      }).setOrigin(0.5).setDepth(4);
+      const badge = this.showSpawnBadges
+        ? this.add.text(x, -62, '❌ DODGE', {
+            fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
+            backgroundColor:'#E84040', padding:{x:4,y:2}
+          }).setOrigin(0.5).setDepth(4)
+        : null;
       this.obstacles.push({ body, label, badge, lane, alive:true });
     });
   }
@@ -200,10 +215,12 @@ class GameScene extends Phaser.Scene {
     const x = this.laneX[lane];
     const glow  = this.add.circle(x, -40, 22, 0x4DC97A, 0.18).setDepth(3);
     const emoji = this.add.text(x, -40, t.label, {fontSize:'24px'}).setOrigin(0.5).setDepth(4);
-    const badge = this.add.text(x, -62, '✅ COLLECT', {
-      fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
-      backgroundColor:'#4DC97A', padding:{x:4,y:2}
-    }).setOrigin(0.5).setDepth(4);
+    const badge = this.showSpawnBadges
+      ? this.add.text(x, -62, '✅ COLLECT', {
+          fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
+          backgroundColor:'#4DC97A', padding:{x:4,y:2}
+        }).setOrigin(0.5).setDepth(4)
+      : null;
     this.collectibles.push({ glow, emoji, badge, lane, alive:true, wobble:Math.random()*Math.PI*2, pts:t.pts });
   }
 
@@ -219,10 +236,12 @@ class GameScene extends Phaser.Scene {
     const x = this.laneX[lane];
     const ring  = this.add.circle(x, -50, 26, t.color, 0.15).setStrokeStyle(2, t.color, 0.6).setDepth(3);
     const emoji = this.add.text(x, -50, t.label, {fontSize:'28px'}).setOrigin(0.5).setDepth(4);
-    const badge = this.add.text(x, -76, '⚡ POWER-UP', {
-      fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
-      backgroundColor:'#CC7D51', padding:{x:4,y:2}
-    }).setOrigin(0.5).setDepth(4);
+    const badge = this.showSpawnBadges
+      ? this.add.text(x, -76, '⚡ POWER-UP', {
+          fontFamily:'Arial', fontSize:'9px', color:'#FFFFFF',
+          backgroundColor:'#CC7D51', padding:{x:4,y:2}
+        }).setOrigin(0.5).setDepth(4)
+      : null;
     this.powerups.push({ ring, emoji, badge, lane, alive:true, type:t, pulse:0 });
   }
 
