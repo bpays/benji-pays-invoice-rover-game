@@ -991,8 +991,26 @@ export function AdminView() {
                   Refresh
                 </button>
                 <button type="button" className="btn btn-green btn-sm" onClick={exportCSV}>
-                  CSV
+                  Export CSV
                 </button>
+                <label
+                  className="btn btn-ghost btn-sm"
+                  style={{ cursor: importBusy ? 'wait' : 'pointer', opacity: importBusy ? 0.6 : 1 }}
+                  title="Upload a CSV in the same format as the export"
+                >
+                  {importBusy ? 'Importing…' : 'Import CSV'}
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    style={{ display: 'none' }}
+                    disabled={importBusy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (f) void onImportCsv(f);
+                    }}
+                  />
+                </label>
                 <label className="table-check">
                   <input type="checkbox" checked={showFlagged} onChange={(e) => setShowFlagged(e.target.checked)} />
                   Show flagged
