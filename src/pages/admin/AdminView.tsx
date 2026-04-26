@@ -848,9 +848,22 @@ export function AdminView() {
                 }}
                 aria-label="Event"
               >
-                <option value="all">All Events</option>
-                <option value="nable-empower-2026">N-able Empower 2026</option>
+                <option value={ALL_EVENTS_KEY}>All Events</option>
+                {events.map((ev) => (
+                  <option key={ev.tag} value={ev.tag}>
+                    {ev.label}{ev.tag === activeEventTag ? ' ● active' : ''}
+                  </option>
+                ))}
               </select>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => void onSetActiveEvent()}
+                disabled={currentEventKey === ALL_EVENTS_KEY || currentEventKey === activeEventTag}
+                title="Make this the event used by the public game and leaderboard"
+              >
+                Set active
+              </button>
               <div className="badge badge-cooper" id="eventNameBadge">
                 {evLabel.toUpperCase()}
               </div>
