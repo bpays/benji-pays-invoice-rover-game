@@ -248,13 +248,12 @@ export function AdminView() {
   const enterApp = useCallback(async () => {
     setScreen('app');
     try {
-      await loadTimezone();
-      await loadAdminList();
+      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent()]);
     } catch (e) {
       console.error(e);
       toastMsg('Dashboard data failed to load', 'err');
     }
-  }, [loadAdminList, loadTimezone]);
+  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent]);
 
   useEffect(() => {
     if (screen !== 'app') return;
