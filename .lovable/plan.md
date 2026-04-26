@@ -1,53 +1,94 @@
-The mobile lag is in the Phaser game loop, not in React. After reading `public/game/src/GameScene.js`, `config.js`, and `main.js`, I can see specific things that crush mobile FPS:
+# Admin overhaul + dead code cleanup
 
-1. **Phaser is rendering at full device pixel ratio.** `main.js` sets the canvas to 390x844 with `Phaser.Scale.FIT` and no resolution cap. On a phone with `devicePixelRatio: 3`, Phaser renders at ~3x the pixels per frame, which is the single biggest cause of low FPS.
-2. **Per-frame Text mutations.** `updateHUD()` runs every 100ms and calls `setText` plus `setVisible` on multiple `Text` objects. Each `setText` recreates a canvas texture for that text — expensive on mobile GPUs.
-3. **Per-frame style mutations.** `setStrokeStyle`, `setFillStyle`, and `setAlpha` are called every frame on the shield ring, power-up bar, and Benji group. Each one dirties the GPU pipeline.
-4. **Heavy emoji `Text` objects everywhere.** Obstacles, collectibles, power-ups, and badges are all `add.text` (one Text per spawn), which means several texture uploads per spawn, garbage collection pressure, and slow text rendering.
-5. **No object pooling.** Every spawn does `add.rectangle` / `add.text` and every despawn does `.destroy()`, plus `burst()` creates 8–12 short-lived circles per hit. This thrashes WebGL texture allocation on mobile.
-6. **Animations driven by `Math.sin(time*…)` on multiple targets** (legs, tail, body bounce, shield ring) — fine on desktop, but combined with the above this adds up.
+## 1. Delete dead game code
 
-I will not change gameplay tuning, lane layout, or visual style. The goal is purely smoother mobile FPS.
+Remove the unused `public/game/` directory (BootScene/GameScene/StartScene/GameOverScene/config/main + assets folders + index.html). The active game runs from `src/features/game/shellRuntime.ts`. This was the source of the earlier threshold confusion.
 
-Plan:
+No data is touched.
 
-1. Cap render resolution
-   - Add a `resolution` setting / scale cap in `main.js` so the canvas does not render above ~1.5x device pixel ratio on mobile.
-   - Force `roundPixels: true` to skip subpixel rasterization.
-   - Disable `antialias` for the WebGL renderer (Phaser still looks crisp because everything is solid colors and emoji).
+## 2. Fix the missing Admin list
 
-2. Throttle HUD updates
-   - Only call `setText` on `hudScore`, `hudCombo`, and `hudMulti` when the displayed value actually changes.
-   - Stop calling `setVisible` every frame; only toggle it on transitions.
+The admin list currently silently fails when the `admin-invite` edge function returns an error — `loadAdminList` exits without surfacing why, so the section just renders "—".
 
-3. Reduce per-frame style churn
-   - Remove `setStrokeStyle` and `setFillStyle` calls from inside `update()`. Set them once when state changes (shield activated, warning starts, etc.).
-   - Replace per-frame `benjiGroup.setAlpha` flashing with a Phaser tween that runs only while flashing is active.
+Fixes:
+- Surface the error via toast and an inline message inside the Admins panel.
+- Log the response detail to the browser console for diagnosis.
+- Make sure `loadAdminList` is called *after* the MFA (aal2) session is fully established (currently called from `enterApp`, which is correct, but we'll add a retry-on-mount inside the Admin Management section so it reloads if it raced ahead of the session).
+- The edge function's `list` action requires `aal2`; the existing flow does already complete MFA before `enterApp`, so the auth path remains unchanged. **No security regressions** — admin-only + MFA-required gates stay intact.
 
-4. Lighter spawn objects
-   - Reduce concurrent on-screen text objects: drop the small "DODGE" / "COLLECT" / "POWER-UP" badge text on small viewports (mobile breakpoint by viewport width). Keep them on desktop.
-   - Cap particle bursts on mobile (e.g. 4 instead of 8–12).
+Also add a "Refresh" button to the Admins panel.
 
-5. Object pooling for spawns and particles
-   - Add a simple pool for obstacles, collectibles, power-ups, and burst particles so they get reused with `setActive(true)/setVisible(true)` instead of being created/destroyed each spawn.
-   - Honor existing pool caps from memory: Obstacles 30, Collectibles 20, Power-ups 8, Particles 80.
+## 3. New events system (dynamic, no hardcoding)
 
-6. Minor loop hygiene
-   - Do leg/tail bounce math less often (every other frame) on mobile.
-   - Avoid recreating the `types` arrays inside each spawn function — hoist them to module scope or `create()`.
+### Database (additive only — no destructive changes)
 
-7. Validate
-   - Run a production build and a development build to confirm nothing is broken.
-   - Use the browser performance profiler against the preview to verify the JS frame time goes down on a small viewport.
-   - Keep all gameplay numbers in `config.js` unchanged.
+New table `events`:
+- `tag` text PRIMARY KEY (slug, e.g. `nable-empower-2026`)
+- `label` text NOT NULL
+- `created_at` timestamptz default now()
+- `created_by` uuid
+- RLS: anyone can SELECT (needed by leaderboard); only admins (with `aal2`) can INSERT.
+- Seed two rows: `general` (label "General Play") and `nable-empower-2026` (label "N-able Empower 2026") so existing data continues to display.
 
-Out of scope:
-- No changes to game balance, scoring, city thresholds, or controls.
-- No changes to React app shell, Supabase, auth, or leaderboard.
-- No visual redesign — the look stays the same; mobile just gets a smaller render target and fewer per-frame allocations.
+New row in `settings` table (already exists, additive):
+- `key='active_event'`, `value='nable-empower-2026'` initially. This is the currently active event used by the game and the public leaderboard.
+- Anyone can SELECT (existing policy); only admins can UPDATE (existing policy).
 
-After approval I will implement steps 1–6, then run the builds and profile.
+The `scores` table is **not modified at all**. No drops, no column changes, no deletes. Scores keep their existing `event_tag`. Submissions for unknown event tags will still be accepted (the submit-score edge function already permits any string ≤50 chars in `event_tag`), so historical data is untouched.
 
-<lov-actions>
-  <lov-open-history>View History</lov-open-history>
-</lov-actions>
+### Game submission flow
+
+`src/features/game/shellRuntime.ts` currently hardcodes `event_tag: 'nable-empower-2026'` in two places. Replace with a runtime fetch of `settings.active_event` (cached per session, refreshed on game start). Fallback to `'general'` if missing.
+
+### Public leaderboard
+
+`src/pages/LeaderboardPage.tsx` currently hardcodes `EVENT_TAG`. Replace with a fetch of `settings.active_event` on mount, then call the existing `get_leaderboard` / `get_daily_leaderboard` RPCs with that tag. Public users only ever see the active event.
+
+### Admin page
+
+Replace the hardcoded `EVENTS` map with a live list:
+- Load all rows from `events` on mount.
+- Event selector dropdown is populated from that list, plus an "All Events" option (admin-only view).
+- Show which event is the **currently active** one with a badge in the dropdown.
+- New "Create event" inline form below the selector:
+  - Text input for label (e.g. "RSA Conference 2026")
+  - Auto-generates tag (slug) but allows override
+  - "Create" button → inserts into `events` table
+  - "Set as active" button next to the selector → updates `settings.active_event`
+- All admin views (stats, scores table, CSV export) continue to scope by the selected event tag.
+
+## 4. CSV upload (import)
+
+Add an "Import CSV" button next to the existing "CSV" export button.
+
+- Accepts the **same column format** the export produces: `Rank, Name, Email, Score, City, Combo, Event, Date`.
+- Parses client-side, validates each row (name + email required, score is a non-negative integer ≤ 100000, combo ≤ 500, city must be in valid list else defaults to Vancouver, event_tag falls back to currently selected event if blank).
+- Sends rows in batches to a **new edge function `admin-import-scores`** that:
+  - Requires admin role + `aal2` (mirrors `admin-invite` pattern).
+  - Uses the service role key to insert into `scores` (RLS forbids client inserts — by design).
+  - Inserts only — never updates or deletes existing rows. Each imported row gets a fresh `id`.
+  - Returns `{ inserted, skipped, errors[] }` so the UI can show a summary.
+- Shows a confirmation modal before importing ("This will insert N rows. Existing data will not be modified.").
+- "Date" column from the export is preserved into `created_at` when valid; otherwise `now()`.
+
+## 5. Data safety guarantees
+
+To make accidental deletion impossible:
+- **No DELETE policy on `scores`** — already enforced (`No deletes on scores` policy with `USING(false)`). We keep it that way; the import function uses INSERT only.
+- The new `admin-import-scores` function explicitly does not call `.delete()` or `.update()` anywhere.
+- The flag/restore action stays as a soft `flagged` boolean — never a delete.
+- Migrations in this change are additive (CREATE TABLE, INSERT seed rows). No DROP/ALTER on existing tables.
+
+## Technical notes
+
+- **Migrations**: one migration creates `events` table + RLS policies, seeds 2 rows, and inserts `active_event` settings row.
+- **Edge functions**: new `admin-import-scores`; `admin-invite` unchanged.
+- **Files touched**:
+  - delete: `public/game/**`
+  - edit: `src/pages/admin/AdminView.tsx`, `src/features/game/shellRuntime.ts`, `src/pages/LeaderboardPage.tsx`
+  - new: `supabase/functions/admin-import-scores/index.ts`
+- TypeScript types regenerate automatically after the migration.
+
+## Open question
+
+For the CSV import: if a row's email already appears in the existing scores for that event, do you want me to (a) insert anyway as an additional run, (b) skip duplicates, or (c) only insert if the imported score is higher than the existing best? Default in the plan above is **(a) insert anyway** since each row is its own run — let me know if you'd prefer different dedupe behavior.

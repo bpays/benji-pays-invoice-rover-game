@@ -16,10 +16,9 @@ type Screen = 'login' | 'mfaEnroll' | 'mfaVerify' | 'app';
 
 const PAGE_SIZE = 25;
 const ALLOWED = 'benjipays.com';
-const EVENTS: Record<string, { label: string; tag: string | null }> = {
-  all: { label: 'All Events', tag: null },
-  'nable-empower-2026': { label: 'N-able Empower 2026', tag: 'nable-empower-2026' },
-};
+const ALL_EVENTS_KEY = '__all__';
+
+type EventRow = { tag: string; label: string };
 
 function validateDomain(email: string) {
   return email.split('@')[1]?.toLowerCase() === ALLOWED;
@@ -58,7 +57,9 @@ export function AdminView() {
   const [mfaEnrollCode, setMfaEnrollCode] = useState('');
   const [mfaVerifyCode, setMfaVerifyCode] = useState('');
 
-  const [currentEventKey, setCurrentEventKey] = useState('nable-empower-2026');
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [activeEventTag, setActiveEventTag] = useState<string>('nable-empower-2026');
+  const [currentEventKey, setCurrentEventKey] = useState<string>('nable-empower-2026');
   const [boardMode, setBoardMode] = useState<'event' | 'daily'>('event');
   const [allScores, setAllScores] = useState<Score[]>([]);
   const [filteredScores, setFilteredScores] = useState<Score[]>([]);
@@ -66,6 +67,11 @@ export function AdminView() {
   const [search, setSearch] = useState('');
   const [showFlagged, setShowFlagged] = useState(false);
   const [hideZero, setHideZero] = useState(true);
+
+  const [newEventLabel, setNewEventLabel] = useState('');
+  const [newEventTag, setNewEventTag] = useState('');
+  const [eventErr, setEventErr] = useState('');
+  const [importBusy, setImportBusy] = useState(false);
 
   const [stats, setStats] = useState({
     total: 0,
@@ -86,6 +92,7 @@ export function AdminView() {
   const [inviteEmail, setInviteEmail] = useState('');
 
   const [admins, setAdmins] = useState<AdminListEntry[]>([]);
+  const [adminListErr, setAdminListErr] = useState<string>('');
   const [myUserId, setMyUserId] = useState<string | null>(null);
 
   const redirectUri = useMemo(() => `${window.location.origin}/admin/`, []);
@@ -111,15 +118,20 @@ export function AdminView() {
     [search, showFlagged, hideZero]
   );
 
-  const eventParams = useCallback(() => {
-    const ev = EVENTS[currentEventKey];
-    return ev.tag ? `event_tag=eq.${ev.tag}` : '';
+  const currentEventTag = useCallback((): string | null => {
+    if (currentEventKey === ALL_EVENTS_KEY) return null;
+    return currentEventKey || null;
   }, [currentEventKey]);
 
+  const eventParams = useCallback(() => {
+    const tag = currentEventTag();
+    return tag ? `event_tag=eq.${encodeURIComponent(tag)}` : '';
+  }, [currentEventTag]);
+
   const loadStats = useCallback(async () => {
-    const ev = EVENTS[currentEventKey];
+    const tag = currentEventTag();
     const { data, error } = await supabase.rpc('get_admin_stats', {
-      p_event_tag: ev.tag ?? undefined,
+      p_event_tag: tag ?? undefined,
     });
     if (error || !data) return;
     const s = data as {
@@ -152,9 +164,9 @@ export function AdminView() {
       const m = String(et.getMonth() + 1).padStart(2, '0');
       const d = String(et.getDate()).padStart(2, '0');
       const dayStart = `${y}-${m}-${d}T00:00:00-04:00`;
-      const ev = EVENTS[currentEventKey];
+      const tag = currentEventTag();
       let p = `created_at=gte.${encodeURIComponent(dayStart)}`;
-      if (ev.tag) p += `&event_tag=eq.${encodeURIComponent(ev.tag)}`;
+      if (tag) p += `&event_tag=eq.${encodeURIComponent(tag)}`;
       const data = (await restApi(
         'GET',
         'scores',
@@ -197,25 +209,51 @@ export function AdminView() {
   }, []);
 
   const loadAdminList = useCallback(async () => {
-    const res = await inviteEdgeFn({ action: 'list' });
-    if (res.error || !Array.isArray(res.admins)) {
-      return;
+    setAdminListErr('');
+    try {
+      const res = await inviteEdgeFn({ action: 'list' });
+      if (res.error) {
+        const msg = String(res.error);
+        console.warn('admin list error:', msg);
+        setAdminListErr(msg);
+        return;
+      }
+      if (!Array.isArray(res.admins)) {
+        setAdminListErr('Unexpected response from admin list');
+        return;
+      }
+      setAdmins(res.admins as AdminListEntry[]);
+      const { data: u } = await supabase.auth.getUser();
+      setMyUserId(u.user?.id ?? null);
+    } catch (e) {
+      console.error('loadAdminList:', e);
+      setAdminListErr(e instanceof Error ? e.message : 'Failed to load admins');
     }
-    setAdmins(res.admins as AdminListEntry[]);
-    const { data: u } = await supabase.auth.getUser();
-    setMyUserId(u.user?.id ?? null);
+  }, []);
+
+  const loadEvents = useCallback(async () => {
+    const rows = (await restApi('GET', 'events', null, 'select=tag,label&order=created_at.asc')) as
+      | EventRow[]
+      | null;
+    setEvents(rows || []);
+  }, []);
+
+  const loadActiveEvent = useCallback(async () => {
+    const res = (await restApi('GET', 'settings', null, 'key=eq.active_event&select=value')) as
+      | { value: string }[]
+      | null;
+    if (res?.[0]?.value) setActiveEventTag(String(res[0].value).trim());
   }, []);
 
   const enterApp = useCallback(async () => {
     setScreen('app');
     try {
-      await loadTimezone();
-      await loadAdminList();
+      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent()]);
     } catch (e) {
       console.error(e);
       toastMsg('Dashboard data failed to load', 'err');
     }
-  }, [loadAdminList, loadTimezone]);
+  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent]);
 
   useEffect(() => {
     if (screen !== 'app') return;
@@ -470,7 +508,11 @@ export function AdminView() {
     setEditing({ id: r.id, name: r.player_name || '', score: r.score });
   };
 
-  const evLabel = EVENTS[currentEventKey]?.label || '—';
+  const evLabel =
+    currentEventKey === ALL_EVENTS_KEY
+      ? 'All Events'
+      : events.find((e) => e.tag === currentEventKey)?.label || currentEventKey || '—';
+
 
   useEffect(() => {
     if (screen !== 'app') return;
@@ -554,6 +596,157 @@ export function AdminView() {
     a.download = `invoice-rover-${currentEventKey}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     toastMsg('CSV exported');
+  };
+
+  const slugify = (s: string) =>
+    s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 50);
+
+  const onCreateEvent = async () => {
+    setEventErr('');
+    const label = newEventLabel.trim();
+    if (label.length < 2 || label.length > 80) {
+      setEventErr('Event name must be 2–80 characters');
+      return;
+    }
+    const tag = (newEventTag.trim() ? slugify(newEventTag) : slugify(label));
+    if (!tag) {
+      setEventErr('Could not generate a tag — enter one manually');
+      return;
+    }
+    if (events.some((e) => e.tag === tag)) {
+      setEventErr(`Event tag "${tag}" already exists`);
+      return;
+    }
+    const { error } = await supabase.from('events').insert({ tag, label });
+    if (error) {
+      setEventErr(error.message);
+      return;
+    }
+    setNewEventLabel('');
+    setNewEventTag('');
+    toastMsg('Event created');
+    await loadEvents();
+    setCurrentEventKey(tag);
+  };
+
+  const onSetActiveEvent = async () => {
+    if (currentEventKey === ALL_EVENTS_KEY) {
+      toastMsg('Select a specific event first', 'err');
+      return;
+    }
+    const res = await restApi(
+      'PATCH',
+      'settings',
+      { value: currentEventKey, updated_at: new Date().toISOString() },
+      'key=eq.active_event'
+    );
+    if (res) {
+      setActiveEventTag(currentEventKey);
+      toastMsg('Active event updated');
+    } else toastMsg('Failed to update active event', 'err');
+  };
+
+  const parseCsv = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let cur: string[] = [];
+    let cell = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (c === '"') inQuotes = false;
+        else cell += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { cur.push(cell); cell = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (cell !== '' || cur.length > 0) { cur.push(cell); rows.push(cur); cur = []; cell = ''; }
+          if (c === '\r' && text[i + 1] === '\n') i++;
+        } else cell += c;
+      }
+    }
+    if (cell !== '' || cur.length > 0) { cur.push(cell); rows.push(cur); }
+    return rows;
+  };
+
+  const onImportCsv = async (file: File) => {
+    setImportBusy(true);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text).filter((r) => r.length > 1);
+      if (rows.length < 2) {
+        toastMsg('CSV is empty', 'err');
+        return;
+      }
+      const header = rows[0].map((h) => h.trim().toLowerCase());
+      const idx = (name: string) => header.indexOf(name.toLowerCase());
+      const iName = idx('Name');
+      const iEmail = idx('Email');
+      const iScore = idx('Score');
+      const iCity = idx('City');
+      const iCombo = idx('Combo');
+      const iEvent = idx('Event');
+      const iDate = idx('Date');
+      if (iName < 0 || iEmail < 0 || iScore < 0) {
+        toastMsg('CSV must have Name, Email, Score columns', 'err');
+        return;
+      }
+      const fallbackTag =
+        currentEventKey === ALL_EVENTS_KEY ? activeEventTag : currentEventKey;
+      const parsed = rows.slice(1).map((r) => {
+        const cityCell = (iCity >= 0 ? r[iCity] || '' : '').trim();
+        const flagMatch = cityCell.match(/^(\p{Extended_Pictographic}\uFE0F?|🇨🇦|🤠|🗽|🌴|🌊|🇬🇧|🇦🇺|🤖)\s*/u);
+        const flag = flagMatch ? flagMatch[1] : '';
+        const cityName = cityCell.replace(/^\S+\s*/, '').trim();
+        return {
+          player_name: (r[iName] || '').trim(),
+          email: (r[iEmail] || '').trim(),
+          score: Number((r[iScore] || '0').replace(/[^0-9.-]/g, '')),
+          city_reached: cityName || 'Vancouver',
+          city_flag: flag || '🇨🇦',
+          best_combo: iCombo >= 0 ? Number((r[iCombo] || '0').replace(/[^0-9.-]/g, '')) : 0,
+          event_tag: (iEvent >= 0 ? r[iEvent] || '' : '').trim() || fallbackTag,
+          created_at: iDate >= 0 ? r[iDate] || null : null,
+        };
+      });
+      const proceed = window.confirm(
+        `Import ${parsed.length} row(s)?\n\nThis will INSERT new rows. No existing data will be modified or deleted.`
+      );
+      if (!proceed) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toastMsg('Session expired', 'err'); return; }
+      const res = await fetch(`${SUPA_URL}/functions/v1/admin-import-scores`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPA_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ rows: parsed }),
+      });
+      const out = await res.json();
+      if (!res.ok) {
+        toastMsg(`Import failed: ${out.error || res.status}`, 'err');
+        return;
+      }
+      toastMsg(`Imported ${out.inserted}, skipped ${out.skipped}`);
+      if (Array.isArray(out.errors) && out.errors.length > 0) {
+        console.warn('Import errors:', out.errors);
+      }
+      await loadAll();
+    } catch (e) {
+      console.error('CSV import:', e);
+      toastMsg('CSV import failed', 'err');
+    } finally {
+      setImportBusy(false);
+    }
   };
 
   return (
@@ -655,9 +848,22 @@ export function AdminView() {
                 }}
                 aria-label="Event"
               >
-                <option value="all">All Events</option>
-                <option value="nable-empower-2026">N-able Empower 2026</option>
+                <option value={ALL_EVENTS_KEY}>All Events</option>
+                {events.map((ev) => (
+                  <option key={ev.tag} value={ev.tag}>
+                    {ev.label}{ev.tag === activeEventTag ? ' ● active' : ''}
+                  </option>
+                ))}
               </select>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => void onSetActiveEvent()}
+                disabled={currentEventKey === ALL_EVENTS_KEY || currentEventKey === activeEventTag}
+                title="Make this the event used by the public game and leaderboard"
+              >
+                Set active
+              </button>
               <div className="badge badge-cooper" id="eventNameBadge">
                 {evLabel.toUpperCase()}
               </div>
@@ -785,8 +991,26 @@ export function AdminView() {
                   Refresh
                 </button>
                 <button type="button" className="btn btn-green btn-sm" onClick={exportCSV}>
-                  CSV
+                  Export CSV
                 </button>
+                <label
+                  className="btn btn-ghost btn-sm"
+                  style={{ cursor: importBusy ? 'wait' : 'pointer', opacity: importBusy ? 0.6 : 1 }}
+                  title="Upload a CSV in the same format as the export"
+                >
+                  {importBusy ? 'Importing…' : 'Import CSV'}
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    style={{ display: 'none' }}
+                    disabled={importBusy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (f) void onImportCsv(f);
+                    }}
+                  />
+                </label>
                 <label className="table-check">
                   <input type="checkbox" checked={showFlagged} onChange={(e) => setShowFlagged(e.target.checked)} />
                   Show flagged
@@ -912,20 +1136,72 @@ export function AdminView() {
                   {inviteSuccess && <div className="invite-success show">{inviteSuccess}</div>}
                 </div>
                 <div>
-                  <div className="section-label">Admins</div>
+                  <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Admins</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void loadAdminList()}
+                      style={{ marginLeft: 'auto' }}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  {adminListErr && (
+                    <div className="login-err" style={{ display: 'block', marginBottom: 8 }}>
+                      Could not load admins: {adminListErr}
+                    </div>
+                  )}
                   <div className="admin-list">
                     {admins.length === 0
-                      ? '—'
+                      ? (adminListErr ? '—' : 'Loading…')
                       : admins.map((a) => (
-                          <div key={a.user_id} className="admin-card" style={{ marginBottom: 8 }}>
+                          <div key={a.user_id || a.email} className="admin-card" style={{ marginBottom: 8 }}>
                             <div>
                               {a.email}
                               {a.user_id === myUserId ? ' (You)' : ''}
+                              {a.status === 'pending' ? ' · pending invite' : ''}
                             </div>
                           </div>
                         ))}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="section">
+              <div className="section-title">Events</div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640, marginBottom: 12 }}>
+                Create new events here. The <strong>active event</strong> is the one new game runs are tagged with and the only one shown on the public leaderboard. Existing scores are never modified.
+              </p>
+              <div className="field" style={{ maxWidth: 480 }}>
+                <label htmlFor="newEventLabel">New event name</label>
+                <input
+                  id="newEventLabel"
+                  type="text"
+                  value={newEventLabel}
+                  onChange={(e) => setNewEventLabel(e.target.value)}
+                  placeholder="e.g. RSA Conference 2026"
+                />
+              </div>
+              <div className="field" style={{ maxWidth: 480 }}>
+                <label htmlFor="newEventTag">Tag (optional — auto-generated)</label>
+                <input
+                  id="newEventTag"
+                  type="text"
+                  value={newEventTag}
+                  onChange={(e) => setNewEventTag(e.target.value)}
+                  placeholder={newEventLabel ? slugify(newEventLabel) : 'rsa-conference-2026'}
+                />
+              </div>
+              <div className="btn-row" style={{ marginTop: 12 }}>
+                <button type="button" className="btn btn-primary" onClick={() => void onCreateEvent()}>
+                  Create event
+                </button>
+              </div>
+              {eventErr && <div className="login-err" style={{ display: 'block' }}>{eventErr}</div>}
+              <div style={{ marginTop: 16, fontSize: 12, color: 'var(--muted)' }}>
+                Active event: <strong style={{ color: 'var(--cooper)' }}>{activeEventTag}</strong>
               </div>
             </div>
           </div>

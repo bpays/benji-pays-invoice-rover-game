@@ -17,6 +17,18 @@ export function mountInvoiceRoverGame(): void {
   __invoiceRoverGameMounted = true;
   const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string;
   const SUPA_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+  let activeEventTag = 'general';
+  (async function loadActiveEventTag() {
+    try {
+      const res = await fetch(`${SUPA_URL}/rest/v1/settings?key=eq.active_event&select=value`, {
+        headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
+      });
+      if (res.ok) {
+        const arr = await res.json();
+        if (Array.isArray(arr) && arr[0]?.value) activeEventTag = String(arr[0].value).trim() || 'general';
+      }
+    } catch (e) { /* fall back to 'general' */ }
+  })();
 
 async function submitScore(data) {
   try {
@@ -860,7 +872,7 @@ function endGame(){
     city_reached: currentCity.name,
     city_flag: currentCity.flag,
     best_combo: maxCombo,
-    event_tag: 'nable-empower-2026'
+    event_tag: activeEventTag
   }).then(function (r) { if (r && !r.ok) console.warn('Final score submit:', r.code, r.error); });
 }
 
@@ -913,7 +925,7 @@ async function startGame(){
       city_reached: 'Vancouver',
       city_flag: '🇨🇦',
       best_combo: 0,
-      event_tag: 'nable-empower-2026'
+      event_tag: activeEventTag
     });
     if (!r.ok) {
       leadCaptured = false;

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/leaderboard.css';
+import { supabase } from '../integrations/supabase/client';
 
-const EVENT_TAG = 'nable-empower-2026';
+const FALLBACK_EVENT_TAG = 'nable-empower-2026';
 
 type Clock = { timezone?: string; seconds_until_reset?: number };
 
@@ -47,6 +48,7 @@ export function LeaderboardPage() {
   const rpcHeaders = useSupaHeaders();
   const supa = import.meta.env.VITE_SUPABASE_URL as string;
 
+  const [activeEventTag, setActiveEventTag] = useState<string>(FALLBACK_EVENT_TAG);
   const [activeBoard, setActiveBoard] = useState<'daily' | 'event'>('daily');
   const [dailyClockTz, setDailyClockTz] = useState('America/New_York');
   const [dailyResetSeconds, setDailyResetSeconds] = useState(0);
@@ -72,25 +74,38 @@ export function LeaderboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'active_event')
+        .maybeSingle();
+      if (!cancelled && data?.value) setActiveEventTag(String(data.value).trim());
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const fetchDailyDashboard = useCallback(async (): Promise<DailyRes> => {
     const res = await fetch(`${supa}/rest/v1/rpc/get_daily_dashboard`, {
       method: 'POST',
       headers: rpcHeaders,
-      body: JSON.stringify({ p_event_tag: EVENT_TAG, p_limit: 10 }),
+      body: JSON.stringify({ p_event_tag: activeEventTag, p_limit: 10 }),
     });
     if (!res.ok) return { scores: [], run_count: 0, clock: { timezone: 'America/New_York', seconds_until_reset: 0 } };
     return res.json();
-  }, [rpcHeaders, supa]);
+  }, [rpcHeaders, supa, activeEventTag]);
 
   const fetchEventDashboard = useCallback(async (): Promise<EventRes> => {
     const res = await fetch(`${supa}/rest/v1/rpc/get_event_dashboard`, {
       method: 'POST',
       headers: rpcHeaders,
-      body: JSON.stringify({ p_event_tag: EVENT_TAG, p_limit: 10 }),
+      body: JSON.stringify({ p_event_tag: activeEventTag, p_limit: 10 }),
     });
     if (!res.ok) return { scores: [], submission_count: 0 };
     return res.json();
-  }, [rpcHeaders, supa]);
+  }, [rpcHeaders, supa, activeEventTag]);
 
   const refreshBoard = useCallback(async () => {
     setIsLoading(true);
