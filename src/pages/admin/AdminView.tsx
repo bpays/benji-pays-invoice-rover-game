@@ -16,10 +16,9 @@ type Screen = 'login' | 'mfaEnroll' | 'mfaVerify' | 'app';
 
 const PAGE_SIZE = 25;
 const ALLOWED = 'benjipays.com';
-const EVENTS: Record<string, { label: string; tag: string | null }> = {
-  all: { label: 'All Events', tag: null },
-  'nable-empower-2026': { label: 'N-able Empower 2026', tag: 'nable-empower-2026' },
-};
+const ALL_EVENTS_KEY = '__all__';
+
+type EventRow = { tag: string; label: string };
 
 function validateDomain(email: string) {
   return email.split('@')[1]?.toLowerCase() === ALLOWED;
@@ -58,7 +57,9 @@ export function AdminView() {
   const [mfaEnrollCode, setMfaEnrollCode] = useState('');
   const [mfaVerifyCode, setMfaVerifyCode] = useState('');
 
-  const [currentEventKey, setCurrentEventKey] = useState('nable-empower-2026');
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [activeEventTag, setActiveEventTag] = useState<string>('nable-empower-2026');
+  const [currentEventKey, setCurrentEventKey] = useState<string>('nable-empower-2026');
   const [boardMode, setBoardMode] = useState<'event' | 'daily'>('event');
   const [allScores, setAllScores] = useState<Score[]>([]);
   const [filteredScores, setFilteredScores] = useState<Score[]>([]);
@@ -66,6 +67,11 @@ export function AdminView() {
   const [search, setSearch] = useState('');
   const [showFlagged, setShowFlagged] = useState(false);
   const [hideZero, setHideZero] = useState(true);
+
+  const [newEventLabel, setNewEventLabel] = useState('');
+  const [newEventTag, setNewEventTag] = useState('');
+  const [eventErr, setEventErr] = useState('');
+  const [importBusy, setImportBusy] = useState(false);
 
   const [stats, setStats] = useState({
     total: 0,
@@ -86,6 +92,7 @@ export function AdminView() {
   const [inviteEmail, setInviteEmail] = useState('');
 
   const [admins, setAdmins] = useState<AdminListEntry[]>([]);
+  const [adminListErr, setAdminListErr] = useState<string>('');
   const [myUserId, setMyUserId] = useState<string | null>(null);
 
   const redirectUri = useMemo(() => `${window.location.origin}/admin/`, []);
