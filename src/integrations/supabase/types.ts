@@ -38,6 +38,27 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          label: string
+          tag: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          label: string
+          tag: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          label?: string
+          tag?: string
+        }
+        Relationships: []
+      }
       scores: {
         Row: {
           best_combo: number | null
