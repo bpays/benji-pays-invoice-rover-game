@@ -209,13 +209,40 @@ export function AdminView() {
   }, []);
 
   const loadAdminList = useCallback(async () => {
-    const res = await inviteEdgeFn({ action: 'list' });
-    if (res.error || !Array.isArray(res.admins)) {
-      return;
+    setAdminListErr('');
+    try {
+      const res = await inviteEdgeFn({ action: 'list' });
+      if (res.error) {
+        const msg = String(res.error);
+        console.warn('admin list error:', msg);
+        setAdminListErr(msg);
+        return;
+      }
+      if (!Array.isArray(res.admins)) {
+        setAdminListErr('Unexpected response from admin list');
+        return;
+      }
+      setAdmins(res.admins as AdminListEntry[]);
+      const { data: u } = await supabase.auth.getUser();
+      setMyUserId(u.user?.id ?? null);
+    } catch (e) {
+      console.error('loadAdminList:', e);
+      setAdminListErr(e instanceof Error ? e.message : 'Failed to load admins');
     }
-    setAdmins(res.admins as AdminListEntry[]);
-    const { data: u } = await supabase.auth.getUser();
-    setMyUserId(u.user?.id ?? null);
+  }, []);
+
+  const loadEvents = useCallback(async () => {
+    const rows = (await restApi('GET', 'events', null, 'select=tag,label&order=created_at.asc')) as
+      | EventRow[]
+      | null;
+    setEvents(rows || []);
+  }, []);
+
+  const loadActiveEvent = useCallback(async () => {
+    const res = (await restApi('GET', 'settings', null, 'key=eq.active_event&select=value')) as
+      | { value: string }[]
+      | null;
+    if (res?.[0]?.value) setActiveEventTag(String(res[0].value).trim());
   }, []);
 
   const enterApp = useCallback(async () => {
@@ -482,7 +509,11 @@ export function AdminView() {
     setEditing({ id: r.id, name: r.player_name || '', score: r.score });
   };
 
-  const evLabel = EVENTS[currentEventKey]?.label || '—';
+  const evLabel =
+    currentEventKey === ALL_EVENTS_KEY
+      ? 'All Events'
+      : events.find((e) => e.tag === currentEventKey)?.label || currentEventKey || '—';
+
 
   useEffect(() => {
     if (screen !== 'app') return;
