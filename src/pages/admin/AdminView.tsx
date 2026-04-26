@@ -1136,20 +1136,72 @@ export function AdminView() {
                   {inviteSuccess && <div className="invite-success show">{inviteSuccess}</div>}
                 </div>
                 <div>
-                  <div className="section-label">Admins</div>
+                  <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Admins</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void loadAdminList()}
+                      style={{ marginLeft: 'auto' }}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  {adminListErr && (
+                    <div className="login-err" style={{ display: 'block', marginBottom: 8 }}>
+                      Could not load admins: {adminListErr}
+                    </div>
+                  )}
                   <div className="admin-list">
                     {admins.length === 0
-                      ? '—'
+                      ? (adminListErr ? '—' : 'Loading…')
                       : admins.map((a) => (
-                          <div key={a.user_id} className="admin-card" style={{ marginBottom: 8 }}>
+                          <div key={a.user_id || a.email} className="admin-card" style={{ marginBottom: 8 }}>
                             <div>
                               {a.email}
                               {a.user_id === myUserId ? ' (You)' : ''}
+                              {a.status === 'pending' ? ' · pending invite' : ''}
                             </div>
                           </div>
                         ))}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="section">
+              <div className="section-title">Events</div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640, marginBottom: 12 }}>
+                Create new events here. The <strong>active event</strong> is the one new game runs are tagged with and the only one shown on the public leaderboard. Existing scores are never modified.
+              </p>
+              <div className="field" style={{ maxWidth: 480 }}>
+                <label htmlFor="newEventLabel">New event name</label>
+                <input
+                  id="newEventLabel"
+                  type="text"
+                  value={newEventLabel}
+                  onChange={(e) => setNewEventLabel(e.target.value)}
+                  placeholder="e.g. RSA Conference 2026"
+                />
+              </div>
+              <div className="field" style={{ maxWidth: 480 }}>
+                <label htmlFor="newEventTag">Tag (optional — auto-generated)</label>
+                <input
+                  id="newEventTag"
+                  type="text"
+                  value={newEventTag}
+                  onChange={(e) => setNewEventTag(e.target.value)}
+                  placeholder={newEventLabel ? slugify(newEventLabel) : 'rsa-conference-2026'}
+                />
+              </div>
+              <div className="btn-row" style={{ marginTop: 12 }}>
+                <button type="button" className="btn btn-primary" onClick={() => void onCreateEvent()}>
+                  Create event
+                </button>
+              </div>
+              {eventErr && <div className="login-err" style={{ display: 'block' }}>{eventErr}</div>}
+              <div style={{ marginTop: 16, fontSize: 12, color: 'var(--muted)' }}>
+                Active event: <strong style={{ color: 'var(--cooper)' }}>{activeEventTag}</strong>
               </div>
             </div>
           </div>
