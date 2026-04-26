@@ -118,15 +118,20 @@ export function AdminView() {
     [search, showFlagged, hideZero]
   );
 
-  const eventParams = useCallback(() => {
-    const ev = EVENTS[currentEventKey];
-    return ev.tag ? `event_tag=eq.${ev.tag}` : '';
+  const currentEventTag = useCallback((): string | null => {
+    if (currentEventKey === ALL_EVENTS_KEY) return null;
+    return currentEventKey || null;
   }, [currentEventKey]);
 
+  const eventParams = useCallback(() => {
+    const tag = currentEventTag();
+    return tag ? `event_tag=eq.${encodeURIComponent(tag)}` : '';
+  }, [currentEventTag]);
+
   const loadStats = useCallback(async () => {
-    const ev = EVENTS[currentEventKey];
+    const tag = currentEventTag();
     const { data, error } = await supabase.rpc('get_admin_stats', {
-      p_event_tag: ev.tag ?? undefined,
+      p_event_tag: tag ?? undefined,
     });
     if (error || !data) return;
     const s = data as {
@@ -159,9 +164,9 @@ export function AdminView() {
       const m = String(et.getMonth() + 1).padStart(2, '0');
       const d = String(et.getDate()).padStart(2, '0');
       const dayStart = `${y}-${m}-${d}T00:00:00-04:00`;
-      const ev = EVENTS[currentEventKey];
+      const tag = currentEventTag();
       let p = `created_at=gte.${encodeURIComponent(dayStart)}`;
-      if (ev.tag) p += `&event_tag=eq.${encodeURIComponent(ev.tag)}`;
+      if (tag) p += `&event_tag=eq.${encodeURIComponent(tag)}`;
       const data = (await restApi(
         'GET',
         'scores',
