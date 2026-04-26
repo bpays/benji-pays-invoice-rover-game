@@ -598,6 +598,157 @@ export function AdminView() {
     toastMsg('CSV exported');
   };
 
+  const slugify = (s: string) =>
+    s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 50);
+
+  const onCreateEvent = async () => {
+    setEventErr('');
+    const label = newEventLabel.trim();
+    if (label.length < 2 || label.length > 80) {
+      setEventErr('Event name must be 2–80 characters');
+      return;
+    }
+    const tag = (newEventTag.trim() ? slugify(newEventTag) : slugify(label));
+    if (!tag) {
+      setEventErr('Could not generate a tag — enter one manually');
+      return;
+    }
+    if (events.some((e) => e.tag === tag)) {
+      setEventErr(`Event tag "${tag}" already exists`);
+      return;
+    }
+    const { error } = await supabase.from('events').insert({ tag, label });
+    if (error) {
+      setEventErr(error.message);
+      return;
+    }
+    setNewEventLabel('');
+    setNewEventTag('');
+    toastMsg('Event created');
+    await loadEvents();
+    setCurrentEventKey(tag);
+  };
+
+  const onSetActiveEvent = async () => {
+    if (currentEventKey === ALL_EVENTS_KEY) {
+      toastMsg('Select a specific event first', 'err');
+      return;
+    }
+    const res = await restApi(
+      'PATCH',
+      'settings',
+      { value: currentEventKey, updated_at: new Date().toISOString() },
+      'key=eq.active_event'
+    );
+    if (res) {
+      setActiveEventTag(currentEventKey);
+      toastMsg('Active event updated');
+    } else toastMsg('Failed to update active event', 'err');
+  };
+
+  const parseCsv = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let cur: string[] = [];
+    let cell = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (c === '"') inQuotes = false;
+        else cell += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { cur.push(cell); cell = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (cell !== '' || cur.length > 0) { cur.push(cell); rows.push(cur); cur = []; cell = ''; }
+          if (c === '\r' && text[i + 1] === '\n') i++;
+        } else cell += c;
+      }
+    }
+    if (cell !== '' || cur.length > 0) { cur.push(cell); rows.push(cur); }
+    return rows;
+  };
+
+  const onImportCsv = async (file: File) => {
+    setImportBusy(true);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text).filter((r) => r.length > 1);
+      if (rows.length < 2) {
+        toastMsg('CSV is empty', 'err');
+        return;
+      }
+      const header = rows[0].map((h) => h.trim().toLowerCase());
+      const idx = (name: string) => header.indexOf(name.toLowerCase());
+      const iName = idx('Name');
+      const iEmail = idx('Email');
+      const iScore = idx('Score');
+      const iCity = idx('City');
+      const iCombo = idx('Combo');
+      const iEvent = idx('Event');
+      const iDate = idx('Date');
+      if (iName < 0 || iEmail < 0 || iScore < 0) {
+        toastMsg('CSV must have Name, Email, Score columns', 'err');
+        return;
+      }
+      const fallbackTag =
+        currentEventKey === ALL_EVENTS_KEY ? activeEventTag : currentEventKey;
+      const parsed = rows.slice(1).map((r) => {
+        const cityCell = (iCity >= 0 ? r[iCity] || '' : '').trim();
+        const flagMatch = cityCell.match(/^(\p{Extended_Pictographic}\uFE0F?|🇨🇦|🤠|🗽|🌴|🌊|🇬🇧|🇦🇺|🤖)\s*/u);
+        const flag = flagMatch ? flagMatch[1] : '';
+        const cityName = cityCell.replace(/^\S+\s*/, '').trim();
+        return {
+          player_name: (r[iName] || '').trim(),
+          email: (r[iEmail] || '').trim(),
+          score: Number((r[iScore] || '0').replace(/[^0-9.-]/g, '')),
+          city_reached: cityName || 'Vancouver',
+          city_flag: flag || '🇨🇦',
+          best_combo: iCombo >= 0 ? Number((r[iCombo] || '0').replace(/[^0-9.-]/g, '')) : 0,
+          event_tag: (iEvent >= 0 ? r[iEvent] || '' : '').trim() || fallbackTag,
+          created_at: iDate >= 0 ? r[iDate] || null : null,
+        };
+      });
+      const proceed = window.confirm(
+        `Import ${parsed.length} row(s)?\n\nThis will INSERT new rows. No existing data will be modified or deleted.`
+      );
+      if (!proceed) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toastMsg('Session expired', 'err'); return; }
+      const res = await fetch(`${SUPA_URL}/functions/v1/admin-import-scores`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPA_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ rows: parsed }),
+      });
+      const out = await res.json();
+      if (!res.ok) {
+        toastMsg(`Import failed: ${out.error || res.status}`, 'err');
+        return;
+      }
+      toastMsg(`Imported ${out.inserted}, skipped ${out.skipped}`);
+      if (Array.isArray(out.errors) && out.errors.length > 0) {
+        console.warn('Import errors:', out.errors);
+      }
+      await loadAll();
+    } catch (e) {
+      console.error('CSV import:', e);
+      toastMsg('CSV import failed', 'err');
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
   return (
     <>
       {screen === 'login' && (
