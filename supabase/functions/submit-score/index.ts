@@ -325,6 +325,7 @@ Deno.serve(async (req: Request) => {
     city_flag,
     best_combo,
     event_tag,
+    run_id,
   } = body as {
     player_name?: string;
     email?: string;
@@ -333,7 +334,11 @@ Deno.serve(async (req: Request) => {
     city_flag?: string;
     best_combo?: number;
     event_tag?: string;
+    run_id?: string;
   };
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const cleanRunId = typeof run_id === "string" && UUID_RE.test(run_id) ? run_id : null;
 
   const nameResult = validateDisplayName(
     typeof player_name === "string" ? player_name : "",
