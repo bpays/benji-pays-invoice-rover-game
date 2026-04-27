@@ -29,8 +29,6 @@ export const Kaseya26Page = () => {
       <div className="k26-grad-line" />
       <CitiesGrid />
       <div className="k26-grad-line" />
-      <PartnerPowerUps />
-      <div className="k26-grad-line" />
       <FinalCTA />
       <Footer />
     </div>
