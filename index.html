@@ -25,12 +25,23 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c12bf016-5eb5-4dc7-9244-4eb7f5c1452f/id-preview-a0776b7a--f203759c-2dab-478e-afca-1504debd0c77.lovable.app-1775589853847.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta property="og:type" content="website">
+  <style>
+    #benji-loading{position:fixed;inset:0;z-index:2147483647;background:#002843;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .3s ease;}
+    #benji-loading img{width:min(70vw,280px);height:auto;display:block;}
+    #benji-loading .benji-spinner{width:48px;height:48px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#CC7D51;animation:benji-spin 0.9s linear infinite;}
+    #benji-loading.benji-loading--hidden{opacity:0;pointer-events:none;}
+    @keyframes benji-spin{to{transform:rotate(360deg);}}
+  </style>
 </head>
   <body>
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-57VP7RXX"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
+    <div id="benji-loading" role="status" aria-label="Loading Benji Pays">
+      <img src="/game/assets/ui/logo-white.svg" alt="Benji Pays" />
+      <div class="benji-spinner" aria-hidden="true"></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 <!-- Start of HubSpot Embed Code -->
