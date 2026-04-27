@@ -52,11 +52,134 @@ Deno.serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
   let force = false;
+  let action: string | null = null;
+  let filename: string | null = null;
+  let sinceMs: number | null = null;
+  let limit = 50;
+  let offset = 0;
   if (req.method === "POST") {
     try {
       const body = await req.json();
       force = body?.force === true;
+      if (typeof body?.action === "string") action = body.action;
+      if (typeof body?.filename === "string") filename = body.filename;
+      if (typeof body?.since_ms === "number") sinceMs = body.since_ms;
+      if (typeof body?.limit === "number") limit = Math.min(200, Math.max(1, body.limit));
+      if (typeof body?.offset === "number") offset = Math.max(0, body.offset);
     } catch (_) { /* no body */ }
+  }
+
+  // Helper: require admin + aal2 for read/download actions
+  async function requireAdmin(): Promise<Response | null> {
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Not signed in" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: u, error: uErr } = await userClient.auth.getUser();
+    if (uErr || !u?.user) {
+      return new Response(JSON.stringify({ error: "Invalid session" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Decode aal from JWT
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+      if (payload?.aal !== "aal2") {
+        return new Response(JSON.stringify({ error: "MFA (aal2) required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: roles } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", u.user.id)
+      .eq("role", "admin");
+    if (!roles || roles.length === 0) {
+      return new Response(JSON.stringify({ error: "Not an admin" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return null;
+  }
+
+  // List backups
+  if (action === "list") {
+    const guard = await requireAdmin();
+    if (guard) return guard;
+    const { data: files, error } = await admin.storage.from(BUCKET).list("", {
+      limit: 1000,
+      sortBy: { column: "created_at", order: "desc" },
+    });
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    let items = (files || [])
+      .filter((f) => f.name.endsWith(".csv"))
+      .map((f) => ({
+        name: f.name,
+        created_at: f.created_at,
+        size: (f as unknown as { metadata?: { size?: number } }).metadata?.size ?? null,
+      }));
+    if (sinceMs !== null) {
+      items = items.filter((f) => {
+        const t = f.created_at ? Date.parse(f.created_at) : NaN;
+        return Number.isFinite(t) && t >= sinceMs!;
+      });
+    }
+    const total = items.length;
+    const paged = items.slice(offset, offset + limit);
+    return new Response(JSON.stringify({ items: paged, total }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Signed download URL
+  if (action === "download") {
+    const guard = await requireAdmin();
+    if (guard) return guard;
+    if (!filename) {
+      return new Response(JSON.stringify({ error: "filename required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!/^[A-Za-z0-9._-]+\.csv$/.test(filename)) {
+      return new Response(JSON.stringify({ error: "invalid filename" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data, error } = await admin.storage
+      .from(BUCKET)
+      .createSignedUrl(filename, 300, { download: filename });
+    if (error || !data?.signedUrl) {
+      return new Response(JSON.stringify({ error: error?.message || "could not sign" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ url: data.signedUrl, filename }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // Check toggle unless forced
