@@ -912,9 +912,31 @@ function endGame(){
   }).then(function (r) { if (r && !r.ok) console.warn('Final score submit:', r.code, r.error); });
 }
 
-let txS=0,tyS=0,ttS=0;
-wrap.addEventListener('touchstart',e=>{if(state!=='playing')return;txS=e.touches[0].clientX;tyS=e.touches[0].clientY;ttS=Date.now();},{passive:true});
-wrap.addEventListener('touchend',e=>{if(state!=='playing')return;const dx=e.changedTouches[0].clientX-txS,dy=e.changedTouches[0].clientY-tyS,dt=Date.now()-ttS;if(Math.abs(dx)>28&&Math.abs(dx)>Math.abs(dy)){if(dx>0){if(targetLane<2)targetLane++;}else{if(targetLane>0)targetLane--;}}else if(Math.abs(dy)<28&&dt<300&&!isJumping)doJump();},{passive:true});
+let txS=0,tyS=0,ttS=0,swipedX=false;
+const SWIPE_PX=28;
+wrap.addEventListener('touchstart',e=>{
+  if(state!=='playing')return;
+  txS=e.touches[0].clientX;tyS=e.touches[0].clientY;
+  ttS=Date.now();swipedX=false;
+},{passive:true});
+wrap.addEventListener('touchmove',e=>{
+  if(state!=='playing')return;
+  const t=e.touches[0];
+  const dx=t.clientX-txS,dy=t.clientY-tyS;
+  // Fire as soon as horizontal threshold is crossed; re-anchor so a long drag chains lanes.
+  if(Math.abs(dx)>SWIPE_PX&&Math.abs(dx)>Math.abs(dy)){
+    if(dx>0){if(targetLane<2)targetLane++;}else{if(targetLane>0)targetLane--;}
+    txS=t.clientX;tyS=t.clientY;swipedX=true;
+  }
+},{passive:true});
+wrap.addEventListener('touchend',e=>{
+  if(state!=='playing')return;
+  if(swipedX)return; // already handled mid-swipe
+  const ct=e.changedTouches[0];
+  const dx=ct.clientX-txS,dy=ct.clientY-tyS,dt=Date.now()-ttS;
+  // Tap-to-jump only when no meaningful drag occurred.
+  if(Math.abs(dx)<SWIPE_PX&&Math.abs(dy)<SWIPE_PX&&dt<300&&!isJumping)doJump();
+},{passive:true});
 let mdX=0;
 wrap.addEventListener('mousedown',e=>{if(state==='playing')mdX=e.clientX;});
 wrap.addEventListener('mouseup',e=>{if(state!=='playing')return;const dx=e.clientX-mdX;if(Math.abs(dx)>28){if(dx>0){if(targetLane<2)targetLane++;}else{if(targetLane>0)targetLane--;}}else if(!isJumping)doJump();});
