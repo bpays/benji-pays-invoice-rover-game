@@ -242,7 +242,11 @@ export function AdminView() {
     const res = (await restApi('GET', 'settings', null, 'key=eq.active_event&select=value')) as
       | { value: string }[]
       | null;
-    if (res?.[0]?.value) setActiveEventTag(String(res[0].value).trim());
+    if (res?.[0]?.value) {
+      const tag = String(res[0].value).trim();
+      setActiveEventTag(tag);
+      setCurrentEventKey(tag);
+    }
   }, []);
 
   const enterApp = useCallback(async () => {
