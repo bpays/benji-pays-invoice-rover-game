@@ -97,6 +97,12 @@ export function AdminView() {
   const [adminListErr, setAdminListErr] = useState<string>('');
   const [myUserId, setMyUserId] = useState<string | null>(null);
 
+  // Backups
+  const [backupsEnabled, setBackupsEnabled] = useState<boolean>(false);
+  const [backupsLastRun, setBackupsLastRun] = useState<{ at: string; filename: string; row_count: number } | null>(null);
+  const [backupBusy, setBackupBusy] = useState<boolean>(false);
+  const [backupTogglingBusy, setBackupTogglingBusy] = useState<boolean>(false);
+
   const redirectUri = useMemo(() => `${window.location.origin}/admin`, []);
 
   const runFilter = useCallback(
