@@ -380,13 +380,17 @@ export function AdminView() {
   }, [enterApp, startMfaEnrollment]);
 
   const handleOAuthSession = useCallback(async () => {
+    console.info('[admin-login] handleOAuthSession: checking session');
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) { console.warn('[admin-login] no session after OAuth'); return; }
     const email = session.user.email || '';
+    console.info('[admin-login] session for:', email);
     if (!validateDomain(email)) {
-      setLoginError('Access restricted to @benjipays.com accounts only');
+      const msg = `You're signed in as ${email || 'an unknown account'}. Admin access requires a @${ALLOWED} account — choose "Use a different account" in the Google popup and try again.`;
+      console.warn('[admin-login] domain rejected:', email);
+      setLoginError(msg);
       await supabase.auth.signOut();
       return;
     }
@@ -396,9 +400,11 @@ export function AdminView() {
       .eq('user_id', session.user.id)
       .eq('role', 'admin');
     if (roles && roles.length > 0) {
+      console.info('[admin-login] existing admin role found, going to MFA');
       await handleMfaFlow();
       return;
     }
+    console.info('[admin-login] no role yet, attempting invite claim');
     try {
       const claimRes = await fetch(`${SUPA_URL}/functions/v1/admin-invite`, {
         method: 'POST',
@@ -409,15 +415,17 @@ export function AdminView() {
         },
         body: JSON.stringify({ action: 'claim' }),
       });
-      const claimData = (await claimRes.json()) as { success?: boolean };
+      const claimData = (await claimRes.json()) as { success?: boolean; error?: string };
       if (claimData.success) {
+        console.info('[admin-login] claim succeeded');
         await handleMfaFlow();
         return;
       }
+      console.warn('[admin-login] claim failed:', claimRes.status, claimData);
     } catch (e) {
-      console.error(e);
+      console.error('[admin-login] claim threw:', e);
     }
-    setLoginError('Access denied — no admin invite found for this account');
+    setLoginError(`Access denied — no admin invite found for ${email}. Ask an existing admin to invite this exact email.`);
     await supabase.auth.signOut();
   }, [handleMfaFlow]);
 
