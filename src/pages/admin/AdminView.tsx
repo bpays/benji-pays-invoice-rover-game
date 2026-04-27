@@ -102,6 +102,11 @@ export function AdminView() {
   const [backupsLastRun, setBackupsLastRun] = useState<{ at: string; filename: string; row_count: number } | null>(null);
   const [backupBusy, setBackupBusy] = useState<boolean>(false);
   const [backupTogglingBusy, setBackupTogglingBusy] = useState<boolean>(false);
+  const [backupsList, setBackupsList] = useState<{ name: string; created_at: string | null; size: number | null }[]>([]);
+  const [backupsListTotal, setBackupsListTotal] = useState<number>(0);
+  const [backupsListBusy, setBackupsListBusy] = useState<boolean>(false);
+  const [backupsListLimit, setBackupsListLimit] = useState<number>(10);
+  const [downloadingName, setDownloadingName] = useState<string | null>(null);
 
   const redirectUri = useMemo(() => `${window.location.origin}/admin`, []);
 
@@ -295,15 +300,35 @@ export function AdminView() {
     }
   }, []);
 
+  const loadBackupsList = useCallback(async (limit?: number) => {
+    setBackupsListBusy(true);
+    try {
+      const sinceMs = Date.now() - 2 * 24 * 60 * 60 * 1000;
+      const { data, error } = await supabase.functions.invoke('backup-scores', {
+        body: { action: 'list', since_ms: sinceMs, limit: limit ?? backupsListLimit, offset: 0 },
+      });
+      if (error) throw error;
+      const d = data as { items?: { name: string; created_at: string | null; size: number | null }[]; total?: number; error?: string };
+      if (d?.error) throw new Error(d.error);
+      setBackupsList(d.items || []);
+      setBackupsListTotal(d.total || 0);
+    } catch (e) {
+      console.error('list backups:', e);
+      toastMsg(e instanceof Error ? e.message : 'Could not load backups list', 'err');
+    } finally {
+      setBackupsListBusy(false);
+    }
+  }, [backupsListLimit]);
+
   const enterApp = useCallback(async () => {
     setScreen('app');
     try {
-      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent(), loadBackupSettings()]);
+      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent(), loadBackupSettings(), loadBackupsList()]);
     } catch (e) {
       console.error(e);
       toastMsg('Dashboard data failed to load', 'err');
     }
-  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent, loadBackupSettings]);
+  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent, loadBackupSettings, loadBackupsList]);
 
   useEffect(() => {
     if (screen !== 'app') return;
@@ -628,6 +653,7 @@ export function AdminView() {
     }
   };
 
+
   const onRunBackupNow = async () => {
     setBackupBusy(true);
     try {
@@ -640,6 +666,7 @@ export function AdminView() {
       if (d?.ok && d.filename) {
         toastMsg(`Backup saved (${d.row_count ?? 0} rows)`);
         await loadBackupSettings();
+        await loadBackupsList();
       } else {
         toastMsg('Backup ran but returned no file', 'err');
       }
@@ -649,6 +676,36 @@ export function AdminView() {
     } finally {
       setBackupBusy(false);
     }
+  };
+
+  const onDownloadBackup = async (filename: string) => {
+    setDownloadingName(filename);
+    try {
+      const { data, error } = await supabase.functions.invoke('backup-scores', {
+        body: { action: 'download', filename },
+      });
+      if (error) throw error;
+      const d = data as { url?: string; error?: string };
+      if (d?.error || !d?.url) throw new Error(d?.error || 'No URL returned');
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = d.url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      console.error('download backup:', e);
+      toastMsg(e instanceof Error ? e.message : 'Download failed', 'err');
+    } finally {
+      setDownloadingName(null);
+    }
+  };
+
+  const onLoadMoreBackups = async () => {
+    const next = backupsListLimit + 10;
+    setBackupsListLimit(next);
+    await loadBackupsList(next);
   };
 
   const onInvite = async () => {
@@ -1343,6 +1400,74 @@ export function AdminView() {
                   </>
                 ) : (
                   <>No backups yet.</>
+                )}
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <strong style={{ fontSize: 13 }}>Backups (last 2 days)</strong>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ fontSize: 12, padding: '4px 8px' }}
+                    disabled={backupsListBusy}
+                    onClick={() => void loadBackupsList()}
+                  >
+                    {backupsListBusy ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+                {backupsList.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {backupsListBusy ? 'Loading…' : 'No backups in the last 2 days.'}
+                  </div>
+                ) : (
+                  <>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {backupsList.map((b) => (
+                        <li
+                          key={b.name}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 12, padding: '6px 10px',
+                            border: '1px solid var(--border, #2a2a2a)', borderRadius: 6,
+                            fontSize: 12,
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <code style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</code>
+                            <span style={{ color: 'var(--muted)', fontSize: 11 }}>
+                              {b.created_at
+                                ? new Date(b.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'short', timeStyle: 'short' }) + ' ET'
+                                : '—'}
+                              {b.size != null ? ` · ${(b.size / 1024).toFixed(1)} KB` : ''}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ fontSize: 12, padding: '4px 10px', whiteSpace: 'nowrap' }}
+                            disabled={downloadingName === b.name}
+                            onClick={() => void onDownloadBackup(b.name)}
+                          >
+                            {downloadingName === b.name ? 'Preparing…' : 'Download'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {backupsList.length < backupsListTotal && (
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ fontSize: 12 }}
+                          disabled={backupsListBusy}
+                          onClick={() => void onLoadMoreBackups()}
+                        >
+                          {backupsListBusy ? 'Loading…' : `Load more (${backupsListTotal - backupsList.length} remaining)`}
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
