@@ -3,6 +3,8 @@ import { lovable } from '../../integrations/lovable/index';
 import { supabase } from '../../integrations/supabase/client';
 import type { Database } from '../../integrations/supabase/types';
 import {
+  callEdgeFnWithMfaRetry,
+  ensureAal2Token,
   getTotpFactors,
   inviteEdgeFn,
   restApi,
@@ -130,10 +132,24 @@ export function AdminView() {
 
   const loadStats = useCallback(async () => {
     const tag = currentEventTag();
-    const { data, error } = await supabase.rpc('get_admin_stats', {
+    // Make sure our cached JWT actually has aal2 before calling an aal2-gated RPC.
+    await ensureAal2Token();
+    let { data, error } = await supabase.rpc('get_admin_stats', {
       p_event_tag: tag ?? undefined,
     });
-    if (error || !data) return;
+    // If the DB still rejects with MFA required, the token was stale — refresh and retry once.
+    if (error && /MFA \(aal2\) required/i.test(error.message || '')) {
+      try { await supabase.auth.refreshSession(); } catch (e) { console.warn('refreshSession before stats retry failed', e); }
+      const retry = await supabase.rpc('get_admin_stats', { p_event_tag: tag ?? undefined });
+      data = retry.data;
+      error = retry.error;
+    }
+    if (error) {
+      console.error('get_admin_stats error:', error);
+      toastMsg(`Stats failed: ${error.message}`, 'err');
+      return;
+    }
+    if (!data) return;
     const s = data as {
       total: number;
       today: number;
@@ -729,18 +745,12 @@ export function AdminView() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toastMsg('Session expired', 'err'); return; }
-      const res = await fetch(`${SUPA_URL}/functions/v1/admin-import-scores`, {
-        method: 'POST',
-        headers: {
-          apikey: SUPA_KEY,
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ rows: parsed }),
-      });
-      const out = await res.json();
-      if (!res.ok) {
-        toastMsg(`Import failed: ${out.error || res.status}`, 'err');
+      const { ok, status, data: out } = await callEdgeFnWithMfaRetry(
+        'admin-import-scores',
+        { rows: parsed },
+      );
+      if (!ok) {
+        toastMsg(`Import failed: ${(out?.error as string) || status}`, 'err');
         return;
       }
       toastMsg(`Imported ${out.inserted}, skipped ${out.skipped}`);
