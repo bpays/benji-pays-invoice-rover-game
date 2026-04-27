@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { extractSafeNavPath } from '@/lib/safeNavigateMessage';
+import { extractSafeNavPath } from '../lib/safeNavigateMessage';
 
 type Props = { src: string; title: string; className?: string };
 

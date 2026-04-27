@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { extractSafeNavPath } from '@/lib/safeNavigateMessage';
+import { extractSafeNavPath } from '../lib/safeNavigateMessage';
 
 /**
  * Listens for `postMessage({ type: 'navigate', path: string })` and performs
