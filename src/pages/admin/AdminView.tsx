@@ -492,12 +492,21 @@ export function AdminView() {
     setLoginError('');
     const errEl = setLoginError;
     try {
+      console.info('[admin-login] starting Google OAuth, redirect:', redirectUri);
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: redirectUri,
-        extraParams: { hd: 'benjipays.com' },
+        extraParams: { hd: 'benjipays.com', prompt: 'select_account' },
       });
       if (result.error) {
-        errEl(result.error instanceof Error ? result.error.message : 'Google sign-in failed');
+        const m = result.error instanceof Error ? result.error.message : String(result.error);
+        console.warn('[admin-login] OAuth error:', m);
+        if (/popup/i.test(m)) {
+          errEl('Google popup was blocked or closed. Allow popups for this site and try again.');
+        } else if (/cancel/i.test(m)) {
+          errEl('Sign-in was cancelled. Try again — make sure you pick your @benjipays.com account.');
+        } else {
+          errEl(m || 'Google sign-in failed');
+        }
         return;
       }
       if (result.redirected) return;
@@ -506,6 +515,7 @@ export function AdminView() {
       }
       await handleOAuthSession();
     } catch (e) {
+      console.error('[admin-login] googleSignIn threw:', e);
       errEl('Sign-in could not be completed. Try again.');
     }
   };
