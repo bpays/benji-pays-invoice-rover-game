@@ -810,7 +810,8 @@ function gameLoop(timestamp){
   }
   if(!legendFaded){legendT++;if(legendT>300){document.getElementById('ingameLegend').classList.add('fade');legendFaded=true;}}
   score+=(0.044*(spd/baseSpd))*multiplier*(doublePoints?2:1)*delta;distance+=spd*delta;
-  document.getElementById('scoreDisplay').textContent=Math.floor(score);
+  const __scoreInt=Math.floor(score);
+  if(__scoreInt!==__lastScoreText){document.getElementById('scoreDisplay').textContent=__scoreInt;__lastScoreText=__scoreInt;}
   const nc=getCity(Math.floor(score));if(nc!==currentCity){currentCity=nc;if(lastCity!==nc){showCityBanner(nc);lastCity=nc;if(soundOn) swapToDayMusic(nc.name);}syncGameBleedImage();}
   const spawnTight=Math.min(Math.floor(Math.min(tRun,480)/20),12);
   spawnT+=delta;const sr=Math.max(70-Math.floor(score/200)-spawnTight,32);if(spawnT>=sr){if(!spawnObs())spawnT=sr*.5;else spawnT=0;}
