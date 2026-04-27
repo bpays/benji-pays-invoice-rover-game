@@ -325,6 +325,7 @@ Deno.serve(async (req: Request) => {
     city_flag,
     best_combo,
     event_tag,
+    run_id,
   } = body as {
     player_name?: string;
     email?: string;
@@ -333,7 +334,11 @@ Deno.serve(async (req: Request) => {
     city_flag?: string;
     best_combo?: number;
     event_tag?: string;
+    run_id?: string;
   };
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const cleanRunId = typeof run_id === "string" && UUID_RE.test(run_id) ? run_id : null;
 
   const nameResult = validateDisplayName(
     typeof player_name === "string" ? player_name : "",
@@ -401,6 +406,39 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // If a run_id was provided and matches a known run, stamp ended_at and compute duration_s.
+  // Never block the submission on this — it's analytics, not a gate.
+  let durationS: number | null = null;
+  if (cleanRunId) {
+    try {
+      const { data: runRow, error: runFetchErr } = await adminClient
+        .from("game_runs")
+        .select("started_at")
+        .eq("id", cleanRunId)
+        .maybeSingle();
+      if (runFetchErr) {
+        console.warn("game_runs lookup failed:", runFetchErr);
+      } else if (runRow?.started_at) {
+        const startedMs = new Date(runRow.started_at as string).getTime();
+        const nowMs = Date.now();
+        const secs = Math.floor((nowMs - startedMs) / 1000);
+        // Reject obviously bogus values (negative or > 2 hours)
+        if (secs >= 0 && secs <= 7200) {
+          durationS = secs;
+        }
+        const { error: updErr } = await adminClient
+          .from("game_runs")
+          .update({ ended_at: new Date(nowMs).toISOString() })
+          .eq("id", cleanRunId);
+        if (updErr) console.warn("game_runs update failed:", updErr);
+      } else {
+        console.warn("Unknown run_id received:", cleanRunId);
+      }
+    } catch (e) {
+      console.warn("Run-timing pipeline error:", e);
+    }
+  }
+
   const { error: insertError } = await adminClient.from("scores").insert({
     player_name: cleanName,
     email: cleanEmail,
@@ -410,6 +448,8 @@ Deno.serve(async (req: Request) => {
     best_combo: numCombo,
     event_tag: cleanEventTag,
     flagged: false,
+    run_id: cleanRunId,
+    duration_s: durationS,
   });
 
   if (insertError) {

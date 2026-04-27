@@ -156,6 +156,7 @@ function clearStartFormError() {
 // Track if player lead already captured this session
 let leadCaptured = false;
 let playerId = null; // store player's score row id for later
+let currentRunId = null; // server-issued run id linking start → game over
 
 const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d'),wrap=document.getElementById('gameWrap');
 function resizeCanvas(){const dpr=window.devicePixelRatio||1;const w=wrap.clientWidth;const h=wrap.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
@@ -852,7 +853,8 @@ function endGame(){
     city_reached: currentCity.name,
     city_flag: currentCity.flag,
     best_combo: maxCombo,
-    event_tag: activeEventTag
+    event_tag: activeEventTag,
+    run_id: currentRunId
   }).then(function (r) { if (r && !r.ok) console.warn('Final score submit:', r.code, r.error); });
 }
 
@@ -898,18 +900,32 @@ async function startGame(){
   } catch (e) { /* ignore */ }
   if (!leadCaptured) {
     leadCaptured = true;
-    const r = await submitScore({
-      player_name: v.name,
-      email: email,
-      score: 0,
-      city_reached: 'Vancouver',
-      city_flag: '🇨🇦',
-      best_combo: 0,
-      event_tag: activeEventTag
-    });
-    if (!r.ok) {
+    try {
+      const res = await fetch(`${SUPA_URL}/functions/v1/start-run`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPA_KEY,
+          'Authorization': `Bearer ${SUPA_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          player_name: v.name,
+          email: email,
+          event_tag: activeEventTag
+        })
+      });
+      let body = {};
+      try { body = await res.json(); } catch (_) { /* non-JSON */ }
+      if (!res.ok) {
+        leadCaptured = false;
+        showStartFormError((body && body.error) || 'Could not save your info. Try again.');
+        return;
+      }
+      currentRunId = (body && body.run_id) || null;
+    } catch (e) {
+      console.warn('start-run failed:', e);
       leadCaptured = false;
-      showStartFormError(r.error || 'Could not save your info. Try again.');
+      showStartFormError('Connection problem. Try again.');
       return;
     }
   }

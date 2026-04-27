@@ -187,7 +187,7 @@ export function AdminView() {
         'GET',
         'scores',
         null,
-        `select=id,player_name,email,score,city_reached,city_flag,best_combo,flagged,event_tag,created_at&${p}&order=score.desc&limit=500`
+        `select=id,player_name,email,score,city_reached,city_flag,best_combo,flagged,event_tag,created_at,duration_s&${p}&order=score.desc&limit=500`
       )) as Score[] | null;
       setAllScores(data || []);
       runFilter(data || []);
@@ -198,7 +198,7 @@ export function AdminView() {
       'GET',
       'scores',
       null,
-      `select=id,player_name,email,score,city_reached,city_flag,best_combo,flagged,event_tag,created_at${ep ? `&${ep}` : ''}&order=score.desc`
+      `select=id,player_name,email,score,city_reached,city_flag,best_combo,flagged,event_tag,created_at,duration_s${ep ? `&${ep}` : ''}&order=score.desc`
     )) as Score[] | null;
     if (!data) {
       setAllScores([]);
@@ -1047,6 +1047,7 @@ export function AdminView() {
                       <th>Score</th>
                       <th>City</th>
                       <th>Combo</th>
+                      <th>Duration</th>
                       <th>Event</th>
                       <th>Date</th>
                       <th>Actions</th>
@@ -1055,7 +1056,7 @@ export function AdminView() {
                   <tbody>
                     {page.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="empty-cell" style={{ textAlign: 'center' }}>
+                        <td colSpan={10} className="empty-cell" style={{ textAlign: 'center' }}>
                           No rows
                         </td>
                       </tr>
@@ -1075,6 +1076,11 @@ export function AdminView() {
                             {s.city_flag} {s.city_reached}
                           </td>
                           <td className="muted-cell">{s.best_combo || 0}×</td>
+                          <td className="muted-cell">
+                            {typeof s.duration_s === 'number' && s.duration_s >= 0
+                              ? `${Math.floor(s.duration_s / 60)}:${String(s.duration_s % 60).padStart(2, '0')}`
+                              : '—'}
+                          </td>
                           <td>
                             <span className="event-tag-badge">{s.event_tag || '—'}</span>
                           </td>

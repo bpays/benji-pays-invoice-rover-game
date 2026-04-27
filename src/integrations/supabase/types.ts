@@ -59,17 +59,46 @@ export type Database = {
         }
         Relationships: []
       }
+      game_runs: {
+        Row: {
+          email: string | null
+          ended_at: string | null
+          event_tag: string | null
+          id: string
+          player_name: string | null
+          started_at: string
+        }
+        Insert: {
+          email?: string | null
+          ended_at?: string | null
+          event_tag?: string | null
+          id?: string
+          player_name?: string | null
+          started_at?: string
+        }
+        Update: {
+          email?: string | null
+          ended_at?: string | null
+          event_tag?: string | null
+          id?: string
+          player_name?: string | null
+          started_at?: string
+        }
+        Relationships: []
+      }
       scores: {
         Row: {
           best_combo: number | null
           city_flag: string | null
           city_reached: string | null
           created_at: string | null
+          duration_s: number | null
           email: string | null
           event_tag: string | null
           flagged: boolean | null
           id: string
           player_name: string
+          run_id: string | null
           score: number
         }
         Insert: {
@@ -77,11 +106,13 @@ export type Database = {
           city_flag?: string | null
           city_reached?: string | null
           created_at?: string | null
+          duration_s?: number | null
           email?: string | null
           event_tag?: string | null
           flagged?: boolean | null
           id?: string
           player_name: string
+          run_id?: string | null
           score?: number
         }
         Update: {
@@ -89,11 +120,13 @@ export type Database = {
           city_flag?: string | null
           city_reached?: string | null
           created_at?: string | null
+          duration_s?: number | null
           email?: string | null
           event_tag?: string | null
           flagged?: boolean | null
           id?: string
           player_name?: string
+          run_id?: string | null
           score?: number
         }
         Relationships: []
