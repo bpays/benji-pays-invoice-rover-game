@@ -477,10 +477,6 @@ function stopMusic(fadeMs=600){
 function fadeOut(){}
 function fadeIn(){}
 
-function swapToNightMusic(cityName){
-  playMusic(getMusicFile(cityName, true), 0.78, true, 300);
-}
-
 function swapToDayMusic(cityName){
   playMusic(getMusicFile(cityName, false), 0.55, true, 800);
 }
@@ -552,19 +548,9 @@ function spawnPU(){
 }
 function burst(x,y,col,n=8){for(let i=0;i<n;i++){const a=(Math.PI*2*i)/n+Math.random()*.4,sp=2+Math.random()*4;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,color:col,alpha:1,size:2.5+Math.random()*3.5,life:1});}}
 function scorePop(x,y,text,col){const el=document.createElement('div');el.className='score-pop';el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';el.style.color=col||B.good;wrap.appendChild(el);setTimeout(()=>el.remove(),860);}
-function activateNight(){
-  isNight=!isNight;
-  nightTimer=isNight?13*60:0;
-  document.getElementById('nightOverlay').style.opacity=isNight?'1':'0';
-  benjiGlow=1;
-  if(soundOn){
-    if(isNight) swapToNightMusic(currentCity.name);
-    else swapToDayMusic(currentCity.name);
-  }
-}
 function activatePU(t){sPU();document.getElementById('puName').textContent=t.name;document.getElementById('puEffect').textContent=t.effect;const b=document.getElementById('powerupBanner');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2200);
   if(t.id==='moneris'){obstacles.forEach(o=>o.alive=false);burst(cssW()/2,cssH()/2,B.cooper,20);return;}
-  activateNight();activePUName=t.name;activePUTimer=t.dur;puWarning=false;puFlashVisible=true;
+  benjiGlow=1;activePUName=t.name;activePUTimer=t.dur;puWarning=false;puFlashVisible=true;
   if(t.id==='halopsa'){shieldActive=true;shieldTimer=t.dur;}
   if(t.id==='scalepad'){doublePoints=true;doublePointsTimer=t.dur;}
   if(t.id==='elavon'){doublePoints=true;doublePointsTimer=t.dur;}
@@ -786,7 +772,7 @@ function gameLoop(timestamp){
   skylineOff+=spd*.8*delta;
   benjiX+=(laneX(targetLane)-benjiX)*.17*delta;benjiBaseY=gy-bs*.52;
   if(isJumping){jumpVy+=GRAVITY*vs*delta;benjiY+=jumpVy*delta;if(benjiY>=benjiBaseY){benjiY=benjiBaseY;isJumping=false;jumpVy=0;}}else benjiY=benjiBaseY;
-  if(nightTimer>0){nightTimer-=delta;if(nightTimer<=0)activateNight();}
+  
   if(shieldTimer>0){shieldTimer-=delta;if(shieldTimer<=0)shieldActive=false;}
   if(speedBoostTimer>0){speedBoostTimer-=delta;if(speedBoostTimer<=0)speedBoost=false;}
   if(doublePointsTimer>0){doublePointsTimer-=delta;if(doublePointsTimer<=0)doublePoints=false;}
