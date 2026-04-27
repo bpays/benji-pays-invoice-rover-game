@@ -1,57 +1,78 @@
-# Security Hardening Plan
+## Goal
 
-Two independent fixes: lock down `postMessage` navigation, and stop loading the profanity checker from a CDN at runtime.
+Tie the lead-capture (run start) to the final game-over submission via a server-issued `run_id`, persist a server-computed `duration_s` on each score, and surface that duration on the admin page. Treat the timing as analytics/review signal — never block a score on it.
 
----
+## Anti-cheat scope
 
-## 1. Harden postMessage navigation
+This is a **data-collection foundation**, not full anti-cheat. It gives us a trustworthy server-side start/end timestamp pair we can later use to flag impossible runs (e.g. 60k score in 10 seconds). It does not prevent a determined attacker from idling a run and posting a fake score. Stronger measures (HMAC-signed run tokens, periodic score deltas, min score/sec ratios) are out of scope here and can build on top of this later.
 
-**Files:** `src/components/NavigationMessageBridge.tsx`, `src/components/EmbedFrame.tsx`
+## Schema changes (migration)
 
-Both components currently accept any `postMessage({ type: 'navigate', path })` from any origin and pass `path` straight to `react-router`'s `navigate()`. A malicious embedder/iframe could push the SPA to attacker-controlled paths or trigger `javascript:`-style values if anything downstream interprets them.
+Add to `public.scores`:
+- `run_id uuid` — nullable, indexed.
+- `duration_s integer` — nullable.
 
-Add a shared validator and apply it in both handlers:
+New table `public.game_runs`:
 
-- **Origin check:** Accept the message only if `e.origin === window.location.origin`. Optionally allow extra origins via a comma-separated `VITE_ALLOWED_MESSAGE_ORIGINS` env var (trimmed, exact match). Messages from any other origin are silently ignored.
-- **Path validation** for `e.data.path`:
-  - Must be a non-empty `string`
-  - Must start with exactly one `/` (reject `//evil.com`, protocol-relative URLs)
-  - Must not contain `:` (blocks `javascript:`, `http:`, `data:`, etc.)
-  - Cap length (e.g. 512 chars) and reject control characters
-- For `EmbedFrame`, additionally require `e.source === iframeRef.current?.contentWindow` so only the embedded iframe we rendered can drive navigation. Add a `useRef` on the `<iframe>` for this.
-- Add a brief comment above each handler explaining the origin + path checks exist to prevent open-redirect / XSS-style abuse via `postMessage`.
+```text
+game_runs
+  id           uuid pk default gen_random_uuid()
+  started_at   timestamptz not null default now()
+  ended_at     timestamptz
+  player_name  text
+  email        text
+  event_tag    text
+```
 
-Extract the validator into a small helper (e.g. `src/lib/safeNavigateMessage.ts`) so both components share one implementation and tests are trivial to add later.
+RLS: enabled, deny-all for `public` (only service-role inside edge functions touches it).
 
-No `.env` change is required; if `VITE_ALLOWED_MESSAGE_ORIGINS` is unset the check defaults to same-origin only.
+Indexes: `scores(run_id)`, `game_runs(started_at desc)`. Hot leaderboard query path is unchanged.
 
-## 2. Remove CDN-loaded profanity checker
+## New edge function: `start-run`
 
-**Files:** `src/features/game/shellRuntime.ts`, `package.json`
+`POST /functions/v1/start-run`
 
-Currently `ensureProfanityChecker()` does `await import('https://esm.sh/obscenity@0.4.6')` — a runtime fetch from a third-party CDN. That's a supply-chain and CSP risk and can break offline/strict-CSP deployments.
+- Validates `player_name` and `email` reusing the same rules as `submit-score` (extracted into `_shared/validation.ts` so both functions stay in lockstep).
+- Inserts a `game_runs` row (`started_at = now()`), returns `{ run_id }`.
+- Also performs the existing "lead capture" insert into `scores` (score 0, `run_id` stamped) so the lead funnel/leaderboard behavior is unchanged.
+- No rate limiting added here (backend lacks good primitives; the existing rate limit on the final `submit-score` is the choke point).
+- CORS + `verify_jwt = false`, uses `SUPABASE_SERVICE_ROLE_KEY`.
 
-Approach:
+## Updated edge function: `submit-score`
 
-- Add `obscenity` as a normal dependency in `package.json` (`bun add obscenity`, pinned to `^0.4.6` to match the version already in use).
-- At the top of `shellRuntime.ts`, import statically:
-  ```ts
-  import { RegExpMatcher, englishDataset, englishRecommendedTransformers } from 'obscenity';
-  ```
-- Replace `ensureProfanityChecker()` with a synchronous module-level singleton:
-  ```ts
-  const bpProfanityMatcher = new RegExpMatcher({
-    ...englishDataset.build(),
-    ...englishRecommendedTransformers,
-  });
-  function bpProfanityCheck(s: string) { return bpProfanityMatcher.hasMatch(s); }
-  ```
-- Update `validatePlayerForm()` to drop the `await ensureProfanityChecker()` call and use `bpProfanityCheck(name)` directly. Server-side validation in `supabase/functions/submit-score/index.ts` (leo-profanity) remains the source of truth — the client check is purely UX.
-- Remove the now-unused `window.__bpProfanityCheck` assignment and its global type augmentation if present.
-- Run a production build and `rg -n "esm.sh" dist/` to confirm no CDN URLs remain in the bundle.
+- Accepts an optional `run_id` (uuid string) in the body.
+- If `run_id` is present and matches a `game_runs` row:
+  - Update `game_runs.ended_at = now()`.
+  - Compute `duration_s = floor(epoch(ended_at - started_at))`.
+  - If the value is negative or > 2 hours, store `null` instead of failing.
+- Insert the score with `run_id` and `duration_s` populated when available.
+- A missing/unknown `run_id` is logged but never blocks the insert (back-compat for any in-flight client).
+- All existing validation, rate limiting, and response shapes unchanged.
 
-## Notes
+## Client changes: `src/features/game/shellRuntime.ts`
 
-- No database/edge-function changes; server-side name validation is unchanged.
-- No user-visible behavior change: navigation still works for our own embeds, and the same profanity dataset is used — just bundled instead of fetched.
-- Bundle size grows modestly (obscenity is small, ~tens of KB gzipped) in exchange for removing a runtime CDN dependency.
+- In `startGame()`: replace the current "lead capture via `submitScore` with score 0" block with a call to `start-run`. Store the returned id in a module-level `currentRunId`.
+- In the game-over submit (around line 848): include `run_id: currentRunId` in the payload.
+- Reset `currentRunId = null` when returning to the start screen so each run gets a fresh id.
+- Same UX on failure: surface the error and let the user retry.
+
+## Admin page
+
+In `src/pages/admin/AdminView.tsx` (and any types in `adminApi.ts`):
+- Add a **Duration** column to the scores table, formatted `m:ss` (e.g. `2:14`) or `—` when null.
+- Sortable like other columns.
+- No new RPC needed — `duration_s` is selected as part of the existing scores fetch (PostgREST `select=*` already covers it once the column exists).
+
+## Out of scope
+
+- No admin filtering/flagging based on duration yet.
+- No background job to prune old `game_runs` rows. Note for later: safe to delete rows older than ~90 days; the linked `scores.duration_s` is already denormalized so nothing is lost.
+
+## Files touched
+
+- New migration (schema + RLS + indexes).
+- New: `supabase/functions/start-run/index.ts`
+- New: `supabase/functions/_shared/validation.ts` (shared name/email validators)
+- Edit: `supabase/functions/submit-score/index.ts` (shared validators, accept `run_id`, write `duration_s`)
+- Edit: `src/features/game/shellRuntime.ts` (call `start-run`, track `currentRunId`, send on game over)
+- Edit: `src/pages/admin/AdminView.tsx` (+ `adminApi.ts` types) for the Duration column
