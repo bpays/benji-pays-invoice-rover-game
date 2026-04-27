@@ -289,6 +289,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      resolve_leaderboard_timezone: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
