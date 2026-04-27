@@ -1,18 +1,19 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { extractSafeNavPath } from '@/lib/safeNavigateMessage';
 
 /**
- * Listens for `postMessage({ type: 'navigate', path: string })` (e.g. iframes or legacy embeds)
- * and performs client-side navigation. Safe: only string paths, same as EmbedFrame.
+ * Listens for `postMessage({ type: 'navigate', path: string })` and performs
+ * client-side navigation. Origin + path are validated in extractSafeNavPath
+ * to prevent open-redirect / `javascript:`-style abuse from third-party frames.
  */
 export function NavigationMessageBridge() {
   const navigate = useNavigate();
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'navigate' && typeof e.data.path === 'string') {
-        navigate(e.data.path);
-      }
+      const path = extractSafeNavPath(e);
+      if (path) navigate(path);
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
