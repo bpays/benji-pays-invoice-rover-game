@@ -557,7 +557,7 @@ function spawnPU(){
   return true;
 }
 function burst(x,y,col,n=8){for(let i=0;i<n;i++){const a=(Math.PI*2*i)/n+Math.random()*.4,sp=2+Math.random()*4;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,color:col,alpha:1,size:2.5+Math.random()*3.5,life:1});}}
-function scorePop(x,y,text,col){const el=document.createElement('div');el.className='score-pop';el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';el.style.color=col||B.good;wrap.appendChild(el);setTimeout(()=>el.remove(),860);}
+function scorePop(x,y,text,col){const el=document.createElement('div');el.className='score-pop';el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';el.style.color=col||B.good;wrap.appendChild(el);__scorePopCount++;setTimeout(()=>{el.remove();__scorePopCount=Math.max(0,__scorePopCount-1);},860);}
 function activatePU(t){sPU();document.getElementById('puName').textContent=t.name;document.getElementById('puEffect').textContent=t.effect;const b=document.getElementById('powerupBanner');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2200);
   if(t.id==='moneris'){obstacles.forEach(o=>o.alive=false);burst(cssW()/2,cssH()/2,B.cooper,20);return;}
   benjiGlow=1;activePUName=t.name;activePUTimer=t.dur;puWarning=false;puFlashVisible=true;
