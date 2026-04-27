@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
         .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
       if (!data || data.length === 0) break;
-      for (const row of data as Record<string, unknown>[]) {
+      for (const row of data as unknown as Record<string, unknown>[]) {
         lines.push(COLUMNS.map((c) => csvEscape(row[c])).join(","));
       }
       total += data.length;
