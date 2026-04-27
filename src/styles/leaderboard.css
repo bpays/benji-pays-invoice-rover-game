@@ -1,8 +1,9 @@
 :root{--cerulean:#004777;--charcoal:#002843;--cooper:#CC7D51;--cameo:#D9B59D;--white:#F8F8F8;--good:#4DC97A;--muted:#7ba3be;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;min-height:100%;background:var(--charcoal);font-family:'Barlow',sans-serif;color:var(--white);}
-html.benji-leaderboard-page{height:auto;min-height:100vh;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:none;}
-html.benji-leaderboard-page body{height:auto;min-height:100vh;overflow-x:hidden;overflow-y:visible;overscroll-behavior-y:none;}
+html.benji-leaderboard-page{height:auto !important;min-height:100vh;overflow-x:hidden;overflow-y:auto !important;overscroll-behavior-y:none;}
+html.benji-leaderboard-page body{height:auto !important;min-height:100vh;overflow:visible !important;overscroll-behavior-y:none;}
+html.benji-leaderboard-page #root{min-height:100vh;overflow:visible;}
 .page{max-width:480px;margin:0 auto;padding-bottom:max(120px,calc(72px + env(safe-area-inset-bottom,34px)));position:relative;}
 .bg{position:fixed;inset:0;z-index:0;pointer-events:none;transform:translateZ(0);will-change:transform;}
 .bg-grad{position:absolute;inset:0;background:linear-gradient(180deg,#001e36 0%,var(--charcoal) 100%);}

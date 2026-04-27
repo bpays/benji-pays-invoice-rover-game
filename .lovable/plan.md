@@ -1,67 +1,39 @@
-# Fix Leaderboard Scroll + Admin List "MFA required" Error
+# Fix Leaderboard Scroll
 
-## Issue 1: Leaderboard not scrollable
+## Problem
 
-**Root cause:** `src/styles/leaderboard.css` line 3 sets `html, body { width:100%; min-height:100% }` but there is a competing rule in `src/index.css` that sets `overflow-y: auto` on **both** `html` and `body`. When both elements are set to `overflow:auto`, browsers commonly only scroll the html container, and any leftover transform/positioning from the previous game route can suppress that scroll.
+On `/leaderboard`, a scrollbar appears (so the document is taller than the viewport), but neither mouse wheel nor touch will actually scroll. This is a classic symptom of **two stacked scroll containers** (`html` and `body` both with `overflow-y: auto`) where neither cleanly receives scroll input — particularly after our earlier fix added `overflow-y` to both elements via `leaderboard.css`.
 
-Additionally, when the user navigates SPA-style from `/` (game) → `/leaderboard`, the GameView cleanup runs but if a user lands on `/leaderboard` directly the `bg` fixed background plus `min-height:100%` (not `min-height:100vh`) on body can cause body to size to viewport only, hiding the overflow.
+## Root Cause
 
-**Fix in `src/styles/leaderboard.css`:**
-- Scope an explicit scroll container under `html.benji-leaderboard-page`:
-  - `html.benji-leaderboard-page, html.benji-leaderboard-page body { height:auto; min-height:100vh; overflow-y:auto; overflow-x:hidden; }`
-- Ensure `.page` doesn't constrain height (already fine — only sets `padding-bottom`).
+Currently the cascade for the leaderboard route ends up with:
 
-This guarantees window-level vertical scroll on the leaderboard route without affecting the game route (which uses `html.benji-game-page` with `overflow:hidden`).
+- `src/index.css`: `html, body { min-height: 100%; overflow-y: auto }` (applies globally)
+- `src/styles/leaderboard.css`: `html.benji-leaderboard-page { overflow-y: auto }` and `... body { overflow-y: visible }`
 
-## Issue 2: "Could not load admins: MFA (aal2) required"
+`html` has `min-height: 100%` (= viewport) and `overflow-y: auto`, while `body` also has `min-height: 100%` and a competing `overflow-y` declaration. The browser ends up showing a scrollbar on the root but scroll events get swallowed by the nested container chain.
 
-**Root cause:** The `admin-invite` edge function requires `aal2` for the `list` action. The error means the JWT sent by `inviteEdgeFn` to the function does **not** carry `aal: "aal2"`. This happens when:
+## Fix
 
-1. The user signed in via Google and the bootstrap flow at `AdminView.tsx` lines 360–402 found a verified TOTP factor and called `enterApp()` directly when `aal.currentLevel === 'aal2'` — but that branch is only taken when the session ALREADY has aal2. If the access token was refreshed at any point, gotrue mints a new access_token preserving aal — but if the verify path (lines 471–480) was never run on this device for the current session and only `getAuthenticatorAssuranceLevel` reported aal2 (which compares enrolled factors), the token itself may still be aal1.
+Make the leaderboard page use a **single, document-level scroll container** by overriding both the global rules and the previous leaderboard rules so that:
 
-2. More commonly: `loadAdminList` runs immediately inside `enterApp()` (line 251) right after MFA verify. The `supabase.auth.getSession()` call in `inviteEdgeFn` reads the in-memory session, but the new aal2 access_token from `mfa.verify` may not yet be persisted to the client cache, so the **previous aal1 token** is sent.
+- `html.benji-leaderboard-page` → `height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto;`
+- `html.benji-leaderboard-page body` → `height: auto; min-height: 100vh; overflow: visible !important;` (force visible to defeat `index.css`'s `body { overflow-y: auto }` regardless of cascade order)
+- `html.benji-leaderboard-page #root` → `min-height: 100vh; overflow: visible;` (in case anything constrains it)
 
-**Fix:**
+Only the `html` element scrolls. `body` and `#root` simply grow to fit content. This eliminates the dual-container conflict.
 
-**A. In `src/pages/admin/AdminView.tsx` `verifyMfa()` (and `verifyEnrollment()`):**
-After `mfa.verify` succeeds, force a session refresh so the new aal2 token is loaded before `enterApp()`:
-```ts
-await supabase.auth.refreshSession();
-await enterApp();
-```
+### Files changed
 
-**B. In `src/pages/admin/AdminView.tsx` auto-restore branch (around line 389):**
-Before calling `enterApp()` on the `aal2` path, also refresh the session to ensure the freshest token is in memory:
-```ts
-} else if (aal && aal.currentLevel === 'aal2') {
-  await supabase.auth.refreshSession();
-  await enterApp();
-  return;
-}
-```
+- `src/styles/leaderboard.css` — replace the two `html.benji-leaderboard-page` / `... body` rules with the three rules above and add `!important` on body's `overflow` so it wins against `src/index.css` regardless of import order.
 
-**C. Defensive fallback in `src/pages/admin/adminApi.ts` `inviteEdgeFn`:**
-If the response indicates `MFA (aal2) required`, automatically call `supabase.auth.refreshSession()` once and retry the request. This handles edge cases where the cached token is stale without forcing a re-login:
-```ts
-async function inviteEdgeFnWithRetry(body) {
-  let res = await callOnce(body);
-  if (res?.error === 'MFA (aal2) required') {
-    await supabase.auth.refreshSession();
-    res = await callOnce(body);
-  }
-  return res;
-}
-```
+No JS changes, no functional changes elsewhere. Game and admin pages are unaffected because rules are scoped to `html.benji-leaderboard-page`.
 
-## Files to change
+## Verification
 
-- `src/styles/leaderboard.css` — add explicit scroll rules under `html.benji-leaderboard-page`.
-- `src/pages/admin/AdminView.tsx` — call `supabase.auth.refreshSession()` before `enterApp()` after MFA verify and in the aal2 auto-restore branch.
-- `src/pages/admin/adminApi.ts` — retry once after refresh on `MFA (aal2) required` response.
+After the change:
 
-## Out of scope / preserved
-
-- No database changes.
-- No edge function changes (the aal2 check at the server stays as-is; it is correct security).
-- No auth flow changes — Google + TOTP MFA stays intact.
-- No data is deleted.
+1. Visit `/leaderboard` on desktop → wheel scroll moves the page.
+2. Visit `/leaderboard` on mobile → touch scroll works, no rubber-band trapping.
+3. Visit `/game` → still locked (no change to `benji-game-page` rules).
+4. Visit `/admin` → unaffected.
