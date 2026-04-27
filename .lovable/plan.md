@@ -1,78 +1,62 @@
-## Goal
+# Add `/kaseya26` landing page (Kaseya Connect 2026)
 
-Tie the lead-capture (run start) to the final game-over submission via a server-issued `run_id`, persist a server-computed `duration_s` on each score, and surface that duration on the admin page. Treat the timing as analytics/review signal — never block a score on it.
+Port the "Empower landing page" project's landing page into this project at the route `/kaseya26`. Once shipped, it will be live at `benjigame.com/kaseya26` (and the other custom domains).
 
-## Anti-cheat scope
+## Key constraint
 
-This is a **data-collection foundation**, not full anti-cheat. It gives us a trustworthy server-side start/end timestamp pair we can later use to flag impossible runs (e.g. 60k score in 10 seconds). It does not prevent a determined attacker from idling a run and posting a fake score. Stronger measures (HMAC-signed run tokens, periodic score deltas, min score/sec ratios) are out of scope here and can build on top of this later.
+The source project uses **Tailwind + shadcn/ui + a full HSL design-token system**. This project (Invoice Rover) is intentionally lightweight: **no Tailwind, no shadcn**, just React + vanilla CSS for the game shell. Adding Tailwind here would:
 
-## Schema changes (migration)
+- bloat the bundle that loads on every game session,
+- introduce a global preflight reset that could conflict with the existing game/admin/leaderboard CSS,
+- pull in dozens of unused Radix dependencies.
 
-Add to `public.scores`:
-- `run_id uuid` — nullable, indexed.
-- `duration_s integer` — nullable.
+So we will **port the visuals, not the toolchain** — convert each section's Tailwind classes into a single scoped CSS module that only applies under `.kaseya26-page`.
 
-New table `public.game_runs`:
+## What ships
+
+A new route `/kaseya26` showing the same landing page sections in order:
 
 ```text
-game_runs
-  id           uuid pk default gen_random_uuid()
-  started_at   timestamptz not null default now()
-  ended_at     timestamptz
-  player_name  text
-  email        text
-  event_tag    text
+Navbar
+Hero (title, prize pill, CTAs, scroll cue)
+BenjiBlurb
+HowToPlay
+CitiesGrid
+PartnerPowerUps  (already in source — included for completeness)
+FinalCTA
+Footer
 ```
 
-RLS: enabled, deny-all for `public` (only service-role inside edge functions touches it).
+Internal CTAs (`benjigame.com`, `benjigame.com/leaderboard`) will be rewritten to in-app routes (`/`, `/leaderboard`) so they navigate without a full reload. External links (Calendly, benjipays.com) stay as-is.
 
-Indexes: `scores(run_id)`, `game_runs(started_at desc)`. Hot leaderboard query path is unchanged.
+## Files to add
 
-## New edge function: `start-run`
+- `src/pages/Kaseya26Page.tsx` — page wrapper, mounts the section components inside `<div className="kaseya26-page">`.
+- `src/features/kaseya26/components/` — one file per section (`Navbar`, `Hero`, `BenjiBlurb`, `HowToPlay`, `CitiesGrid`, `PartnerPowerUps`, `FinalCTA`, `Footer`).
+- `src/features/kaseya26/useScrollReveal.ts` — port of the source hook.
+- `src/styles/kaseya26.css` — scoped styles (all selectors prefixed with `.kaseya26-page`), including the page's color tokens, typography (Barlow / Barlow Condensed via Google Fonts), gradients, animations, grain overlay, and per-section layout.
+- `src/assets/kaseya26/` — copy of the 5 brand images (`benji-logo.png`, `elavon.png`, `halopsa.png`, `moneris.png`, `scalepad.png`) from the source project.
 
-`POST /functions/v1/start-run`
+## Files to edit
 
-- Validates `player_name` and `email` reusing the same rules as `submit-score` (extracted into `_shared/validation.ts` so both functions stay in lockstep).
-- Inserts a `game_runs` row (`started_at = now()`), returns `{ run_id }`.
-- Also performs the existing "lead capture" insert into `scores` (score 0, `run_id` stamped) so the lead funnel/leaderboard behavior is unchanged.
-- No rate limiting added here (backend lacks good primitives; the existing rate limit on the final `submit-score` is the choke point).
-- CORS + `verify_jwt = false`, uses `SUPABASE_SERVICE_ROLE_KEY`.
+- `src/App.tsx` — add `<Route path="/kaseya26" element={<Kaseya26Page />} />` alongside the existing routes.
 
-## Updated edge function: `submit-score`
+## Styling approach (details)
 
-- Accepts an optional `run_id` (uuid string) in the body.
-- If `run_id` is present and matches a `game_runs` row:
-  - Update `game_runs.ended_at = now()`.
-  - Compute `duration_s = floor(epoch(ended_at - started_at))`.
-  - If the value is negative or > 2 hours, store `null` instead of failing.
-- Insert the score with `run_id` and `duration_s` populated when available.
-- A missing/unknown `run_id` is logged but never blocks the insert (back-compat for any in-flight client).
-- All existing validation, rate limiting, and response shapes unchanged.
-
-## Client changes: `src/features/game/shellRuntime.ts`
-
-- In `startGame()`: replace the current "lead capture via `submitScore` with score 0" block with a call to `start-run`. Store the returned id in a module-level `currentRunId`.
-- In the game-over submit (around line 848): include `run_id: currentRunId` in the payload.
-- Reset `currentRunId = null` when returning to the start screen so each run gets a fresh id.
-- Same UX on failure: surface the error and let the user retry.
-
-## Admin page
-
-In `src/pages/admin/AdminView.tsx` (and any types in `adminApi.ts`):
-- Add a **Duration** column to the scores table, formatted `m:ss` (e.g. `2:14`) or `—` when null.
-- Sortable like other columns.
-- No new RPC needed — `duration_s` is selected as part of the existing scores fetch (PostgREST `select=*` already covers it once the column exists).
+- Single CSS file imported by `Kaseya26Page.tsx`. All rules live under `.kaseya26-page { … }` so nothing leaks into `/`, `/game`, `/leaderboard`, `/admin`.
+- The source's HSL design tokens (`--navy`, `--orange`, `--mid`, `--deep`, etc.) are redeclared on `.kaseya26-page` instead of `:root` for the same isolation reason.
+- Tailwind utility shortcuts get translated to plain CSS: `flex`, `grid`, `clamp()`, `linear-gradient`, `backdrop-filter: blur()`, the radial-gradient hero background, the `fadeUp` / `fadeIn` / `drop` keyframes, and the SVG-noise grain overlay.
+- Fonts loaded once via the existing Google Fonts `@import` in the new CSS file.
+- Scroll-reveal hook uses `IntersectionObserver` (same as source) and toggles a class that the CSS animates.
 
 ## Out of scope
 
-- No admin filtering/flagging based on duration yet.
-- No background job to prune old `game_runs` rows. Note for later: safe to delete rows older than ~90 days; the linked `scores.duration_s` is already denormalized so nothing is lost.
+- No SEO/meta tag work beyond the existing `index.html` defaults — can be a follow-up if you want a custom `<title>` / OG image for the Kaseya page.
+- No analytics events specific to this landing page.
+- No changes to the game, admin, or existing leaderboard.
 
-## Files touched
+## Risk / verification
 
-- New migration (schema + RLS + indexes).
-- New: `supabase/functions/start-run/index.ts`
-- New: `supabase/functions/_shared/validation.ts` (shared name/email validators)
-- Edit: `supabase/functions/submit-score/index.ts` (shared validators, accept `run_id`, write `duration_s`)
-- Edit: `src/features/game/shellRuntime.ts` (call `start-run`, track `currentRunId`, send on game over)
-- Edit: `src/pages/admin/AdminView.tsx` (+ `adminApi.ts` types) for the Duration column
+- Bundle size impact: small — pure React components + ~one CSS file + 5 images.
+- Visual parity: the port aims to match pixel-for-pixel; minor differences may exist around shadcn primitives (none of the visible sections use them, just `lucide-react` icons in some — will swap for inline SVGs to avoid adding the dep).
+- After shipping, sanity-check `/kaseya26`, `/`, `/game`, `/leaderboard`, and `/admin` to confirm nothing else regressed.
