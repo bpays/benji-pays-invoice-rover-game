@@ -1,71 +1,69 @@
-# Fix: Intermittent blurry / right-margin game render on mobile
+# Fix: Slight hitch on side-swipes (mobile)
 
-## What the user sees
-On mobile, occasionally:
-- The game looks low quality (blurry / pixelated)
-- There is a margin on the right side of the playfield
-- A page refresh fixes it
+## What's happening
 
-## Root cause
+In `src/features/game/shellRuntime.ts` the swipe handlers are:
 
-In `src/features/game/shellRuntime.ts`, the canvas sizing has gaps:
-
-1. **`resizeCanvas()` is never called on initial mount** — it only runs from the `window` `resize` listener. If no resize fires before the first frame paints, the canvas backing store stays at the default **300×150** and is stretched by CSS to fill the wrap. Result: blurry render.
-2. **Only the `resize` event is observed.** On mobile:
-   - `orientationchange` may fire without a `resize`
-   - The mobile URL-bar collapse fires `visualViewport` resize, not always `window.resize`
-   - Layout settles in stages (fonts, dvh resolving, safe-area insets, the inline `#benji-loading` overlay being removed) — none of these re-trigger a measure
-3. **No `ResizeObserver` on `#gameWrap`.** When the wrap's actual `clientWidth` changes due to any of the above, the canvas is never resized to match → the visible CSS box becomes wider than what the canvas occupies, producing the right-side gap.
-4. The mobile branch in `src/styles/game.css` switches `#app` to `align-items: stretch; justify-content: flex-start` and adds `padding-left/right: env(safe-area-inset-*)`. If the wrap is measured before insets resolve, the wrap is narrower than the final layout — and stays that way because nothing re-measures.
-
-## Fix (single file: `src/features/game/shellRuntime.ts`)
-
-1. **Call `resizeCanvas()` immediately on mount**, right after the canvas/wrap refs are obtained, and again on the next `requestAnimationFrame` to catch post-layout values.
-2. **Add an `orientationchange` listener** that calls `onWindowResize()`.
-3. **Listen to `window.visualViewport` `resize`** (when present) and call `onWindowResize()`.
-4. **Attach a `ResizeObserver` to `#gameWrap`** that calls `onWindowResize()` whenever its content box changes. This catches font-load reflows, the loader removal, dvh recompute, safe-area insets resolving, and any future layout source.
-5. **Guard against zero-size measurements**: in `resizeCanvas()`, if `wrap.clientWidth` or `clientHeight` is `0`, skip and re-schedule on the next animation frame (prevents locking in a degenerate size if measured during a transient layout state).
-6. **Clean up** all new listeners and the `ResizeObserver` inside the existing unmount path (`__unmountGameShell`) so `resetInvoiceRoverGameMount` stays leak-free.
-
-## Technical sketch
-
-```ts
-function resizeCanvas() {
-  const w = wrap.clientWidth, h = wrap.clientHeight;
-  if (w === 0 || h === 0) {
-    requestAnimationFrame(resizeCanvas);
-    return;
-  }
-  const dprCap = __BP_IS_MOBILE ? 1.5 : 2;
-  const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-  canvas.width = w * dpr; canvas.height = h * dpr;
-  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
-// Initial measure (immediate + post-layout)
-resizeCanvas();
-requestAnimationFrame(() => { resizeCanvas(); updateGameBleedShades(); });
-
-window.addEventListener('resize', onWindowResize);
-window.addEventListener('orientationchange', onWindowResize);
-window.visualViewport?.addEventListener('resize', onWindowResize);
-
-const wrapRO = new ResizeObserver(() => onWindowResize());
-wrapRO.observe(wrap);
-
-// In unmount:
-window.removeEventListener('orientationchange', onWindowResize);
-window.visualViewport?.removeEventListener('resize', onWindowResize);
-wrapRO.disconnect();
+```js
+wrap.addEventListener('touchstart', e => { txS = e.touches[0].clientX; tyS = e.touches[0].clientY; ttS = Date.now(); }, {passive:true});
+wrap.addEventListener('touchend',   e => { /* compute dx/dy; change lane on release */ }, {passive:true});
 ```
 
-## What this does not change
-- DPR caps, shadow gating, and other perf work stay as-is.
-- No CSS changes — the mobile layout (`@media (max-width: 600px)`) is correct; the bug is purely the canvas not re-measuring to match it.
-- Audio / admin / scoring code untouched.
+Lane changes happen **only on `touchend`** — i.e. after the finger lifts. The player visual then eases toward the new lane via `benjiX += (laneX(targetLane) - benjiX) * .17 * delta`. Two real effects make this feel like a "slight hitch":
 
-## Verification after build
-- Hard-refresh the game on a phone several times in portrait, then rotate to landscape and back.
-- Toggle the mobile URL bar by scrolling — the canvas should remain crisp and flush to both edges.
-- No right-side gap should appear regardless of when the loader hides relative to first paint.
+1. **Input latency**: The lane change is held back until the finger leaves the screen. On a deliberate slow swipe, that's ~80-200ms where nothing is happening — reads as a stutter at the start of the move.
+2. **No mid-swipe lane chaining**: A long horizontal drag past two lane-widths still only nudges one lane (because we only read `dx` once at release). If a player tries to swipe two lanes fast, the second lane never registers — feels like dropped input.
+
+There's no actual frame-rate hitch here; the GPU/loop work on swipe is trivial. It's perceived latency from the gesture model.
+
+## Fix (single file: `src/features/game/shellRuntime.ts`, lines ~915-917)
+
+Switch to a `touchmove`-driven model that fires the lane change as soon as the finger crosses the swipe threshold, then resets the anchor so a continued drag can chain to the next lane:
+
+```js
+let txS = 0, tyS = 0, ttS = 0, swipedX = false;
+const SWIPE_PX = 28;
+
+wrap.addEventListener('touchstart', e => {
+  if (state !== 'playing') return;
+  txS = e.touches[0].clientX; tyS = e.touches[0].clientY;
+  ttS = Date.now(); swipedX = false;
+}, {passive:true});
+
+wrap.addEventListener('touchmove', e => {
+  if (state !== 'playing') return;
+  const t = e.touches[0];
+  const dx = t.clientX - txS, dy = t.clientY - tyS;
+  // Horizontal-dominant swipe: fire as soon as threshold crossed, then re-anchor
+  if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 0) { if (targetLane < 2) targetLane++; }
+    else        { if (targetLane > 0) targetLane--; }
+    txS = t.clientX; tyS = t.clientY; // re-anchor so a long drag chains lanes
+    swipedX = true;
+  }
+}, {passive:true});
+
+wrap.addEventListener('touchend', e => {
+  if (state !== 'playing') return;
+  if (swipedX) return; // already handled in move
+  const dx = e.changedTouches[0].clientX - txS;
+  const dy = e.changedTouches[0].clientY - tyS;
+  const dt = Date.now() - ttS;
+  // Tap-to-jump only — no horizontal motion of consequence
+  if (Math.abs(dx) < SWIPE_PX && Math.abs(dy) < SWIPE_PX && dt < 300 && !isJumping) doJump();
+}, {passive:true});
+```
+
+Notes:
+- Listeners stay `passive:true` so we never block scroll resolution (and `#gameWrap` already has `touch-action:none` so the browser isn't fighting us).
+- Mouse handlers (`mousedown`/`mouseup`) are unchanged — desktop swipes happen on release and that's fine.
+- Vertical tap-to-jump still works; we just gate it on "no horizontal swipe was already consumed."
+- Lane lerp (`.17 * delta`) and everything else stays the same — the visual ease is intentional.
+
+## Why this fixes the perceived hitch
+- Lane intent registers within ~28px of finger movement instead of waiting for liftoff → no dead time at the start of a swipe.
+- Long drags can chain into a 2nd lane change → no "dropped input" sensation when the player tries to cross from lane 0 to lane 2.
+
+## Out of scope
+- No CSS, audio, scoring, or rendering changes.
+- No new dependencies.
