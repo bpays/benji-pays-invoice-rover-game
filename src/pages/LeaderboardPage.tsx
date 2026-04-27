@@ -161,7 +161,7 @@ export function LeaderboardPage() {
     const t = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       void refreshBoard();
-    }, 60000);
+    }, 120000);
     const onVis = () => {
       if (!document.hidden) void refreshBoard();
     };
