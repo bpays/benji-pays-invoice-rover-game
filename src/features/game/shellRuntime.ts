@@ -823,8 +823,8 @@ function gameLoop(timestamp){
   if(collectibles.length>MAX_COL){collectibles.slice(0,collectibles.length-MAX_COL).forEach(c=>{c.alive=false;});collectibles=collectibles.filter(c=>c.alive);}
   if(powerups.length>MAX_PU){powerups.slice(0,powerups.length-MAX_PU).forEach(p=>{p.alive=false;});powerups=powerups.filter(p=>p.alive);}
   if(particles.length>MAX_PART)particles=particles.slice(particles.length-MAX_PART);
-  // Cap score-pop DOM elements
-  const pops=wrap.querySelectorAll('.score-pop');if(pops.length>12){for(let i=0;i<pops.length-12;i++)pops[i].remove();}
+  // Cap score-pop DOM elements (only query DOM when in-memory counter signals overflow)
+  if(__scorePopCount>12){const pops=wrap.querySelectorAll('.score-pop');for(let i=0;i<pops.length-12;i++)pops[i].remove();}
   obstacles=obstacles.filter(o=>{if(!o.alive)return false;o.y+=spd*delta;o.x=laneX(o.lane);return o.y<cssH()+70;});
   collectibles=collectibles.filter(c=>{if(!c.alive)return false;c.y+=spd*delta;c.w+=.07*delta;c.x=laneX(c.lane);return c.y<cssH()+70;});
   powerups=powerups.filter(p=>{if(!p.alive)return false;p.y+=spd*delta;p.pulse+=.09*delta;p.x=laneX(p.lane);return p.y<cssH()+70;});
