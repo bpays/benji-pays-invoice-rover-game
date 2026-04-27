@@ -102,6 +102,11 @@ export function AdminView() {
   const [backupsLastRun, setBackupsLastRun] = useState<{ at: string; filename: string; row_count: number } | null>(null);
   const [backupBusy, setBackupBusy] = useState<boolean>(false);
   const [backupTogglingBusy, setBackupTogglingBusy] = useState<boolean>(false);
+  const [backupsList, setBackupsList] = useState<{ name: string; created_at: string | null; size: number | null }[]>([]);
+  const [backupsListTotal, setBackupsListTotal] = useState<number>(0);
+  const [backupsListBusy, setBackupsListBusy] = useState<boolean>(false);
+  const [backupsListLimit, setBackupsListLimit] = useState<number>(10);
+  const [downloadingName, setDownloadingName] = useState<string | null>(null);
 
   const redirectUri = useMemo(() => `${window.location.origin}/admin`, []);
 
