@@ -885,6 +885,49 @@ function toggleSoundFromGameOver(){
   if (osb) osb.addEventListener('click',()=>{toggleSoundFromGameOver();});
 }
 function doJump(){isJumping=true;jumpVy=JUMP*vScale();sJump();}
+// Calls start-run to create a fresh game_runs row and update currentRunId.
+// Returns { ok: true } on success, or { ok: false, error } on failure.
+// On failure, currentRunId is set to null so submit-score won't compute a misleading duration.
+async function beginRun(name, email){
+  try {
+    const res = await fetch(`${SUPA_URL}/functions/v1/start-run`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${SUPA_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        player_name: name,
+        email: email,
+        event_tag: activeEventTag
+      })
+    });
+    let body = {};
+    try { body = await res.json(); } catch (_) { /* non-JSON */ }
+    if (!res.ok) {
+      currentRunId = null;
+      return { ok: false, error: (body && body.error) || 'Could not save your info. Try again.' };
+    }
+    currentRunId = (body && body.run_id) || null;
+    return { ok: true };
+  } catch (e) {
+    console.warn('start-run failed:', e);
+    currentRunId = null;
+    return { ok: false, error: 'Connection problem. Try again.' };
+  }
+}
+
+// Returns cached name/email from localStorage for retry/CTA paths (no form re-validation).
+function cachedPlayer(){
+  try {
+    return {
+      name: localStorage.getItem('bp_playerName') || playerName || '',
+      email: localStorage.getItem('bp_playerEmail') || ''
+    };
+  } catch(e){ return { name: playerName || '', email: '' }; }
+}
+
 async function startGame(){
   const v = await validatePlayerForm();
   if (!v.ok) {
@@ -900,34 +943,15 @@ async function startGame(){
   } catch (e) { /* ignore */ }
   if (!leadCaptured) {
     leadCaptured = true;
-    try {
-      const res = await fetch(`${SUPA_URL}/functions/v1/start-run`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPA_KEY,
-          'Authorization': `Bearer ${SUPA_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          player_name: v.name,
-          email: email,
-          event_tag: activeEventTag
-        })
-      });
-      let body = {};
-      try { body = await res.json(); } catch (_) { /* non-JSON */ }
-      if (!res.ok) {
-        leadCaptured = false;
-        showStartFormError((body && body.error) || 'Could not save your info. Try again.');
-        return;
-      }
-      currentRunId = (body && body.run_id) || null;
-    } catch (e) {
-      console.warn('start-run failed:', e);
+    const r = await beginRun(v.name, email);
+    if (!r.ok) {
       leadCaptured = false;
-      showStartFormError('Connection problem. Try again.');
+      showStartFormError(r.error);
       return;
     }
+  } else {
+    // First-play form re-submitted (e.g., page kept session). Still start a fresh run.
+    await beginRun(v.name, email);
   }
   document.getElementById('startScreen').classList.add('hidden');
   state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);
@@ -942,6 +966,9 @@ document.getElementById('playBtn').addEventListener('click',function(){ getAC();
 document.getElementById('retryBtn').addEventListener('click',()=>{
   document.getElementById('gameOverScreen').classList.add('hidden');
   if(playCount>=2){playCount=0;document.getElementById('ctaScreen').classList.remove('hidden');return;}
+  // Fire-and-forget: start a fresh run for accurate duration_s. Don't block gameplay if it fails.
+  const cp=cachedPlayer();
+  if(cp.name && cp.email){ void beginRun(cp.name, cp.email); } else { currentRunId=null; }
   state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');
 });
 document.getElementById('shareBtn').addEventListener('click',()=>{const txt=document.getElementById('shareCopy').textContent;if(navigator.share)navigator.share({text:txt}).catch(()=>{});else navigator.clipboard?.writeText(txt).then(()=>alert('Copied!')).catch(()=>alert(txt));});
@@ -963,7 +990,7 @@ document.getElementById('playerName').addEventListener('keydown',function(e){ if
 document.getElementById('playerName').addEventListener('input',clearStartFormError);
 document.getElementById('playerEmail').addEventListener('input',clearStartFormError);
 document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
-document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();document.getElementById('ctaScreen').classList.add('hidden');state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');});
+document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();document.getElementById('ctaScreen').classList.add('hidden');var cp2=cachedPlayer();if(cp2.name&&cp2.email){void beginRun(cp2.name,cp2.email);}else{currentRunId=null;}state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');});
 
 const __gp = { raf: 0, stopped: false };
 // Gamepad indicator + start-screen polling
