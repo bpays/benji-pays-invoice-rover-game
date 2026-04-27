@@ -258,10 +258,13 @@ export function AdminView() {
     const res = (await restApi('GET', 'settings', null, 'key=eq.active_event&select=value')) as
       | { value: string }[]
       | null;
-    if (res?.[0]?.value) {
-      const tag = String(res[0].value).trim();
+    const tag = res?.[0]?.value ? String(res[0].value).trim() : '';
+    if (tag) {
       setActiveEventTag(tag);
       setCurrentEventKey(tag);
+    } else {
+      // No active event configured — fall back to All Events so the dashboard still loads.
+      setCurrentEventKey(ALL_EVENTS_KEY);
     }
   }, []);
 
