@@ -1,20 +1,24 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { extractSafeNavPath } from '../lib/safeNavigateMessage';
 
 type Props = { src: string; title: string; className?: string };
 
 /**
  * Full-viewport iframe that listens for postMessage `{ type: 'navigate', path: string }`
- * (used by embedded public/*.html UIs to navigate the SPA without full page reloads).
+ * from the embedded child only. Origin, source window, and path are all validated
+ * to prevent unrelated frames from steering SPA navigation.
  */
 export function EmbedFrame({ src, title, className }: Props) {
   const navigate = useNavigate();
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'navigate' && typeof e.data.path === 'string') {
-        navigate(e.data.path);
-      }
+      // Only accept messages from the iframe we rendered.
+      if (e.source !== iframeRef.current?.contentWindow) return;
+      const path = extractSafeNavPath(e);
+      if (path) navigate(path);
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
@@ -33,6 +37,7 @@ export function EmbedFrame({ src, title, className }: Props) {
       }}
     >
       <iframe
+        ref={iframeRef}
         src={src}
         style={{ width: '100%', height: '100%', border: 'none' }}
         title={title}

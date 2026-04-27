@@ -1,4 +1,13 @@
 // @ts-nocheck
+import { RegExpMatcher, englishDataset, englishRecommendedTransformers } from 'obscenity';
+
+const bpProfanityMatcher = new RegExpMatcher({
+  ...englishDataset.build(),
+  ...englishRecommendedTransformers,
+});
+function bpProfanityCheck(s: string): boolean {
+  try { return bpProfanityMatcher.hasMatch(s); } catch { return false; }
+}
 let __invoiceRoverGameMounted = false;
 let __unmountGameShell = function noop() {};
 export function resetInvoiceRoverGameMount(): void {
@@ -83,21 +92,7 @@ const BP_NAME_ALLOWED = /^[\p{L}\p{M}0-9\s.'-]+$/u;
 const BP_MIN_NAME = 2;
 const BP_MAX_NAME = 30;
 
-async function ensureProfanityChecker() {
-  if (window.__bpProfanityCheck) return window.__bpProfanityCheck;
-  try {
-    const { RegExpMatcher, englishDataset, englishRecommendedTransformers } = await import('https://esm.sh/obscenity@0.4.6');
-    const matcher = new RegExpMatcher({
-      ...englishDataset.build(),
-      ...englishRecommendedTransformers
-    });
-    window.__bpProfanityCheck = function (s) { return matcher.hasMatch(s); };
-  } catch (e) {
-    console.warn('Profanity checker load failed:', e);
-    window.__bpProfanityCheck = function () { return false; };
-  }
-  return window.__bpProfanityCheck;
-}
+// Profanity matcher is now bundled (see top of file). No async loader needed.
 
 async function validatePlayerForm() {
   const nameRaw = document.getElementById('playerName').value;
@@ -129,8 +124,7 @@ async function validatePlayerForm() {
       return { ok: false, error: 'That name isn’t allowed.' };
     }
   }
-  const profanityCheck = await ensureProfanityChecker();
-  if (profanityCheck(name)) {
+  if (bpProfanityCheck(name)) {
     return { ok: false, error: 'That name isn’t allowed.' };
   }
   const email = emailRaw.trim();

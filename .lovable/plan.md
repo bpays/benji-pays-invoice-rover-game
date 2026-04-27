@@ -1,39 +1,57 @@
-# Harden remaining MFA (aal2) call sites on the admin page
+# Security Hardening Plan
 
-The `inviteEdgeFn` helper already refreshes the session and retries once when the server reports `MFA (aal2) required`. The rest of the admin page does not. Three other call sites can hit the same stale-AAL JWT problem (most often right after MFA verify, or after a long-lived tab where the cached access token still claims `aal1`):
+Two independent fixes: lock down `postMessage` navigation, and stop loading the profanity checker from a CDN at runtime.
 
-1. **`get_admin_stats` RPC** (`AdminView.tsx` `loadStats`) — the DB function raises `MFA (aal2) required`, but the caller silently swallows the error. Dashboard tiles stay at 0/—.
-2. **CSV import** (`AdminView.tsx` import handler) — calls the `admin-import-scores` edge function directly with no refresh+retry.
-3. **`restApi` PostgREST helper** (`adminApi.ts`) — used for scores, settings, events. If any RLS policy ever inspects the `aal` claim it would silently return `null`. Lower priority but easy to harden.
+---
 
-## What to change
+## 1. Harden postMessage navigation
 
-### 1. Add a shared "ensure aal2 token" helper in `adminApi.ts`
-A small utility that reads the current session, decodes the JWT `aal` claim, and if it is not `aal2` calls `supabase.auth.refreshSession()` once. Returns the (possibly refreshed) access token.
+**Files:** `src/components/NavigationMessageBridge.tsx`, `src/components/EmbedFrame.tsx`
 
-### 2. Use it in `loadStats`
-- Call the helper before `supabase.rpc('get_admin_stats', …)`.
-- Surface RPC errors with a toast (`toastMsg('Stats failed: …', 'err')`) instead of silently returning, so future regressions are visible.
-- If the RPC still returns an MFA error, refresh + retry once (mirrors `inviteEdgeFn`).
+Both components currently accept any `postMessage({ type: 'navigate', path })` from any origin and pass `path` straight to `react-router`'s `navigate()`. A malicious embedder/iframe could push the SPA to attacker-controlled paths or trigger `javascript:`-style values if anything downstream interprets them.
 
-### 3. Refactor CSV import to reuse the same retry pattern
-Wrap the `admin-import-scores` POST in a small local helper that:
-- Sends the request with the current access token.
-- On `403 MFA (aal2) required`, refreshes the session and retries once.
-- Returns the final JSON + status.
+Add a shared validator and apply it in both handlers:
 
-### 4. Light hardening for `restApi`
-Have `restApi` reuse the same "ensure aal2 token" helper before issuing the request. No retry logic needed for PostgREST today (no RLS uses the aal claim), but this keeps the token fresh for the rare case where the cached token is still `aal1`.
+- **Origin check:** Accept the message only if `e.origin === window.location.origin`. Optionally allow extra origins via a comma-separated `VITE_ALLOWED_MESSAGE_ORIGINS` env var (trimmed, exact match). Messages from any other origin are silently ignored.
+- **Path validation** for `e.data.path`:
+  - Must be a non-empty `string`
+  - Must start with exactly one `/` (reject `//evil.com`, protocol-relative URLs)
+  - Must not contain `:` (blocks `javascript:`, `http:`, `data:`, etc.)
+  - Cap length (e.g. 512 chars) and reject control characters
+- For `EmbedFrame`, additionally require `e.source === iframeRef.current?.contentWindow` so only the embedded iframe we rendered can drive navigation. Add a `useRef` on the `<iframe>` for this.
+- Add a brief comment above each handler explaining the origin + path checks exist to prevent open-redirect / XSS-style abuse via `postMessage`.
 
-### 5. No edge function changes
-`admin-invite` and `admin-import-scores` already correctly require `aal2` and return a clear error. The fix is purely client-side resilience.
+Extract the validator into a small helper (e.g. `src/lib/safeNavigateMessage.ts`) so both components share one implementation and tests are trivial to add later.
 
-## Files touched
+No `.env` change is required; if `VITE_ALLOWED_MESSAGE_ORIGINS` is unset the check defaults to same-origin only.
 
-- `src/pages/admin/adminApi.ts` — add `ensureAal2Token()` helper; have `restApi` and `inviteEdgeFn` use it; export a generic `callEdgeFnWithMfaRetry()` used by the CSV importer.
-- `src/pages/admin/AdminView.tsx` — `loadStats` surfaces errors and refresh-retries; CSV import handler uses the new helper.
+## 2. Remove CDN-loaded profanity checker
 
-## Out of scope
-- Any UI/UX redesign of the admin page.
-- Game/loading-screen behaviour.
-- Database or edge function logic changes.
+**Files:** `src/features/game/shellRuntime.ts`, `package.json`
+
+Currently `ensureProfanityChecker()` does `await import('https://esm.sh/obscenity@0.4.6')` — a runtime fetch from a third-party CDN. That's a supply-chain and CSP risk and can break offline/strict-CSP deployments.
+
+Approach:
+
+- Add `obscenity` as a normal dependency in `package.json` (`bun add obscenity`, pinned to `^0.4.6` to match the version already in use).
+- At the top of `shellRuntime.ts`, import statically:
+  ```ts
+  import { RegExpMatcher, englishDataset, englishRecommendedTransformers } from 'obscenity';
+  ```
+- Replace `ensureProfanityChecker()` with a synchronous module-level singleton:
+  ```ts
+  const bpProfanityMatcher = new RegExpMatcher({
+    ...englishDataset.build(),
+    ...englishRecommendedTransformers,
+  });
+  function bpProfanityCheck(s: string) { return bpProfanityMatcher.hasMatch(s); }
+  ```
+- Update `validatePlayerForm()` to drop the `await ensureProfanityChecker()` call and use `bpProfanityCheck(name)` directly. Server-side validation in `supabase/functions/submit-score/index.ts` (leo-profanity) remains the source of truth — the client check is purely UX.
+- Remove the now-unused `window.__bpProfanityCheck` assignment and its global type augmentation if present.
+- Run a production build and `rg -n "esm.sh" dist/` to confirm no CDN URLs remain in the bundle.
+
+## Notes
+
+- No database/edge-function changes; server-side name validation is unchanged.
+- No user-visible behavior change: navigation still works for our own embeds, and the same profanity dataset is used — just bundled instead of fetched.
+- Bundle size grows modestly (obscenity is small, ~tens of KB gzipped) in exchange for removing a runtime CDN dependency.
