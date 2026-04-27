@@ -97,6 +97,12 @@ export function AdminView() {
   const [adminListErr, setAdminListErr] = useState<string>('');
   const [myUserId, setMyUserId] = useState<string | null>(null);
 
+  // Backups
+  const [backupsEnabled, setBackupsEnabled] = useState<boolean>(false);
+  const [backupsLastRun, setBackupsLastRun] = useState<{ at: string; filename: string; row_count: number } | null>(null);
+  const [backupBusy, setBackupBusy] = useState<boolean>(false);
+  const [backupTogglingBusy, setBackupTogglingBusy] = useState<boolean>(false);
+
   const redirectUri = useMemo(() => `${window.location.origin}/admin`, []);
 
   const runFilter = useCallback(
@@ -268,15 +274,36 @@ export function AdminView() {
     }
   }, []);
 
+  const loadBackupSettings = useCallback(async () => {
+    const res = (await restApi(
+      'GET',
+      'settings',
+      null,
+      'key=in.(backups_enabled,backups_last_run)&select=key,value'
+    )) as { key: string; value: string }[] | null;
+    if (!res) return;
+    for (const row of res) {
+      if (row.key === 'backups_enabled') {
+        setBackupsEnabled(row.value === 'true');
+      } else if (row.key === 'backups_last_run') {
+        if (!row.value) { setBackupsLastRun(null); continue; }
+        try {
+          const parsed = JSON.parse(row.value);
+          if (parsed && typeof parsed.at === 'string') setBackupsLastRun(parsed);
+        } catch { setBackupsLastRun(null); }
+      }
+    }
+  }, []);
+
   const enterApp = useCallback(async () => {
     setScreen('app');
     try {
-      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent()]);
+      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent(), loadBackupSettings()]);
     } catch (e) {
       console.error(e);
       toastMsg('Dashboard data failed to load', 'err');
     }
-  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent]);
+  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent, loadBackupSettings]);
 
   useEffect(() => {
     if (screen !== 'app') return;
@@ -577,6 +604,48 @@ export function AdminView() {
     else {
       setTimezoneErr('Could not save. Check migration if row is missing.');
       toastMsg('Failed to save', 'err');
+    }
+  };
+
+  const onToggleBackups = async (next: boolean) => {
+    setBackupTogglingBusy(true);
+    const prev = backupsEnabled;
+    setBackupsEnabled(next);
+    const res = await restApi(
+      'PATCH',
+      'settings',
+      { value: next ? 'true' : 'false', updated_at: new Date().toISOString() },
+      'key=eq.backups_enabled'
+    );
+    setBackupTogglingBusy(false);
+    if (res) {
+      toastMsg(next ? 'Automated backups ON' : 'Automated backups OFF');
+    } else {
+      setBackupsEnabled(prev);
+      toastMsg('Failed to update backup setting', 'err');
+    }
+  };
+
+  const onRunBackupNow = async () => {
+    setBackupBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backup-scores', {
+        body: { force: true },
+      });
+      if (error) throw error;
+      const d = data as { ok?: boolean; filename?: string; row_count?: number; error?: string };
+      if (d?.error) throw new Error(d.error);
+      if (d?.ok && d.filename) {
+        toastMsg(`Backup saved (${d.row_count ?? 0} rows)`);
+        await loadBackupSettings();
+      } else {
+        toastMsg('Backup ran but returned no file', 'err');
+      }
+    } catch (e) {
+      console.error('backup-scores:', e);
+      toastMsg(e instanceof Error ? e.message : 'Backup failed', 'err');
+    } finally {
+      setBackupBusy(false);
     }
   };
 
@@ -1234,6 +1303,45 @@ export function AdminView() {
               {eventErr && <div className="login-err" style={{ display: 'block' }}>{eventErr}</div>}
               <div style={{ marginTop: 16, fontSize: 12, color: 'var(--muted)' }}>
                 Active event: <strong style={{ color: 'var(--cooper)' }}>{activeEventTag}</strong>
+              </div>
+            </div>
+
+            <div className="section">
+              <div className="section-title">Backups</div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640, marginBottom: 12 }}>
+                Automated CSV backups of the <strong>scores</strong> table run every 3 hours when enabled. Files are saved to the <code>scores-backups</code> bucket in Cloud storage and pruned after 30 days. Turn this off between events to save on usage.
+              </p>
+              <div className="btn-row" style={{ alignItems: 'center', gap: 12 }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={backupsEnabled}
+                    disabled={backupTogglingBusy}
+                    onChange={(e) => void onToggleBackups(e.target.checked)}
+                  />
+                  <span>Automated backups: <strong style={{ color: backupsEnabled ? 'var(--cooper)' : 'var(--muted)' }}>{backupsEnabled ? 'ON' : 'OFF'}</strong></span>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={backupBusy}
+                  onClick={() => void onRunBackupNow()}
+                >
+                  {backupBusy ? 'Running…' : 'Run backup now'}
+                </button>
+              </div>
+              <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>
+                {backupsLastRun ? (
+                  <>
+                    Last backup:{' '}
+                    <strong style={{ color: 'var(--text)' }}>
+                      {new Date(backupsLastRun.at).toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' })} ET
+                    </strong>{' '}
+                    — {backupsLastRun.row_count.toLocaleString()} rows · <code>{backupsLastRun.filename}</code>
+                  </>
+                ) : (
+                  <>No backups yet.</>
+                )}
               </div>
             </div>
           </div>
