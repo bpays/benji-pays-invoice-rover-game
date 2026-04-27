@@ -41,19 +41,42 @@ export async function restApi(
   return res.ok ? ((await res.json()) as unknown[]) : null;
 }
 
-export async function inviteEdgeFn(postBody: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return { error: 'Not signed in' };
+async function callInviteEdgeFn(
+  postBody: Record<string, unknown>,
+  accessToken: string
+): Promise<Record<string, unknown>> {
   const res = await fetch(`${SUPA_URL}/functions/v1/admin-invite`, {
     method: 'POST',
     headers: {
       apikey: SUPA_KEY,
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(postBody),
   });
   return res.json() as Promise<Record<string, unknown>>;
+}
+
+export async function inviteEdgeFn(postBody: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return { error: 'Not signed in' };
+
+  let result = await callInviteEdgeFn(postBody, session.access_token);
+
+  // If server reports stale aal claim, refresh the session and retry once.
+  if (typeof result?.error === 'string' && /MFA \(aal2\) required/i.test(result.error)) {
+    try {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const newToken = refreshed?.session?.access_token;
+      if (newToken) {
+        result = await callInviteEdgeFn(postBody, newToken);
+      }
+    } catch (e) {
+      console.warn('inviteEdgeFn refresh+retry failed', e);
+    }
+  }
+
+  return result;
 }
