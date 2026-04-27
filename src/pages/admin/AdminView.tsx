@@ -274,15 +274,36 @@ export function AdminView() {
     }
   }, []);
 
+  const loadBackupSettings = useCallback(async () => {
+    const res = (await restApi(
+      'GET',
+      'settings',
+      null,
+      'key=in.(backups_enabled,backups_last_run)&select=key,value'
+    )) as { key: string; value: string }[] | null;
+    if (!res) return;
+    for (const row of res) {
+      if (row.key === 'backups_enabled') {
+        setBackupsEnabled(row.value === 'true');
+      } else if (row.key === 'backups_last_run') {
+        if (!row.value) { setBackupsLastRun(null); continue; }
+        try {
+          const parsed = JSON.parse(row.value);
+          if (parsed && typeof parsed.at === 'string') setBackupsLastRun(parsed);
+        } catch { setBackupsLastRun(null); }
+      }
+    }
+  }, []);
+
   const enterApp = useCallback(async () => {
     setScreen('app');
     try {
-      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent()]);
+      await Promise.all([loadTimezone(), loadAdminList(), loadEvents(), loadActiveEvent(), loadBackupSettings()]);
     } catch (e) {
       console.error(e);
       toastMsg('Dashboard data failed to load', 'err');
     }
-  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent]);
+  }, [loadAdminList, loadTimezone, loadEvents, loadActiveEvent, loadBackupSettings]);
 
   useEffect(() => {
     if (screen !== 'app') return;
