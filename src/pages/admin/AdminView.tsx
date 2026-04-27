@@ -1402,6 +1402,74 @@ export function AdminView() {
                   <>No backups yet.</>
                 )}
               </div>
+
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <strong style={{ fontSize: 13 }}>Backups (last 2 days)</strong>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ fontSize: 12, padding: '4px 8px' }}
+                    disabled={backupsListBusy}
+                    onClick={() => void loadBackupsList()}
+                  >
+                    {backupsListBusy ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+                {backupsList.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {backupsListBusy ? 'Loading…' : 'No backups in the last 2 days.'}
+                  </div>
+                ) : (
+                  <>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {backupsList.map((b) => (
+                        <li
+                          key={b.name}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 12, padding: '6px 10px',
+                            border: '1px solid var(--border, #2a2a2a)', borderRadius: 6,
+                            fontSize: 12,
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <code style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</code>
+                            <span style={{ color: 'var(--muted)', fontSize: 11 }}>
+                              {b.created_at
+                                ? new Date(b.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'short', timeStyle: 'short' }) + ' ET'
+                                : '—'}
+                              {b.size != null ? ` · ${(b.size / 1024).toFixed(1)} KB` : ''}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ fontSize: 12, padding: '4px 10px', whiteSpace: 'nowrap' }}
+                            disabled={downloadingName === b.name}
+                            onClick={() => void onDownloadBackup(b.name)}
+                          >
+                            {downloadingName === b.name ? 'Preparing…' : 'Download'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {backupsList.length < backupsListTotal && (
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ fontSize: 12 }}
+                          disabled={backupsListBusy}
+                          onClick={() => void onLoadMoreBackups()}
+                        >
+                          {backupsListBusy ? 'Loading…' : `Load more (${backupsListTotal - backupsList.length} remaining)`}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
