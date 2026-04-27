@@ -5,7 +5,6 @@ import {
   BenjiBlurb,
   HowToPlay,
   CitiesGrid,
-  PartnerPowerUps,
   FinalCTA,
   Footer,
 } from "../features/kaseya26/sections";
