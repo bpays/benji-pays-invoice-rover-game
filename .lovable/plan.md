@@ -1,45 +1,71 @@
-# Fix music toggle logic across all three sound buttons
+# Fix: Intermittent blurry / right-margin game render on mobile
 
-The game has **three sound toggle buttons** that have drifted out of sync. This is almost certainly why the player reported "sound effects but no music" — one button was toggled off and the others still displayed "Music On", so the global `soundOn` flag was actually `false` while the UI lied about it.
+## What the user sees
+On mobile, occasionally:
+- The game looks low quality (blurry / pixelated)
+- There is a margin on the right side of the playfield
+- A page refresh fixes it
 
-## Buttons involved
+## Root cause
 
-| Button id | Where it lives | Current handler |
-|---|---|---|
-| `startSoundBtn` | Start screen | `toggleMusicFromStart` (line 506) |
-| `soundBtn` | In-game HUD (bottom right) | inline handler (line 992) |
-| `overSoundBtn` | Game-over screen | `toggleSoundFromGameOver` (line 892) |
+In `src/features/game/shellRuntime.ts`, the canvas sizing has gaps:
 
-There is also a **dead** `toggleSoundFromStart` function (line 884) that nothing calls — leftover from a prior refactor.
+1. **`resizeCanvas()` is never called on initial mount** — it only runs from the `window` `resize` listener. If no resize fires before the first frame paints, the canvas backing store stays at the default **300×150** and is stretched by CSS to fill the wrap. Result: blurry render.
+2. **Only the `resize` event is observed.** On mobile:
+   - `orientationchange` may fire without a `resize`
+   - The mobile URL-bar collapse fires `visualViewport` resize, not always `window.resize`
+   - Layout settles in stages (fonts, dvh resolving, safe-area insets, the inline `#benji-loading` overlay being removed) — none of these re-trigger a measure
+3. **No `ResizeObserver` on `#gameWrap`.** When the wrap's actual `clientWidth` changes due to any of the above, the canvas is never resized to match → the visible CSS box becomes wider than what the canvas occupies, producing the right-side gap.
+4. The mobile branch in `src/styles/game.css` switches `#app` to `align-items: stretch; justify-content: flex-start` and adds `padding-left/right: env(safe-area-inset-*)`. If the wrap is measured before insets resolve, the wrap is narrower than the final layout — and stays that way because nothing re-measures.
 
-## Bugs to fix
+## Fix (single file: `src/features/game/shellRuntime.ts`)
 
-1. **Buttons don't sync with each other.** Each toggle updates only some of the three button labels, so flipping one leaves the others showing the wrong state.
-2. **Dead duplicate code.** `toggleSoundFromStart` (line 884) is unreachable — only `toggleMusicFromStart` is actually wired up. Confusing and risky.
-3. **Game-over toggle plays title music.** When you die, music is intentionally stopped. If you toggle music back on from the game-over screen, `toggleSoundFromGameOver` calls `playTitleMusic()` — but you're not on the title screen. It should be a no-op for music while on the game-over screen (the next retry/CTA flow will start city music again).
-4. **In-game toggle ignores game-over button label.** Toggling sound off mid-run, then dying, leaves `overSoundBtn` showing "🔊 Music On".
+1. **Call `resizeCanvas()` immediately on mount**, right after the canvas/wrap refs are obtained, and again on the next `requestAnimationFrame` to catch post-layout values.
+2. **Add an `orientationchange` listener** that calls `onWindowResize()`.
+3. **Listen to `window.visualViewport` `resize`** (when present) and call `onWindowResize()`.
+4. **Attach a `ResizeObserver` to `#gameWrap`** that calls `onWindowResize()` whenever its content box changes. This catches font-load reflows, the loader removal, dvh recompute, safe-area insets resolving, and any future layout source.
+5. **Guard against zero-size measurements**: in `resizeCanvas()`, if `wrap.clientWidth` or `clientHeight` is `0`, skip and re-schedule on the next animation frame (prevents locking in a degenerate size if measured during a transient layout state).
+6. **Clean up** all new listeners and the `ResizeObserver` inside the existing unmount path (`__unmountGameShell`) so `resetInvoiceRoverGameMount` stays leak-free.
 
-## Fix
+## Technical sketch
 
-Consolidate into a **single** `setSoundOn(on, opts)` helper that:
+```ts
+function resizeCanvas() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if (w === 0 || h === 0) {
+    requestAnimationFrame(resizeCanvas);
+    return;
+  }
+  const dprCap = __BP_IS_MOBILE ? 1.5 : 2;
+  const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
 
-- Updates `soundOn` once.
-- Updates the label/icon on **all three** buttons every time, regardless of which one was clicked.
-- Decides what to play based on the current `state` (`'start' | 'playing' | 'gameover'`):
-  - `start` → `playTitleMusic()` when turning on, `stopMusic()` when off.
-  - `playing` → `swapToDayMusic(currentCity?.name || 'Vancouver')` when on, `stopMusic()` when off.
-  - `gameover` → no music either way (it's intentionally silent there); `stopMusic()` if turning off.
-- Resumes the AudioContext if suspended.
+// Initial measure (immediate + post-layout)
+resizeCanvas();
+requestAnimationFrame(() => { resizeCanvas(); updateGameBleedShades(); });
 
-Wire all three buttons (`startSoundBtn`, `soundBtn`, `overSoundBtn`) to call `setSoundOn(!soundOn)`.
+window.addEventListener('resize', onWindowResize);
+window.addEventListener('orientationchange', onWindowResize);
+window.visualViewport?.addEventListener('resize', onWindowResize);
 
-Delete the dead `toggleSoundFromStart` function. Keep `toggleMusicFromStart` and `toggleSoundFromGameOver` as thin wrappers around `setSoundOn` (or remove them entirely and inline the listener — preferred, less surface area).
+const wrapRO = new ResizeObserver(() => onWindowResize());
+wrapRO.observe(wrap);
 
-## Files
+// In unmount:
+window.removeEventListener('orientationchange', onWindowResize);
+window.visualViewport?.removeEventListener('resize', onWindowResize);
+wrapRO.disconnect();
+```
 
-- `src/features/game/shellRuntime.ts` — single edit covering lines ~506–513, ~884–903, ~992–1004.
+## What this does not change
+- DPR caps, shadow gating, and other perf work stay as-is.
+- No CSS changes — the mobile layout (`@media (max-width: 600px)`) is correct; the bug is purely the canvas not re-measuring to match it.
+- Audio / admin / scoring code untouched.
 
-## Out of scope
-
-- Splitting "music" and "SFX" into independent toggles. Today `soundOn` controls both (`beep()` checks `soundOn` at line 499). The reporter's "SFX work, music doesn't" is consistent with desynced UI, not separate channels — no split needed.
-- Autoplay-policy changes. Music already correctly waits for a user gesture (Play button or sound toggle).
+## Verification after build
+- Hard-refresh the game on a phone several times in portrait, then rotate to landscape and back.
+- Toggle the mobile URL bar by scrolling — the canvas should remain crisp and flush to both edges.
+- No right-side gap should appear regardless of when the loader hides relative to first paint.
