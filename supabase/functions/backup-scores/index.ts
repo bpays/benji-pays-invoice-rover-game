@@ -182,6 +182,17 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Authenticate the backup write path. Allow either:
+  //  (a) an admin user with MFA (aal2), or
+  //  (b) a trusted scheduler calling with the service-role key in Authorization.
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.replace(/^Bearer\s+/i, "");
+  const isServiceRole = bearer && bearer === serviceRoleKey;
+  if (!isServiceRole) {
+    const guard = await requireAdmin();
+    if (guard) return guard;
+  }
+
   // Check toggle unless forced
   if (!force) {
     const { data: setting } = await admin
