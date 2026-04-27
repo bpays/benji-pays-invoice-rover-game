@@ -983,7 +983,7 @@ try{const sn=localStorage.getItem('bp_playerName');const se=localStorage.getItem
 // Title music starts on first interaction with Play button or sound toggle
 // Music during gameplay starts in startGame() directly
 document.getElementById('playBtn').addEventListener('click',function(){ getAC(); void startGame(); });
-{const ssb=document.getElementById('startSoundBtn');if(ssb)ssb.addEventListener('click',function(){toggleMusicFromStart();});}
+{const ssb=document.getElementById('startSoundBtn');if(ssb)ssb.addEventListener('click',function(){ setSoundOn(!soundOn); });}
 document.getElementById('retryBtn').addEventListener('click',()=>{
   document.getElementById('gameOverScreen').classList.add('hidden');
   if(playCount>=2){playCount=0;document.getElementById('ctaScreen').classList.remove('hidden');return;}
@@ -993,19 +993,7 @@ document.getElementById('retryBtn').addEventListener('click',()=>{
   state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');
 });
 document.getElementById('shareBtn').addEventListener('click',()=>{const txt=document.getElementById('shareCopy').textContent;if(navigator.share)navigator.share({text:txt}).catch(()=>{});else navigator.clipboard?.writeText(txt).then(()=>alert('Copied!')).catch(()=>alert(txt));});
-document.getElementById('soundBtn').addEventListener('click',()=>{
-  soundOn=!soundOn;
-  document.getElementById('soundBtn').textContent=soundOn?'\uD83D\uDD0A':'\uD83D\uDD07';
-  const sb=document.getElementById('startSoundBtn');
-  if(sb) sb.textContent=soundOn?'\uD83D\uDD0A Music On':'\uD83D\uDD07 Music Off';
-  if(soundOn){
-    if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
-    if(state==='playing') swapToDayMusic(currentCity?currentCity.name:'Vancouver');
-    else playTitleMusic();
-  } else {
-    stopMusic();
-  }
-});
+document.getElementById('soundBtn').addEventListener('click',()=>{ setSoundOn(!soundOn); });
 document.getElementById('playerEmail').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); getAC(); void startGame(); } });
 document.getElementById('playerName').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('playerEmail').focus(); } });
 document.getElementById('playerName').addEventListener('input',clearStartFormError);
