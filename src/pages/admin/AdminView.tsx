@@ -95,7 +95,7 @@ export function AdminView() {
   const [adminListErr, setAdminListErr] = useState<string>('');
   const [myUserId, setMyUserId] = useState<string | null>(null);
 
-  const redirectUri = useMemo(() => `${window.location.origin}/admin/`, []);
+  const redirectUri = useMemo(() => `${window.location.origin}/admin`, []);
 
   const runFilter = useCallback(
     (data: Score[]) => {
