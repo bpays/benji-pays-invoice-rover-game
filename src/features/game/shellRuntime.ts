@@ -1073,6 +1073,9 @@ const __gp = { raf: 0, stopped: false };
     if (__gp.raf) cancelAnimationFrame(__gp.raf);
     __gp.raf = 0;
     window.removeEventListener('resize', onWindowResize);
+    window.removeEventListener('orientationchange', onWindowResize);
+    if (__vv) __vv.removeEventListener('resize', onWindowResize);
+    if (__wrapRO) __wrapRO.disconnect();
     window.removeEventListener('keydown', onWinKeydownGame);
   };
 }
