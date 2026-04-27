@@ -503,13 +503,33 @@ const sHit=()=>{beep(110,.35,'sawtooth',.18);beep(75,.45,'sawtooth',.13);};
 const sPU=()=>{[440,550,660,880].forEach((f,i)=>setTimeout(()=>beep(f,.14,'sine',.16),i*65));};
 const sCity=()=>{[330,440,550].forEach((f,i)=>setTimeout(()=>beep(f,.18,'sine',.09),i*90));};
 
-function toggleMusicFromStart(){
-  soundOn=!soundOn;
-  const btn=document.getElementById('startSoundBtn');
-  if(btn) btn.textContent=soundOn?'\uD83D\uDD0A Music On':'\uD83D\uDD07 Music Off';
-  document.getElementById('soundBtn').textContent=soundOn?'\uD83D\uDD0A':'\uD83D\uDD07';
-  if(soundOn){ if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume(); playTitleMusic(); }
-  else stopMusic();
+/**
+ * Single source of truth for the music/sound toggle.
+ * Updates the global `soundOn` flag, syncs all three button labels
+ * (start, in-game, game-over), and starts/stops music based on current
+ * game state. Wire every sound button to this — never mutate `soundOn`
+ * directly from a UI handler.
+ */
+function setSoundOn(on){
+  soundOn = !!on;
+  const startBtn = document.getElementById('startSoundBtn');
+  const hudBtn   = document.getElementById('soundBtn');
+  const overBtn  = document.getElementById('overSoundBtn');
+  if(startBtn) startBtn.textContent = soundOn ? '\uD83D\uDD0A Music On' : '\uD83D\uDD07 Music Off';
+  if(hudBtn)   hudBtn.textContent   = soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07';
+  if(overBtn)  overBtn.textContent  = soundOn ? '\uD83D\uDD0A Music On' : '\uD83D\uDD07 Music Off';
+  if(soundOn){
+    // Ensure AudioContext is alive (and resumed) inside the user gesture.
+    getAC();
+    if(state === 'playing'){
+      swapToDayMusic(currentCity ? currentCity.name : 'Vancouver');
+    } else if(state === 'start' || state === undefined || state === null){
+      playTitleMusic();
+    }
+    // state === 'gameover' (or any other non-playing screen): intentionally silent.
+  } else {
+    stopMusic();
+  }
 }
 
 const cssW=()=>wrap.clientWidth;
@@ -881,25 +901,9 @@ wrap.addEventListener('touchend',e=>{if(state!=='playing')return;const dx=e.chan
 let mdX=0;
 wrap.addEventListener('mousedown',e=>{if(state==='playing')mdX=e.clientX;});
 wrap.addEventListener('mouseup',e=>{if(state!=='playing')return;const dx=e.clientX-mdX;if(Math.abs(dx)>28){if(dx>0){if(targetLane<2)targetLane++;}else{if(targetLane>0)targetLane--;}}else if(!isJumping)doJump();});
-function toggleSoundFromStart(){
-  soundOn=!soundOn;
-  var btn=document.getElementById('startSoundBtn');
-  if(btn)btn.textContent=soundOn?'🔊 Music On':'🔇 Music Off';
-  document.getElementById('soundBtn').textContent=soundOn?'🔊':'🔇';
-  if(soundOn){getAC();playTitleMusic();}
-  else stopMusic();
-}
-function toggleSoundFromGameOver(){
-  soundOn=!soundOn;
-  var btn=document.getElementById('overSoundBtn');
-  if(btn)btn.textContent=soundOn?'🔊 Music On':'🔇 Music Off';
-  document.getElementById('soundBtn').textContent=soundOn?'🔊':'🔇';
-  if(soundOn){getAC();playTitleMusic();}
-  else stopMusic();
-}
 {
   const osb=document.getElementById('overSoundBtn');
-  if (osb) osb.addEventListener('click',()=>{toggleSoundFromGameOver();});
+  if (osb) osb.addEventListener('click',()=>{ setSoundOn(!soundOn); });
 }
 function doJump(){isJumping=true;jumpVy=JUMP*vScale();sJump();}
 // Calls start-run to create a fresh game_runs row and update currentRunId.
