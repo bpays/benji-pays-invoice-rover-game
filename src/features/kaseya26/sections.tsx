@@ -1,9 +1,9 @@
 import { useScrollReveal } from "./useScrollReveal";
-import benjiLogo from "@/assets/kaseya26/benji-logo.png";
-import halopsaLogo from "@/assets/kaseya26/halopsa.png";
-import scalepadLogo from "@/assets/kaseya26/scalepad.png";
-import monerisLogo from "@/assets/kaseya26/moneris.png";
-import elavonLogo from "@/assets/kaseya26/elavon.png";
+import benjiLogo from "../../assets/kaseya26/benji-logo.png";
+import halopsaLogo from "../../assets/kaseya26/halopsa.png";
+import scalepadLogo from "../../assets/kaseya26/scalepad.png";
+import monerisLogo from "../../assets/kaseya26/moneris.png";
+import elavonLogo from "../../assets/kaseya26/elavon.png";
 
 const PLAY_HREF = "/";
 const LEADERBOARD_HREF = "/leaderboard";

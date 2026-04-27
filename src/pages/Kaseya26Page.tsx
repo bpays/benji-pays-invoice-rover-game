@@ -8,8 +8,8 @@ import {
   PartnerPowerUps,
   FinalCTA,
   Footer,
-} from "@/features/kaseya26/sections";
-import "@/styles/kaseya26.css";
+} from "../features/kaseya26/sections";
+import "../styles/kaseya26.css";
 
 export const Kaseya26Page = () => {
   useEffect(() => {
