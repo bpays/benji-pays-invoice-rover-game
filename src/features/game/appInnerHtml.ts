@@ -99,7 +99,7 @@ export const GAME_APP_INNER_HTML = `<div id="gameViewportBg" class="game-viewpor
     <img class="cta-logo" src="/game/assets/ui/logo-white.svg" alt="Benji Pays" width="420" height="210" decoding="async" />
     <div class="cta-title">Stop Chasing <em>Invoices</em>.<br>Start Getting <em>Paid</em>.</div>
     <div class="cta-sub">Benji Pays automates your entire A/R — invoicing, reminders, collections, and reconciliation. All while keeping your processor.</div>
-    <a class="cta-btn" id="ctaBookBtn" href="https://calendly.com/d/cxs6-fc3-yyv/benji-pays-demo-n-able-empower" target="_blank" rel="noopener noreferrer">Book a Demo →</a>
+    <a class="cta-btn" id="ctaBookBtn" href="https://calendly.com/d/cymg-qwt-gbd/benji-pays-demo-kaseya-connect?month=2026-04" target="_blank" rel="noopener noreferrer">Book a Demo →</a>
     <a class="cta-link" id="ctaLearnBtn" href="https://benjipays.com" target="_blank" rel="noopener noreferrer">Learn more at benjipays.com</a>
     <button class="cta-skip" id="ctaSkipBtn" type="button">Play again ↩</button>
   </div>
