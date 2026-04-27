@@ -1098,7 +1098,10 @@ export function AdminView() {
                                     ? 'Restore this score to public leaderboards?'
                                     : 'Hide this score from public leaderboards? The row will be kept in the database.';
                                   if (!window.confirm(confirmMsg)) return;
-                                  const r = await restApi('PATCH', 'scores', { flagged: !s.flagged }, `id=eq.${s.id}`);
+                                  // Flag/unflag every row tied to the same run (lead-capture row + final score)
+                                  // so the player doesn't reappear on the leaderboard with a 0-score lead row.
+                                  const filter = s.run_id ? `run_id=eq.${s.run_id}` : `id=eq.${s.id}`;
+                                  const r = await restApi('PATCH', 'scores', { flagged: !s.flagged }, filter);
                                   if (r) {
                                     void loadAll();
                                     toastMsg(s.flagged ? 'Restored to leaderboard' : 'Removed from leaderboard');
