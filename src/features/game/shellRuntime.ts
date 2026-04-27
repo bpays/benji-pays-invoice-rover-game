@@ -990,7 +990,7 @@ document.getElementById('playerName').addEventListener('keydown',function(e){ if
 document.getElementById('playerName').addEventListener('input',clearStartFormError);
 document.getElementById('playerEmail').addEventListener('input',clearStartFormError);
 document.getElementById('ctaLearnBtn').addEventListener('click',()=>{window.open('https://benjipays.com','_blank');});
-document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();document.getElementById('ctaScreen').classList.add('hidden');state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');});
+document.getElementById('ctaSkipBtn').addEventListener('click',function(e){e.preventDefault();e.stopPropagation();document.getElementById('ctaScreen').classList.add('hidden');var cp2=cachedPlayer();if(cp2.name&&cp2.email){void beginRun(cp2.name,cp2.email);}else{currentRunId=null;}state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');});
 
 const __gp = { raf: 0, stopped: false };
 // Gamepad indicator + start-screen polling
