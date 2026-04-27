@@ -835,9 +835,10 @@ function gameLoop(timestamp){
   collectibles.forEach(c=>{if(!c.alive)return;const dx=c.x-bx,dy=c.y-by;const r=hr+c.size*.43;if(dx*dx+dy*dy<r*r){c.alive=false;const pts=c.type.pts*multiplier*(doublePoints?2:1);score+=pts;combo++;if(combo>maxCombo)maxCombo=combo;if(combo>=3)multiplier=Math.min(Math.floor(combo/3)+1,4);updateComboUI();sCollect();burst(c.x,c.y,B.good,8);scorePop(c.x,c.y,'+'+pts,B.good);benjiGlow=1;}});
   powerups.forEach(p=>{if(!p.alive)return;const dx=p.x-bx,dy=p.y-by;const r=hr+p.size*.43;if(dx*dx+dy*dy<r*r){p.alive=false;activatePU(p.type);burst(p.x,p.y,B.cooper,14);benjiGlow=1;}});
   ctx.clearRect(0,0,cssW(),cssH());drawBG();
-  collectibles.forEach(c=>{const cy=c.y+Math.sin(c.w)*4;drawCollectBadge(c.x,cy,c.size);ctx.save();ctx.shadowBlur=14;ctx.shadowColor=B.goodGlow;drawCollectibleSprite(c.type,c.x,cy,c.size);ctx.restore();});
-  powerups.forEach(p=>{ctx.save();ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);drawPUSprite(p.type,p.x,p.y,p.size);ctx.restore();drawPartnerBoostBadge(p.x,p.y,p.size);});
-  obstacles.forEach(o=>{drawDodgeBadge(o.x,o.y,o.size);ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;drawObstacleSprite(o.type,o.x,o.y,o.size);ctx.restore();});
+  // Skip ctx.shadowBlur on coarse-pointer devices — biggest single per-draw cost on mobile GPUs.
+  collectibles.forEach(c=>{const cy=c.y+Math.sin(c.w)*4;drawCollectBadge(c.x,cy,c.size);if(__BP_IS_MOBILE){drawCollectibleSprite(c.type,c.x,cy,c.size);}else{ctx.save();ctx.shadowBlur=14;ctx.shadowColor=B.goodGlow;drawCollectibleSprite(c.type,c.x,cy,c.size);ctx.restore();}});
+  powerups.forEach(p=>{ctx.save();if(!__BP_IS_MOBILE){ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;}const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);drawPUSprite(p.type,p.x,p.y,p.size);ctx.restore();drawPartnerBoostBadge(p.x,p.y,p.size);});
+  obstacles.forEach(o=>{drawDodgeBadge(o.x,o.y,o.size);if(__BP_IS_MOBILE){drawObstacleSprite(o.type,o.x,o.y,o.size);}else{ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;drawObstacleSprite(o.type,o.x,o.y,o.size);ctx.restore();}});
   particles.forEach(p=>{ctx.save();ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();ctx.restore();});
   if((isClutch||puWarning)&&!puFlashVisible){/* skip drawing Benji for flash effect */}else{drawBenji(benjiX,benjiY,bs);}
   }catch(err){
