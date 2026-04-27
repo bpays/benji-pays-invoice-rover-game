@@ -607,6 +607,48 @@ export function AdminView() {
     }
   };
 
+  const onToggleBackups = async (next: boolean) => {
+    setBackupTogglingBusy(true);
+    const prev = backupsEnabled;
+    setBackupsEnabled(next);
+    const res = await restApi(
+      'PATCH',
+      'settings',
+      { value: next ? 'true' : 'false', updated_at: new Date().toISOString() },
+      'key=eq.backups_enabled'
+    );
+    setBackupTogglingBusy(false);
+    if (res) {
+      toastMsg(next ? 'Automated backups ON' : 'Automated backups OFF');
+    } else {
+      setBackupsEnabled(prev);
+      toastMsg('Failed to update backup setting', 'err');
+    }
+  };
+
+  const onRunBackupNow = async () => {
+    setBackupBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backup-scores', {
+        body: { force: true },
+      });
+      if (error) throw error;
+      const d = data as { ok?: boolean; filename?: string; row_count?: number; error?: string };
+      if (d?.error) throw new Error(d.error);
+      if (d?.ok && d.filename) {
+        toastMsg(`Backup saved (${d.row_count ?? 0} rows)`);
+        await loadBackupSettings();
+      } else {
+        toastMsg('Backup ran but returned no file', 'err');
+      }
+    } catch (e) {
+      console.error('backup-scores:', e);
+      toastMsg(e instanceof Error ? e.message : 'Backup failed', 'err');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
   const onInvite = async () => {
     setInviteErr('');
     setInviteSuccess('');
