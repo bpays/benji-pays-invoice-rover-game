@@ -60,8 +60,8 @@ export function AdminView() {
   const [mfaVerifyCode, setMfaVerifyCode] = useState('');
 
   const [events, setEvents] = useState<EventRow[]>([]);
-  const [activeEventTag, setActiveEventTag] = useState<string>('nable-empower-2026');
-  const [currentEventKey, setCurrentEventKey] = useState<string>('nable-empower-2026');
+  const [activeEventTag, setActiveEventTag] = useState<string>('');
+  const [currentEventKey, setCurrentEventKey] = useState<string>('');
   const [boardMode, setBoardMode] = useState<'event' | 'daily'>('event');
   const [allScores, setAllScores] = useState<Score[]>([]);
   const [filteredScores, setFilteredScores] = useState<Score[]>([]);
@@ -258,10 +258,13 @@ export function AdminView() {
     const res = (await restApi('GET', 'settings', null, 'key=eq.active_event&select=value')) as
       | { value: string }[]
       | null;
-    if (res?.[0]?.value) {
-      const tag = String(res[0].value).trim();
+    const tag = res?.[0]?.value ? String(res[0].value).trim() : '';
+    if (tag) {
       setActiveEventTag(tag);
       setCurrentEventKey(tag);
+    } else {
+      // No active event configured — fall back to All Events so the dashboard still loads.
+      setCurrentEventKey(ALL_EVENTS_KEY);
     }
   }, []);
 
@@ -277,6 +280,9 @@ export function AdminView() {
 
   useEffect(() => {
     if (screen !== 'app') return;
+    // Don't fetch scores until we know which event to scope to.
+    // currentEventKey is empty on first mount and gets set by loadActiveEvent().
+    if (!currentEventKey) return;
     void loadAll();
   }, [screen, currentEventKey, boardMode, loadAll]);
 
