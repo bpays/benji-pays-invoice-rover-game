@@ -594,15 +594,17 @@ export function AdminView() {
       setTimezoneErr('Select a timezone');
       return;
     }
-    const res = await restApi(
+    const res = (await restApi(
       'PATCH',
       'settings',
       { value: timezoneVal, updated_at: new Date().toISOString() },
       'key=eq.leaderboard_timezone'
-    );
-    if (res) toastMsg('Timezone saved');
-    else {
-      setTimezoneErr('Could not save. Check migration if row is missing.');
+    )) as unknown[] | null;
+    // PATCH against a missing row returns [] (truthy but empty). Treat that as a failure.
+    if (res && Array.isArray(res) && res.length > 0) {
+      toastMsg('Timezone saved');
+    } else {
+      setTimezoneErr('Could not save — settings row missing. Contact an admin.');
       toastMsg('Failed to save', 'err');
     }
   };
