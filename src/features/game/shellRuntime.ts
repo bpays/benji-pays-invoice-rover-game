@@ -159,7 +159,22 @@ let playerId = null; // store player's score row id for later
 let currentRunId = null; // server-issued run id linking start → game over
 
 const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d'),wrap=document.getElementById('gameWrap');
-function resizeCanvas(){const dpr=window.devicePixelRatio||1;const w=wrap.clientWidth;const h=wrap.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+// Mobile/coarse-pointer detection — used to throttle GPU/fillrate cost (DPR cap, no canvas shadows).
+const __BP_IS_MOBILE = (typeof window!=='undefined' && typeof window.matchMedia==='function')
+  ? window.matchMedia('(pointer: coarse)').matches : false;
+function resizeCanvas(){
+  const rawDpr = window.devicePixelRatio || 1;
+  // Cap backing-store DPR: 1.5 on coarse-pointer (phones/tablets), 2 on desktop.
+  // Major win on Retina phones where 3x DPR means ~9x the pixels to fill each frame.
+  const dprCap = __BP_IS_MOBILE ? 1.5 : 2;
+  const dpr = Math.min(rawDpr, dprCap);
+  const w=wrap.clientWidth;const h=wrap.clientHeight;
+  canvas.width=w*dpr;canvas.height=h*dpr;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+let __lastScoreText = -1;
+let __scorePopCount = 0;
 function onWindowResize() {
   resizeCanvas();
   updateGameBleedShades();
