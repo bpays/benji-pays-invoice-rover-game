@@ -229,7 +229,7 @@ export function LeaderboardPage() {
               </a>
             </div>
             <div className="timer-wrap" id="timerSection" style={{ display: activeBoard === 'daily' ? '' : 'none' }}>
-              <div className="timer-lbl">Resets in (EST)</div>
+              <div className="timer-lbl">Resets in</div>
               <div className="timer">
                 <span className="pulse" />
                 <span>{activeBoard === 'daily' ? fmt(dailyResetSeconds) : ''}</span>
