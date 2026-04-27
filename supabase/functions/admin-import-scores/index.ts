@@ -71,9 +71,8 @@ Deno.serve(async (req) => {
       return err(403, "Access restricted to @" + ALLOWED_DOMAIN);
     }
 
-    // Require aal2
-    const { data: aalData } = await callerClient.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aalData?.currentLevel !== "aal2") return err(403, "MFA (aal2) required");
+    // Require aal2 (read directly from JWT claim for reliability)
+    if (getJwtAal(authHeader) !== "aal2") return err(403, "MFA (aal2) required");
 
     // Require admin role
     const { data: callerRoles } = await adminClient
