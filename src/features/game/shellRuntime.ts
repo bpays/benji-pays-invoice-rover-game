@@ -1050,9 +1050,7 @@ const __gp = { raf: 0, stopped: false };
   checkGP();
 })();
 
-  const w = window;
-  w.toggleSoundFromGameOver = toggleSoundFromGameOver;
-  w.toggleSoundFromStart = toggleSoundFromStart;
+  // (Legacy window.toggleSound* hooks removed — all sound toggles now route through setSoundOn internally.)
   __unmountGameShell = function () {
     __gp.stopped = true;
     if (__gp.raf) cancelAnimationFrame(__gp.raf);
