@@ -3,6 +3,21 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const ALLOWED_DOMAIN = "benjipays.com";
 
+function getJwtAal(authHeader: string): string | null {
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
+    const claims = JSON.parse(atob(padded));
+    return typeof claims?.aal === "string" ? claims.aal : null;
+  } catch (_err) {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -45,9 +60,7 @@ Deno.serve(async (req) => {
     const { action, email, role, user_id } = await req.json();
 
     if (action !== "claim") {
-      const { data: aalData, error: aalErr } = await callerClient.auth.mfa
-        .getAuthenticatorAssuranceLevel();
-      if (aalErr || aalData?.currentLevel !== "aal2") {
+      if (getJwtAal(authHeader) !== "aal2") {
         return new Response(
           JSON.stringify({ error: "MFA (aal2) required" }),
           {
