@@ -966,6 +966,9 @@ document.getElementById('playBtn').addEventListener('click',function(){ getAC();
 document.getElementById('retryBtn').addEventListener('click',()=>{
   document.getElementById('gameOverScreen').classList.add('hidden');
   if(playCount>=2){playCount=0;document.getElementById('ctaScreen').classList.remove('hidden');return;}
+  // Fire-and-forget: start a fresh run for accurate duration_s. Don't block gameplay if it fails.
+  const cp=cachedPlayer();
+  if(cp.name && cp.email){ void beginRun(cp.name, cp.email); } else { currentRunId=null; }
   state='playing';lastTime=0;initGame();requestAnimationFrame(gameLoop);if(soundOn)swapToDayMusic('Vancouver');
 });
 document.getElementById('shareBtn').addEventListener('click',()=>{const txt=document.getElementById('shareCopy').textContent;if(navigator.share)navigator.share({text:txt}).catch(()=>{});else navigator.clipboard?.writeText(txt).then(()=>alert('Copied!')).catch(()=>alert(txt));});
