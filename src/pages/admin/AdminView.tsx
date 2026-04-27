@@ -387,6 +387,7 @@ export function AdminView() {
                 return;
               }
             } else if (aal && aal.currentLevel === 'aal2') {
+              try { await supabase.auth.refreshSession(); } catch (e) { console.warn('refreshSession on restore failed', e); }
               await enterApp();
               return;
             }
@@ -449,6 +450,7 @@ export function AdminView() {
       return;
     }
     toastMsg('MFA enabled');
+    try { await supabase.auth.refreshSession(); } catch (e) { console.warn('refreshSession after enroll failed', e); }
     await enterApp();
   };
 
@@ -477,6 +479,7 @@ export function AdminView() {
       setMfaVerifyErr('Invalid code');
       return;
     }
+    try { await supabase.auth.refreshSession(); } catch (e) { console.warn('refreshSession after verify failed', e); }
     await enterApp();
   };
 
