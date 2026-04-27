@@ -5,7 +5,6 @@ import {
   BenjiBlurb,
   HowToPlay,
   CitiesGrid,
-  PartnerPowerUps,
   FinalCTA,
   Footer,
 } from "../features/kaseya26/sections";
@@ -29,8 +28,6 @@ export const Kaseya26Page = () => {
       <HowToPlay />
       <div className="k26-grad-line" />
       <CitiesGrid />
-      <div className="k26-grad-line" />
-      <PartnerPowerUps />
       <div className="k26-grad-line" />
       <FinalCTA />
       <Footer />
