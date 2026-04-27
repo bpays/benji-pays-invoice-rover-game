@@ -1,64 +1,25 @@
-# Automated Scores Backups (Every 3 Hours)
+# Fix: Timezone save silently fails
 
-Add a scheduled backup job that exports the full `scores` table to a CSV file in Lovable Cloud storage every 3 hours, with an on/off toggle in the admin panel.
+## Root cause
 
-## What you'll see
+The `settings` table has no `leaderboard_timezone` row. The admin save uses `PATCH .../settings?key=eq.leaderboard_timezone`, which against a missing row returns HTTP 200 with an empty array `[]`. The current code treats any non-null response as success, so the toast shows "Timezone saved" even though zero rows were updated. On reload, `loadTimezone` finds no row and falls back to the default `America/New_York`.
 
-**Admin page** — new "Backups" card:
-- Toggle: **Automated backups: ON / OFF**
-- Status line: "Last backup: 2026-04-27 14:00 ET — 1,234 rows"
-- "Run backup now" button for an on-demand snapshot
+## Fix
 
-Backup files live in Lovable Cloud storage (accessible via the Cloud → Storage tab) — no in-app browser needed.
+1. **Seed the missing row** in the `settings` table so the timezone has somewhere to be stored:
+   ```
+   INSERT INTO settings (key, value) VALUES ('leaderboard_timezone', 'America/New_York')
+   ON CONFLICT (key) DO NOTHING;
+   ```
+   (Already executed during diagnosis — confirmed present.)
 
-**Behavior:**
-- When ON: a CSV snapshot of `scores` is saved every 3 hours
-- When OFF: schedule still fires but the function exits immediately (no file written)
-- Files named `scores-backup-YYYY-MM-DD-HHmm.csv` (ET timezone)
-- Old backups (>30 days) auto-pruned to keep storage tidy
+2. **Harden `onSaveTz` in `src/pages/admin/AdminView.tsx`** so this class of bug surfaces instead of silently passing:
+   - Treat the response as success only when the returned array has at least one row (PATCH with `Prefer: return=representation` returns the updated rows).
+   - On empty-array response, show a real error toast and inline message ("Could not save — settings row missing").
 
-## Implementation
+This same pattern (PATCH-only for a row that may not exist) also affects `active_event` and the new `backups_*` settings, but those rows already exist now, so the immediate user-visible bug is just the timezone one. The hardened check stays specific to the timezone save for this fix.
 
-### 1. Storage
-Create a private storage bucket `scores-backups`. Files written by the edge function (service role); not exposed to clients.
+## Files touched
 
-### 2. Settings flag
-Add row in `settings` table:
-- `key = 'backups_enabled'`, `value = 'false'` (default off)
-- `key = 'backups_last_run'`, `value = ISO timestamp + row count` (updated by the function)
-
-### 3. Edge function: `backup-scores`
-- Accepts optional `{ force: true }` to bypass the toggle (for the manual button)
-- Reads `settings.backups_enabled` — if `'false'` and not forced, return `{ skipped: true }`
-- Selects all rows from `scores` (paginated, 1000 at a time)
-- Builds CSV with all columns: `id, player_name, email, score, city_reached, city_flag, best_combo, event_tag, run_id, duration_s, flagged, created_at`
-- Uploads to `scores-backups/scores-backup-<timestamp>.csv`
-- Updates `settings.backups_last_run`
-- Prunes files older than 30 days
-
-### 4. Schedule
-`pg_cron` job running every 3 hours, posting to `/functions/v1/backup-scores`.
-
-### 5. Admin UI (`AdminView.tsx`)
-- New "Backups" section after the events controls
-- Toggle writes to `settings.backups_enabled`
-- Shows last-run timestamp + row count
-- "Run backup now" button calls `backup-scores` with `{ force: true }`
-
-## Database changes
-
-```sql
--- seed settings
-insert into settings (key, value) values
-  ('backups_enabled', 'false'),
-  ('backups_last_run', '')
-on conflict (key) do nothing;
-
--- enable pg_cron + pg_net, schedule every 3 hours
-```
-
-## Notes
-
-- Backups capture everything including flagged rows for faithful restore
-- Pairs with the existing `admin-import-scores` function — download a CSV from Cloud storage, re-import to restore
-- Default OFF so it stays quiet between events; flip ON in admin when an event starts
+- `src/pages/admin/AdminView.tsx` — tighten the success check inside `onSaveTz`.
+- DB: `settings` row already inserted.
