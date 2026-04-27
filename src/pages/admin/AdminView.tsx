@@ -1305,6 +1305,45 @@ export function AdminView() {
                 Active event: <strong style={{ color: 'var(--cooper)' }}>{activeEventTag}</strong>
               </div>
             </div>
+
+            <div className="section">
+              <div className="section-title">Backups</div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 640, marginBottom: 12 }}>
+                Automated CSV backups of the <strong>scores</strong> table run every 3 hours when enabled. Files are saved to the <code>scores-backups</code> bucket in Cloud storage and pruned after 30 days. Turn this off between events to save on usage.
+              </p>
+              <div className="btn-row" style={{ alignItems: 'center', gap: 12 }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={backupsEnabled}
+                    disabled={backupTogglingBusy}
+                    onChange={(e) => void onToggleBackups(e.target.checked)}
+                  />
+                  <span>Automated backups: <strong style={{ color: backupsEnabled ? 'var(--cooper)' : 'var(--muted)' }}>{backupsEnabled ? 'ON' : 'OFF'}</strong></span>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={backupBusy}
+                  onClick={() => void onRunBackupNow()}
+                >
+                  {backupBusy ? 'Running…' : 'Run backup now'}
+                </button>
+              </div>
+              <div style={{ marginTop: 12, fontSize: 12, color: 'var(--muted)' }}>
+                {backupsLastRun ? (
+                  <>
+                    Last backup:{' '}
+                    <strong style={{ color: 'var(--text)' }}>
+                      {new Date(backupsLastRun.at).toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' })} ET
+                    </strong>{' '}
+                    — {backupsLastRun.row_count.toLocaleString()} rows · <code>{backupsLastRun.filename}</code>
+                  </>
+                ) : (
+                  <>No backups yet.</>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
