@@ -633,6 +633,26 @@ export function AdminView() {
     }
   };
 
+  const loadBackupsList = useCallback(async (limit?: number) => {
+    setBackupsListBusy(true);
+    try {
+      const sinceMs = Date.now() - 2 * 24 * 60 * 60 * 1000;
+      const { data, error } = await supabase.functions.invoke('backup-scores', {
+        body: { action: 'list', since_ms: sinceMs, limit: limit ?? backupsListLimit, offset: 0 },
+      });
+      if (error) throw error;
+      const d = data as { items?: { name: string; created_at: string | null; size: number | null }[]; total?: number; error?: string };
+      if (d?.error) throw new Error(d.error);
+      setBackupsList(d.items || []);
+      setBackupsListTotal(d.total || 0);
+    } catch (e) {
+      console.error('list backups:', e);
+      toastMsg(e instanceof Error ? e.message : 'Could not load backups list', 'err');
+    } finally {
+      setBackupsListBusy(false);
+    }
+  }, [backupsListLimit]);
+
   const onRunBackupNow = async () => {
     setBackupBusy(true);
     try {
@@ -645,6 +665,7 @@ export function AdminView() {
       if (d?.ok && d.filename) {
         toastMsg(`Backup saved (${d.row_count ?? 0} rows)`);
         await loadBackupSettings();
+        await loadBackupsList();
       } else {
         toastMsg('Backup ran but returned no file', 'err');
       }
@@ -654,6 +675,36 @@ export function AdminView() {
     } finally {
       setBackupBusy(false);
     }
+  };
+
+  const onDownloadBackup = async (filename: string) => {
+    setDownloadingName(filename);
+    try {
+      const { data, error } = await supabase.functions.invoke('backup-scores', {
+        body: { action: 'download', filename },
+      });
+      if (error) throw error;
+      const d = data as { url?: string; error?: string };
+      if (d?.error || !d?.url) throw new Error(d?.error || 'No URL returned');
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = d.url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      console.error('download backup:', e);
+      toastMsg(e instanceof Error ? e.message : 'Download failed', 'err');
+    } finally {
+      setDownloadingName(null);
+    }
+  };
+
+  const onLoadMoreBackups = async () => {
+    const next = backupsListLimit + 10;
+    setBackupsListLimit(next);
+    await loadBackupsList(next);
   };
 
   const onInvite = async () => {
