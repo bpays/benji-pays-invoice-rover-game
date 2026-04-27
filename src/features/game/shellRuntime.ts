@@ -163,12 +163,17 @@ const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d'),w
 const __BP_IS_MOBILE = (typeof window!=='undefined' && typeof window.matchMedia==='function')
   ? window.matchMedia('(pointer: coarse)').matches : false;
 function resizeCanvas(){
+  const w=wrap.clientWidth;const h=wrap.clientHeight;
+  // Defer if layout hasn't settled — prevents locking in a degenerate (300x150 default) backing store.
+  if (w === 0 || h === 0) {
+    requestAnimationFrame(resizeCanvas);
+    return;
+  }
   const rawDpr = window.devicePixelRatio || 1;
   // Cap backing-store DPR: 1.5 on coarse-pointer (phones/tablets), 2 on desktop.
   // Major win on Retina phones where 3x DPR means ~9x the pixels to fill each frame.
   const dprCap = __BP_IS_MOBILE ? 1.5 : 2;
   const dpr = Math.min(rawDpr, dprCap);
-  const w=wrap.clientWidth;const h=wrap.clientHeight;
   canvas.width=w*dpr;canvas.height=h*dpr;
   canvas.style.width=w+'px';canvas.style.height=h+'px';
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -180,7 +185,19 @@ function onWindowResize() {
   updateGameBleedShades();
   syncGameBleedImage();
 }
+// Initial measure: now (sync) + next frame (post-layout) so the canvas backing store
+// matches the wrap from the very first paint, even if no resize event ever fires.
+resizeCanvas();
+requestAnimationFrame(() => { onWindowResize(); });
 window.addEventListener('resize', onWindowResize);
+window.addEventListener('orientationchange', onWindowResize);
+const __vv = (typeof window !== 'undefined') ? window.visualViewport : null;
+if (__vv) __vv.addEventListener('resize', onWindowResize);
+// Catches any wrap size change: font load reflow, loader removal, dvh resolving,
+// safe-area insets settling, etc. — without it, the canvas can stay narrower than
+// the visible CSS box, producing a right-side gap on mobile.
+const __wrapRO = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(() => onWindowResize()) : null;
+if (__wrapRO) __wrapRO.observe(wrap);
 const onWinKeydownGame=e=>{if(state!=='playing')return;if(e.key==='ArrowLeft'||e.key==='a'){if(targetLane>0)targetLane--;}if(e.key==='ArrowRight'||e.key==='d'){if(targetLane<2)targetLane++;}if((e.key==='ArrowUp'||e.key==='w'||e.key===' ')&&!isJumping)doJump();};
 window.addEventListener('keydown',onWinKeydownGame);
 
