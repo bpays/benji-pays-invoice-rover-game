@@ -159,7 +159,22 @@ let playerId = null; // store player's score row id for later
 let currentRunId = null; // server-issued run id linking start → game over
 
 const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d'),wrap=document.getElementById('gameWrap');
-function resizeCanvas(){const dpr=window.devicePixelRatio||1;const w=wrap.clientWidth;const h=wrap.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+// Mobile/coarse-pointer detection — used to throttle GPU/fillrate cost (DPR cap, no canvas shadows).
+const __BP_IS_MOBILE = (typeof window!=='undefined' && typeof window.matchMedia==='function')
+  ? window.matchMedia('(pointer: coarse)').matches : false;
+function resizeCanvas(){
+  const rawDpr = window.devicePixelRatio || 1;
+  // Cap backing-store DPR: 1.5 on coarse-pointer (phones/tablets), 2 on desktop.
+  // Major win on Retina phones where 3x DPR means ~9x the pixels to fill each frame.
+  const dprCap = __BP_IS_MOBILE ? 1.5 : 2;
+  const dpr = Math.min(rawDpr, dprCap);
+  const w=wrap.clientWidth;const h=wrap.clientHeight;
+  canvas.width=w*dpr;canvas.height=h*dpr;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+let __lastScoreText = -1;
+let __scorePopCount = 0;
 function onWindowResize() {
   resizeCanvas();
   updateGameBleedShades();
@@ -507,7 +522,7 @@ const laneX=l=>{const w=cssW(),lp=w*.08,lw=(w-lp*2)/3;return lp+lw*l+lw/2;};
 const groundY=()=>cssH()*.78;
 const benjiSz=()=>Math.min(cssW()*.13,48*vScale());
 
-function initGame(){score=0;combo=0;maxCombo=0;multiplier=1;isNight=false;nightTimer=0;shieldActive=false;shieldTimer=0;speedBoost=false;speedBoostTimer=0;doublePoints=false;doublePointsTimer=0;clutchUsed=false;isClutch=false;clutchTimer=0;clutchStrobeT=0;isFinalDeath=false;puWarning=false;puFlashTimer=0;puFlashVisible=true;activePUTimer=0;activePUName=null;frameCount=0;benjiAnimT=0;distance=0;gameElapsed=0;currentCity=CITIES[0];lastCity=null;targetLane=1;benjiX=laneX(1);benjiGlow=0;isJumping=false;jumpVy=0;benjiBaseY=groundY()-benjiSz()*.52;benjiY=benjiBaseY;obstacles=[];collectibles=[];powerups=[];particles=[];groundLines=[];spawnT=0;colT=0;puT=0;legendT=0;legendFaded=false;skylineOff=0;document.getElementById('ingameLegend').classList.remove('fade');document.getElementById('scoreDisplay').textContent='0';document.getElementById('nightOverlay').style.opacity='0';updateComboUI();updateLivesUI();const gy=groundY();for(let i=0;i<8;i++)groundLines.push({y:gy+Math.random()*cssH()*.2,speed:.35+Math.random()*.35});setTimeout(()=>showCityBanner(CITIES[0]),600);syncGameBleedImage();}
+function initGame(){__lastScoreText=-1;__scorePopCount=0;score=0;combo=0;maxCombo=0;multiplier=1;isNight=false;nightTimer=0;shieldActive=false;shieldTimer=0;speedBoost=false;speedBoostTimer=0;doublePoints=false;doublePointsTimer=0;clutchUsed=false;isClutch=false;clutchTimer=0;clutchStrobeT=0;isFinalDeath=false;puWarning=false;puFlashTimer=0;puFlashVisible=true;activePUTimer=0;activePUName=null;frameCount=0;benjiAnimT=0;distance=0;gameElapsed=0;currentCity=CITIES[0];lastCity=null;targetLane=1;benjiX=laneX(1);benjiGlow=0;isJumping=false;jumpVy=0;benjiBaseY=groundY()-benjiSz()*.52;benjiY=benjiBaseY;obstacles=[];collectibles=[];powerups=[];particles=[];groundLines=[];spawnT=0;colT=0;puT=0;legendT=0;legendFaded=false;skylineOff=0;document.getElementById('ingameLegend').classList.remove('fade');document.getElementById('scoreDisplay').textContent='0';document.getElementById('nightOverlay').style.opacity='0';updateComboUI();updateLivesUI();const gy=groundY();for(let i=0;i<8;i++)groundLines.push({y:gy+Math.random()*cssH()*.2,speed:.35+Math.random()*.35});setTimeout(()=>showCityBanner(CITIES[0]),600);syncGameBleedImage();}
 
 const SPAWN_CLEAR_PAD=8;
 function entityClearanceRadius(e,isObs){return e.size*(isObs?0.38:0.43);}
@@ -542,7 +557,7 @@ function spawnPU(){
   return true;
 }
 function burst(x,y,col,n=8){for(let i=0;i<n;i++){const a=(Math.PI*2*i)/n+Math.random()*.4,sp=2+Math.random()*4;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,color:col,alpha:1,size:2.5+Math.random()*3.5,life:1});}}
-function scorePop(x,y,text,col){const el=document.createElement('div');el.className='score-pop';el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';el.style.color=col||B.good;wrap.appendChild(el);setTimeout(()=>el.remove(),860);}
+function scorePop(x,y,text,col){const el=document.createElement('div');el.className='score-pop';el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';el.style.color=col||B.good;wrap.appendChild(el);__scorePopCount++;setTimeout(()=>{el.remove();__scorePopCount=Math.max(0,__scorePopCount-1);},860);}
 function activatePU(t){sPU();document.getElementById('puName').textContent=t.name;document.getElementById('puEffect').textContent=t.effect;const b=document.getElementById('powerupBanner');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2200);
   if(t.id==='moneris'){obstacles.forEach(o=>o.alive=false);burst(cssW()/2,cssH()/2,B.cooper,20);return;}
   benjiGlow=1;activePUName=t.name;activePUTimer=t.dur;puWarning=false;puFlashVisible=true;
@@ -795,7 +810,8 @@ function gameLoop(timestamp){
   }
   if(!legendFaded){legendT++;if(legendT>300){document.getElementById('ingameLegend').classList.add('fade');legendFaded=true;}}
   score+=(0.044*(spd/baseSpd))*multiplier*(doublePoints?2:1)*delta;distance+=spd*delta;
-  document.getElementById('scoreDisplay').textContent=Math.floor(score);
+  const __scoreInt=Math.floor(score);
+  if(__scoreInt!==__lastScoreText){document.getElementById('scoreDisplay').textContent=__scoreInt;__lastScoreText=__scoreInt;}
   const nc=getCity(Math.floor(score));if(nc!==currentCity){currentCity=nc;if(lastCity!==nc){showCityBanner(nc);lastCity=nc;if(soundOn) swapToDayMusic(nc.name);}syncGameBleedImage();}
   const spawnTight=Math.min(Math.floor(Math.min(tRun,480)/20),12);
   spawnT+=delta;const sr=Math.max(70-Math.floor(score/200)-spawnTight,32);if(spawnT>=sr){if(!spawnObs())spawnT=sr*.5;else spawnT=0;}
@@ -807,21 +823,22 @@ function gameLoop(timestamp){
   if(collectibles.length>MAX_COL){collectibles.slice(0,collectibles.length-MAX_COL).forEach(c=>{c.alive=false;});collectibles=collectibles.filter(c=>c.alive);}
   if(powerups.length>MAX_PU){powerups.slice(0,powerups.length-MAX_PU).forEach(p=>{p.alive=false;});powerups=powerups.filter(p=>p.alive);}
   if(particles.length>MAX_PART)particles=particles.slice(particles.length-MAX_PART);
-  // Cap score-pop DOM elements
-  const pops=wrap.querySelectorAll('.score-pop');if(pops.length>12){for(let i=0;i<pops.length-12;i++)pops[i].remove();}
+  // Cap score-pop DOM elements (only query DOM when in-memory counter signals overflow)
+  if(__scorePopCount>12){const pops=wrap.querySelectorAll('.score-pop');for(let i=0;i<pops.length-12;i++)pops[i].remove();}
   obstacles=obstacles.filter(o=>{if(!o.alive)return false;o.y+=spd*delta;o.x=laneX(o.lane);return o.y<cssH()+70;});
   collectibles=collectibles.filter(c=>{if(!c.alive)return false;c.y+=spd*delta;c.w+=.07*delta;c.x=laneX(c.lane);return c.y<cssH()+70;});
   powerups=powerups.filter(p=>{if(!p.alive)return false;p.y+=spd*delta;p.pulse+=.09*delta;p.x=laneX(p.lane);return p.y<cssH()+70;});
   groundLines.forEach(gl=>{gl.y+=gl.speed*(spd/baseSpd)*delta;if(gl.y>cssH()+20)gl.y=gy+5;});
   particles=particles.filter(p=>{p.x+=p.vx*delta;p.y+=p.vy*delta;p.vy+=.14*delta;p.life-=.024*delta;p.alpha=p.life;return p.life>0;});
   const bx=benjiX,by=benjiY,hr=bs*.36;
-  obstacles.forEach(o=>{if(!o.alive)return;const dx=o.x-bx,dy=o.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+o.size*.38){if(shieldActive){o.alive=false;burst(o.x,o.y,B.cerulean,6);}else if(isClutch){/* still invincible from clutch */}else if(!clutchUsed){o.alive=false;clutchUsed=true;isClutch=true;clutchTimer=90;clutchStrobeT=0;puFlashVisible=true;combo=0;multiplier=1;updateComboUI();updateLivesUI();sHit();burst(o.x,o.y,B.bad,8);}else{o.alive=false;isClutch=true;clutchTimer=60;isFinalDeath=true;clutchStrobeT=0;puFlashVisible=true;sHit();burst(o.x,o.y,B.bad,12);}}});
-  collectibles.forEach(c=>{if(!c.alive)return;const dx=c.x-bx,dy=c.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+c.size*.43){c.alive=false;const pts=c.type.pts*multiplier*(doublePoints?2:1);score+=pts;combo++;if(combo>maxCombo)maxCombo=combo;if(combo>=3)multiplier=Math.min(Math.floor(combo/3)+1,4);updateComboUI();sCollect();burst(c.x,c.y,B.good,8);scorePop(c.x,c.y,'+'+pts,B.good);benjiGlow=1;}});
-  powerups.forEach(p=>{if(!p.alive)return;const dx=p.x-bx,dy=p.y-by;if(Math.sqrt(dx*dx+dy*dy)<hr+p.size*.43){p.alive=false;activatePU(p.type);burst(p.x,p.y,B.cooper,14);benjiGlow=1;}});
+  obstacles.forEach(o=>{if(!o.alive)return;const dx=o.x-bx,dy=o.y-by;const r=hr+o.size*.38;if(dx*dx+dy*dy<r*r){if(shieldActive){o.alive=false;burst(o.x,o.y,B.cerulean,6);}else if(isClutch){/* still invincible from clutch */}else if(!clutchUsed){o.alive=false;clutchUsed=true;isClutch=true;clutchTimer=90;clutchStrobeT=0;puFlashVisible=true;combo=0;multiplier=1;updateComboUI();updateLivesUI();sHit();burst(o.x,o.y,B.bad,8);}else{o.alive=false;isClutch=true;clutchTimer=60;isFinalDeath=true;clutchStrobeT=0;puFlashVisible=true;sHit();burst(o.x,o.y,B.bad,12);}}});
+  collectibles.forEach(c=>{if(!c.alive)return;const dx=c.x-bx,dy=c.y-by;const r=hr+c.size*.43;if(dx*dx+dy*dy<r*r){c.alive=false;const pts=c.type.pts*multiplier*(doublePoints?2:1);score+=pts;combo++;if(combo>maxCombo)maxCombo=combo;if(combo>=3)multiplier=Math.min(Math.floor(combo/3)+1,4);updateComboUI();sCollect();burst(c.x,c.y,B.good,8);scorePop(c.x,c.y,'+'+pts,B.good);benjiGlow=1;}});
+  powerups.forEach(p=>{if(!p.alive)return;const dx=p.x-bx,dy=p.y-by;const r=hr+p.size*.43;if(dx*dx+dy*dy<r*r){p.alive=false;activatePU(p.type);burst(p.x,p.y,B.cooper,14);benjiGlow=1;}});
   ctx.clearRect(0,0,cssW(),cssH());drawBG();
-  collectibles.forEach(c=>{const cy=c.y+Math.sin(c.w)*4;drawCollectBadge(c.x,cy,c.size);ctx.save();ctx.shadowBlur=14;ctx.shadowColor=B.goodGlow;drawCollectibleSprite(c.type,c.x,cy,c.size);ctx.restore();});
-  powerups.forEach(p=>{ctx.save();ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);drawPUSprite(p.type,p.x,p.y,p.size);ctx.restore();drawPartnerBoostBadge(p.x,p.y,p.size);});
-  obstacles.forEach(o=>{drawDodgeBadge(o.x,o.y,o.size);ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;drawObstacleSprite(o.type,o.x,o.y,o.size);ctx.restore();});
+  // Skip ctx.shadowBlur on coarse-pointer devices — biggest single per-draw cost on mobile GPUs.
+  collectibles.forEach(c=>{const cy=c.y+Math.sin(c.w)*4;drawCollectBadge(c.x,cy,c.size);if(__BP_IS_MOBILE){drawCollectibleSprite(c.type,c.x,cy,c.size);}else{ctx.save();ctx.shadowBlur=14;ctx.shadowColor=B.goodGlow;drawCollectibleSprite(c.type,c.x,cy,c.size);ctx.restore();}});
+  powerups.forEach(p=>{ctx.save();if(!__BP_IS_MOBILE){ctx.shadowBlur=16+Math.sin(p.pulse)*6;ctx.shadowColor=B.puGlow;}const sc=1+Math.sin(p.pulse)*.07;ctx.translate(p.x,p.y);ctx.scale(sc,sc);ctx.translate(-p.x,-p.y);drawPUSprite(p.type,p.x,p.y,p.size);ctx.restore();drawPartnerBoostBadge(p.x,p.y,p.size);});
+  obstacles.forEach(o=>{drawDodgeBadge(o.x,o.y,o.size);if(__BP_IS_MOBILE){drawObstacleSprite(o.type,o.x,o.y,o.size);}else{ctx.save();ctx.shadowBlur=13;ctx.shadowColor=B.badGlow;drawObstacleSprite(o.type,o.x,o.y,o.size);ctx.restore();}});
   particles.forEach(p=>{ctx.save();ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();ctx.restore();});
   if((isClutch||puWarning)&&!puFlashVisible){/* skip drawing Benji for flash effect */}else{drawBenji(benjiX,benjiY,bs);}
   }catch(err){
