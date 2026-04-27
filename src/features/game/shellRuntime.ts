@@ -921,12 +921,12 @@ wrap.addEventListener('touchstart',e=>{
 },{passive:true});
 wrap.addEventListener('touchmove',e=>{
   if(state!=='playing')return;
+  if(swipedX)return;           // one lane change per gesture
   const t=e.touches[0];
   const dx=t.clientX-txS,dy=t.clientY-tyS;
-  // Fire as soon as horizontal threshold is crossed; re-anchor so a long drag chains lanes.
   if(Math.abs(dx)>SWIPE_PX&&Math.abs(dx)>Math.abs(dy)){
     if(dx>0){if(targetLane<2)targetLane++;}else{if(targetLane>0)targetLane--;}
-    txS=t.clientX;tyS=t.clientY;swipedX=true;
+    swipedX=true;
   }
 },{passive:true});
 wrap.addEventListener('touchend',e=>{
