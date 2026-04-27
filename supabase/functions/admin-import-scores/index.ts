@@ -13,6 +13,20 @@ const MAX_SCORE = 100000;
 const MAX_COMBO = 500;
 const MAX_BATCH = 1000;
 
+function getJwtAal(authHeader: string): string | null {
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
+    const claims = JSON.parse(atob(padded));
+    return typeof claims?.aal === "string" ? claims.aal : null;
+  } catch (_err) {
+    return null;
+  }
+}
+
 type Row = {
   player_name: string;
   email: string;
@@ -57,9 +71,8 @@ Deno.serve(async (req) => {
       return err(403, "Access restricted to @" + ALLOWED_DOMAIN);
     }
 
-    // Require aal2
-    const { data: aalData } = await callerClient.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aalData?.currentLevel !== "aal2") return err(403, "MFA (aal2) required");
+    // Require aal2 (read directly from JWT claim for reliability)
+    if (getJwtAal(authHeader) !== "aal2") return err(403, "MFA (aal2) required");
 
     // Require admin role
     const { data: callerRoles } = await adminClient
